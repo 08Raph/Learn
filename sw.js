@@ -1,5 +1,5 @@
 /* Offline support: app shell is cached on first visit; updates are fetched in the background. */
-const VER = 'learn-v2.3';
+const VER = 'learn-v3.1';
 const SHELL = ['./', 'index.html', 'manifest.json', 'favicon.png', 'icon-192.png', 'icon-512.png', 'icon-maskable-512.png', 'apple-touch-icon.png'];
 self.addEventListener('install', (e) => {
   e.waitUntil(caches.open(VER).then((c) => Promise.all(SHELL.map((u) => c.add(new Request(u, { cache: 'reload' })).catch(() => {})))).then(() => self.skipWaiting()));

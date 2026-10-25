@@ -60,3 +60,28 @@ Update 2.3: Fortnite-style party lobby
 - duelPartyView shows one slot per team size (2/3/4) with each member's 3D avatar (cached Av3D.snapshot images), name tag, gold platform for you, dashed "+" for open slots (tap = scroll to friend invites).
 - Party members now carry their avatar (av) in party/<leader>/m/<uid>. Old clients show a default avatar.
 - APP_VERSION = '2.3', patch notes entry added, sw.js VER = learn-v2.3.
+
+Update 2.4: achievements, cosmetics, shop, language fixes
+- Achievements: ~114, each gives XP by difficulty (Easy 10, Medium 25, Hard 50, Epic 100, Legendary 250). badgeXp() is added inside xp(). Counters live in S.cnt (runs, hints, speed, perfect, daily, theme, night/early/weekend flags).
+- Avatar: new categories style, mouth, eyes, glasses, back, stage; ~140 new items; all defined in AVATAR_ITEMS + Av3D VALID/SHIRT_VARIANTS/PANTS_VARIANTS/STAGES. Thumbnails render lazily (fillThumbs).
+- Shop: more emotes, animated emojis, animated text, banners, accents, titles, confetti.
+- Java/Go/Rust/PHP/Ruby/Swift/Kotlin/Bash: rewritten lessons (12 each) + ordered-token answer check (staticCoverage uses LCS against the starter).
+- Fixes: quiz options are now shuffled deterministically per lesson, wrong TS quiz answer, duplicate reward ids, "+3 XP" pill on repeat answers, cloud sync now includes avatar/avatarOwned/redeemed/cnt, speed-round heading.
+- APP_VERSION = '2.4', sw.js VER = learn-v2.4.
+
+Merge note (2.5): combined 08Raph_Learn_All_In_One (Terminal Basics track + Workspace/Package Explorer, sw VER 2.7) with the 2.4 achievements/cosmetics/shop/lesson work. Where both changed the same lines, the All_In_One version was kept and the achievements/shuffle/bump hooks were re-attached on top. Fixed: terminal step list called esc() outside its scope. APP_VERSION = '2.5', sw.js VER = learn-v2.8. workspace.js is the standalone copy of the Workspace code that is already inlined in index.html.
+
+Update 2.6: online code runner + extra-question fix
+- Java, Go, Rust, PHP, Ruby, Swift, Kotlin and Bash run through free public code-execution services (Judge0 CE, then Piston, then Wandbox). See RemoteRun in index.html. They need internet; offline, lessons are compared to the solution instead.
+- Extra practice questions are clickable again (the lesson-check handler had been disabling them).
+- Terminal Basics: example/solution start from a clean terminal.
+- sw.js cache bumped to learn-v2.9: open the site twice (or hard refresh) to get the new version.
+
+Update 2.7: capstone "Deploying to the Cloud"
+- New track (home page > Capstone): 8 lessons, a 3-stage CI/CD dashboard (lint, build, edge upload), real HTML/CSS/JS linting, Build Failed report, unique live URL, browser preview window, deployment history with rollback.
+- See CLOUD_DASHBOARD.md for the state machine and styling guidelines.
+- sw.js cache is now learn-v3.0.
+
+Update 2.8: Bug hunt + Projects tabs
+- 40 new lessons (2 bug hunt + 2 projects) for Java, Go, Rust, PHP, Ruby, Swift, Kotlin, Bash, Terminal Basics and Deploying to the Cloud. See LESSONS_DEBUG_PROJECTS in index.html.
+- sw.js cache is now learn-v3.1.
