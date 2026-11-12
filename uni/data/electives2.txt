@@ -1,0 +1,1864 @@
+#COURSE gd102
+#LESSON Pixels, coordinates and rasterisation | 12
+A screen is a grid of **pixels**, each storing a colour as red, green and blue intensities, usually 0 to 255 each. **Computer graphics** is the business of deciding the colour of every pixel, many times a second.
+
+### Coordinates
+Screen coordinates usually start at the **top-left**, with x growing to the right and y growing **downwards**. Mathematics and most 3D systems have y growing upwards, so a flip is needed somewhere, and getting it wrong draws the world upside down.
+
+Objects are described in their own **local** coordinates, placed in the **world**, seen from a **camera**, and finally mapped to the **screen**. Each step is a change of coordinate system.
+
+### The frame buffer
+The image being built lives in memory as a **frame buffer**: one entry per pixel. To avoid showing a half-drawn picture, programs draw into a hidden **back buffer** and swap it with the visible one when the frame is complete (**double buffering**).
+
+### Rasterisation
+Shapes are described by geometry (a line between two points, a triangle with three corners). **Rasterisation** converts geometry into pixels.
+
+**Lines.** Bresenham's algorithm steps along the longer axis one pixel at a time and decides, using only whole-number arithmetic, when to step on the other axis.
+
+**Triangles.** Almost everything in real-time graphics is made of triangles, because three points always lie in one plane. To fill one, test each pixel in its bounding box: is the pixel's centre inside?
+
+### Barycentric coordinates
+Any point P inside a triangle ABC can be written as a weighted average of the corners:
+
+```text
+P = u·A + v·B + w·C      with   u + v + w = 1
+```
+
+The weights (u, v, w) are the **barycentric coordinates**. P is inside the triangle exactly when all three are between 0 and 1. They do double duty: the same weights **interpolate** any value stored at the corners, such as colour, depth or texture position, smoothly across the surface.
+
+### Aliasing
+Pixels are discrete, so slanted edges look like staircases (**aliasing**, or "jaggies"). **Anti-aliasing** softens them by letting a pixel that is partly covered take a blended colour, for example by sampling several points inside each pixel.
+
+### Colour and blending
+Colours are often stored with a fourth value, **alpha**, for opacity. Drawing a translucent colour over a background blends them:
+
+```text
+result = alpha × source + (1 − alpha) × background
+```
+
+This is linear interpolation, the most used operation in graphics.
+
+> Key idea: Graphics turns geometry into pixel colours. Triangles, barycentric weights and interpolation do most of the work.
+#Q When is a point inside a triangle, in terms of its barycentric coordinates?
+- When their sum is zero
+* When all three are between 0 and 1 (and they sum to 1)
+- When exactly one is negative
+! A negative weight means the point lies outside one of the edges.
+#Q Why do programs draw to a back buffer and then swap?
+- To use less memory
+* So the viewer never sees a partly drawn frame
+- To make colours brighter
+! Double buffering shows only complete frames.
+
+#LESSON Transformations and matrices | 13
+Moving, turning and resizing objects are **transformations**. Graphics expresses every one of them as a matrix, so that they can be combined by multiplication and applied to thousands of points uniformly.
+
+### The basic transformations in 2D
+```text
+scale by (sx, sy):      x' = sx·x            y' = sy·y
+rotate by angle θ:      x' = x·cos θ − y·sin θ
+                        y' = x·sin θ + y·cos θ
+translate by (tx, ty):  x' = x + tx          y' = y + ty
+```
+
+Scaling and rotation are **linear**: they can be written as a 2 × 2 matrix. Translation cannot, because a matrix always leaves the origin where it is.
+
+### Homogeneous coordinates
+The fix is to add a third coordinate that is always 1, writing the point as (x, y, 1). Now translation is a matrix too:
+
+```text
+| 1  0  tx |   | x |   | x + tx |
+| 0  1  ty | × | y | = | y + ty |
+| 0  0  1  |   | 1 |   |   1    |
+```
+
+Every transformation is now a 3 × 3 matrix (4 × 4 in 3D), and a sequence of them **multiplies into a single matrix**. A model with a million points is transformed by one matrix, however many steps produced it.
+
+### Order matters
+Matrix multiplication is not commutative. "Rotate, then translate" spins an object in place and moves it. "Translate, then rotate" swings it round the origin in an arc. With column vectors, the matrix written **nearest the point is applied first**: `M = T · R` means rotate, then translate.
+
+To rotate about a point other than the origin: translate that point to the origin, rotate, translate back.
+
+### Hierarchies
+A hand is attached to an arm attached to a body. Each part stores its transformation **relative to its parent**; its world transformation is the product down the chain. Move the body and everything attached follows. This is a **scene graph**, and it is how characters, vehicles and user interfaces are organised.
+
+### Into three dimensions
+3D adds a z axis and uses 4 × 4 matrices. Rotation becomes subtler: there are three axes, and combining rotations about them in sequence (Euler angles) can lose a degree of freedom, a failure called **gimbal lock**. Engines therefore store orientation as a **quaternion**, which interpolates smoothly and avoids the problem.
+
+### Normals
+A surface's **normal** is the direction it faces, needed for lighting. Normals are directions, not positions: they are not translated, and under non-uniform scaling they need the inverse transpose of the matrix to stay perpendicular.
+
+> Key idea: Adding one coordinate turns every transformation into a matrix. Combining transformations is then multiplication, and the order decides the result.
+#Q Why are homogeneous coordinates used?
+- They make images sharper
+* They let translation be expressed as a matrix, so all transformations combine by multiplication
+- They remove the need for rotation
+! A plain 2 × 2 matrix cannot move the origin.
+#Q An object should spin in place and then be moved to its position. With column vectors, which matrix product does that?
+* M = T · R (rotation applied first)
+- M = R · T
+- The order does not matter
+! The matrix nearest the point acts first.
+
+#LESSON The 3D pipeline: camera, projection and depth | 13
+Drawing a 3D scene is a fixed sequence of steps, the **graphics pipeline**.
+
+```diagram
+   model coordinates
+        |  model matrix        place the object in the world
+   world coordinates
+        |  view matrix         move the world so the camera is at the origin
+   camera coordinates
+        |  projection matrix   flatten 3D to 2D with perspective
+   clip coordinates  --> divide by w -->  normalised device coordinates
+        |  viewport transform
+   screen pixels  -->  rasterise  -->  shade each pixel
+```
+
+### The camera
+There is no camera object in the mathematics. Instead of moving a camera through the world, we apply the **inverse** transformation to the world, so that the camera sits at the origin looking down an axis. That is the **view matrix**.
+
+### Perspective
+Distant things look smaller. With the camera at the origin and a screen at distance d, similar triangles give:
+
+```text
+screen_x = d · x / z          screen_y = d · y / z
+```
+
+Dividing by depth is the whole of perspective. The projection matrix arranges for this division to happen (the "divide by w" step). An **orthographic** projection omits the division: sizes do not change with distance, as in engineering drawings and many 2D games.
+
+The **field of view** is the angle the camera sees. The visible volume, a pyramid with its top cut off, is the **view frustum**, bounded by a **near** and a **far** plane.
+
+### Clipping and culling
+- **Clipping** discards or trims geometry outside the frustum.
+- **Back-face culling** skips triangles that face away from the camera, which for a closed object is about half of them.
+- **Frustum culling** skips whole objects outside the view, using a cheap bounding volume.
+
+Not drawing something is the best optimisation there is.
+
+### The depth buffer
+When two surfaces cover the same pixel, the nearer one must win. The **depth buffer** (z-buffer) stores, for every pixel, the depth of the nearest surface drawn so far. A new fragment is kept only if it is nearer. Objects can then be drawn in any order.
+
+Depth precision is finite and concentrated near the camera. Two surfaces very close together far away can flicker as rounding errors change the winner: **z-fighting**. Keeping the near plane as far out as you can helps.
+
+Transparent surfaces are the exception: they must be drawn after the opaque ones, sorted from far to near, because blending depends on order.
+
+### What runs where
+The **vertex** stage transforms each corner of each triangle. The **rasteriser** finds the pixels each triangle covers and interpolates values across it. The **fragment** stage computes a colour for each of those pixels. On a modern GPU the vertex and fragment stages are small programs called **shaders**.
+
+> Key idea: Model, view and projection matrices take a point from the object to the screen. Perspective is a division by depth, and the depth buffer sorts out what is in front.
+#Q What produces the perspective effect that distant objects look smaller?
+- Rotating the camera
+* Dividing the x and y coordinates by the depth
+- Increasing the resolution
+! Similar triangles give screen position proportional to 1/z.
+#Q What does the depth buffer store?
+- The colour of each pixel
+* For each pixel, the depth of the nearest surface drawn so far
+- The list of triangles
+! It lets surfaces be drawn in any order and still overlap correctly.
+
+#LESSON Light, shading and textures | 13
+Geometry gives shape. **Shading** gives the appearance: how bright and what colour each point looks, given the lights and the material.
+
+### Diffuse reflection
+A matte surface scatters light equally in all directions. How bright it looks depends only on the angle at which the light strikes it. **Lambert's law**:
+
+```text
+diffuse = max(0, N · L)
+```
+
+N is the unit surface normal and L the unit direction toward the light. Their dot product is the cosine of the angle between them: 1 when the light hits head on, 0 when it grazes the surface. The `max` stops surfaces facing away from the light going negative.
+
+### Specular highlights
+Shiny surfaces also reflect light in a preferred direction, producing a bright spot that moves as the viewer moves. The Phong and Blinn-Phong models add a term that is large when the viewer is near the mirror direction, raised to a power that controls how tight the highlight is.
+
+### Ambient light
+In reality light bounces between surfaces, so nothing is fully black. The simplest stand-in is a small constant **ambient** term. A complete basic model is:
+
+```text
+colour = ambient + diffuse × surface colour + specular
+```
+
+### Where shading is computed
+- **Flat shading:** one colour per triangle. Faceted.
+- **Gouraud shading:** compute lighting at the corners and interpolate the colours.
+- **Phong shading:** interpolate the **normals** and light each pixel. Smooth, and the standard today.
+
+### Textures
+A **texture** is an image wrapped onto a surface. Each vertex carries **texture coordinates** (u, v) from 0 to 1 saying which part of the image it corresponds to. These are interpolated across the triangle with barycentric weights, and each pixel looks up its colour in the image.
+
+When a texture is shown smaller than its true size, many texels fall in one pixel and the image shimmers. **Mipmaps**, a chain of pre-shrunk copies, fix that. **Filtering** blends neighbouring texels when magnified.
+
+Textures carry more than colour. A **normal map** stores a direction per texel, faking fine surface detail under lighting without adding triangles.
+
+### Shaders and the GPU
+A **shader** is a small program run on the graphics processor: a **vertex shader** once per vertex, a **fragment shader** once per pixel covered. The GPU runs thousands of these in parallel, which is why it can light millions of pixels sixty times a second.
+
+### Beyond the basics
+**Physically based rendering** uses material properties (roughness, metalness) that behave consistently under any lighting. **Shadows** are commonly made by first rendering the scene's depth from the light's point of view. **Ray tracing** follows rays of light through the scene and handles reflections and soft shadows naturally, at much greater cost; recent hardware makes it practical in real time for some effects.
+
+### Performance
+Frame time goes to the number of **draw calls**, the number of triangles, and above all the number of **pixels shaded** (overdraw). Batch objects that share materials, cull what cannot be seen, and use simpler models for distant objects (**level of detail**).
+
+> Key idea: Brightness of a matte surface is the dot product of its normal with the light direction. Textures and shaders add detail per pixel.
+#Q Under Lambert's law, when is a surface brightest?
+- When it faces away from the light
+* When its normal points directly at the light
+- When the viewer is close
+! N · L is 1 when the two directions coincide.
+#Q What problem do mipmaps solve?
+- Slow vertex processing
+* Shimmering when a texture is displayed much smaller than its original size
+- Missing shadows
+! A pre-shrunk copy matches the on-screen size.
+
+#LAB js | A software graphics toolkit
+Implement the mathematics of a tiny renderer. Points are `{ x, y }` (2D) or `{ x, y, z }` (3D). Matrices are arrays of rows.
+
+- `matMul3(a, b)` multiplies two 3 × 3 matrices.
+- `translate(tx, ty)` and `scale(sx, sy)` return 3 × 3 homogeneous matrices.
+- `rotate90()` returns the matrix that rotates a point 90° anticlockwise about the origin (so (1, 0) becomes (0, 1)), using exact whole numbers.
+- `apply(m, p)` transforms the 2D point `p` by the 3 × 3 matrix `m` and returns `{ x, y }`.
+- `project(p, d)` perspective-projects a 3D point onto a screen at distance `d`: `{ x: d·x/z, y: d·y/z }`. Return `null` if `z` is 0 or negative (behind the camera).
+- `barycentric(p, a, b, c)` returns `{ u, v, w }`, the barycentric coordinates of `p` in triangle `abc` (weights of `a`, `b` and `c`).
+- `inTriangle(p, a, b, c)` returns true if `p` is inside or on the edge of the triangle.
+- `lerpColor(c1, c2, t)` blends two colours `[r, g, b]`, rounding each channel to a whole number.
+- `lambert(normal, light)` returns `max(0, N · L)` for two 3D **unit** vectors.
+@starter
+function matMul3(a, b) {
+  return [[1, 0, 0], [0, 1, 0], [0, 0, 1]];
+}
+
+function translate(tx, ty) {
+  return [[1, 0, 0], [0, 1, 0], [0, 0, 1]];
+}
+
+function scale(sx, sy) {
+  return [[1, 0, 0], [0, 1, 0], [0, 0, 1]];
+}
+
+function rotate90() {
+  return [[1, 0, 0], [0, 1, 0], [0, 0, 1]];
+}
+
+function apply(m, p) {
+  return p;
+}
+
+function project(p, d) {
+  return null;
+}
+
+function barycentric(p, a, b, c) {
+  return { u: 0, v: 0, w: 0 };
+}
+
+function inTriangle(p, a, b, c) {
+  return false;
+}
+
+function lerpColor(c1, c2, t) {
+  return c1;
+}
+
+function lambert(normal, light) {
+  return 0;
+}
+@solution
+function matMul3(a, b) {
+  const out = [];
+  for (let i = 0; i < 3; i++) {
+    const row = [];
+    for (let j = 0; j < 3; j++) {
+      row.push(a[i][0] * b[0][j] + a[i][1] * b[1][j] + a[i][2] * b[2][j]);
+    }
+    out.push(row);
+  }
+  return out;
+}
+
+function translate(tx, ty) {
+  return [[1, 0, tx], [0, 1, ty], [0, 0, 1]];
+}
+
+function scale(sx, sy) {
+  return [[sx, 0, 0], [0, sy, 0], [0, 0, 1]];
+}
+
+function rotate90() {
+  return [[0, -1, 0], [1, 0, 0], [0, 0, 1]];
+}
+
+function apply(m, p) {
+  return { x: m[0][0] * p.x + m[0][1] * p.y + m[0][2], y: m[1][0] * p.x + m[1][1] * p.y + m[1][2] };
+}
+
+function project(p, d) {
+  if (p.z <= 0) return null;
+  return { x: d * p.x / p.z, y: d * p.y / p.z };
+}
+
+function barycentric(p, a, b, c) {
+  const det = (b.y - c.y) * (a.x - c.x) + (c.x - b.x) * (a.y - c.y);
+  const u = ((b.y - c.y) * (p.x - c.x) + (c.x - b.x) * (p.y - c.y)) / det;
+  const v = ((c.y - a.y) * (p.x - c.x) + (a.x - c.x) * (p.y - c.y)) / det;
+  return { u, v, w: 1 - u - v };
+}
+
+function inTriangle(p, a, b, c) {
+  const k = barycentric(p, a, b, c);
+  return k.u >= 0 && k.v >= 0 && k.w >= 0;
+}
+
+function lerpColor(c1, c2, t) {
+  return [0, 1, 2].map((i) => Math.round(c1[i] + (c2[i] - c1[i]) * t));
+}
+
+function lambert(normal, light) {
+  return Math.max(0, normal.x * light.x + normal.y * light.y + normal.z * light.z);
+}
+@tests
+matMul3([[1, 0, 0], [0, 1, 0], [0, 0, 1]], [[2, 3, 4], [5, 6, 7], [8, 9, 1]]) => [[2, 3, 4], [5, 6, 7], [8, 9, 1]]
+matMul3([[1, 2, 0], [0, 1, 0], [0, 0, 1]], [[1, 0, 5], [0, 1, 6], [0, 0, 1]]) => [[1, 2, 17], [0, 1, 6], [0, 0, 1]]
+translate(3, -2) => [[1, 0, 3], [0, 1, -2], [0, 0, 1]]
+scale(2, 5) => [[2, 0, 0], [0, 5, 0], [0, 0, 1]]
+apply(translate(3, -2), { x: 1, y: 1 }) => {"x": 4, "y": -1}
+apply(scale(2, 5), { x: 3, y: 4 }) => {"x": 6, "y": 20}
+apply(rotate90(), { x: 1, y: 0 }) => {"x": 0, "y": 1}
+apply(rotate90(), { x: 2, y: 3 }) => {"x": -3, "y": 2}
+apply(matMul3(translate(10, 0), rotate90()), { x: 1, y: 0 }) => {"x": 10, "y": 1}
+apply(matMul3(rotate90(), translate(10, 0)), { x: 1, y: 0 }) => {"x": 0, "y": 11}
+project({ x: 2, y: 4, z: 2 }, 1) => {"x": 1, "y": 2}
+project({ x: 3, y: 6, z: 12 }, 4) => {"x": 1, "y": 2}
+project({ x: 1, y: 1, z: 0 }, 1) => null
+project({ x: 1, y: 1, z: -5 }, 1) => null
+barycentric({ x: 0, y: 0 }, { x: 0, y: 0 }, { x: 4, y: 0 }, { x: 0, y: 4 }) => {"u": 1, "v": 0, "w": 0}
+barycentric({ x: 2, y: 2 }, { x: 0, y: 0 }, { x: 4, y: 0 }, { x: 0, y: 4 }) => {"u": 0, "v": 0.5, "w": 0.5}
+barycentric({ x: 1, y: 1 }, { x: 0, y: 0 }, { x: 4, y: 0 }, { x: 0, y: 4 }) => {"u": 0.5, "v": 0.25, "w": 0.25}
+inTriangle({ x: 1, y: 1 }, { x: 0, y: 0 }, { x: 4, y: 0 }, { x: 0, y: 4 }) => true
+inTriangle({ x: 3, y: 3 }, { x: 0, y: 0 }, { x: 4, y: 0 }, { x: 0, y: 4 }) => false
+inTriangle({ x: 2, y: 0 }, { x: 0, y: 0 }, { x: 4, y: 0 }, { x: 0, y: 4 }) => true
+inTriangle({ x: -1, y: 1 }, { x: 0, y: 0 }, { x: 4, y: 0 }, { x: 0, y: 4 }) => false
+lerpColor([0, 0, 0], [255, 255, 255], 0.5) => [128, 128, 128]
+lerpColor([255, 0, 0], [0, 0, 255], 0) => [255, 0, 0]
+lerpColor([255, 0, 0], [0, 0, 255], 1) => [0, 0, 255]
+lerpColor([10, 20, 30], [20, 40, 60], 0.25) => [13, 25, 38]
+lambert({ x: 0, y: 0, z: 1 }, { x: 0, y: 0, z: 1 }) => 1
+lambert({ x: 0, y: 0, z: 1 }, { x: 1, y: 0, z: 0 }) => 0
+lambert({ x: 0, y: 0, z: 1 }, { x: 0, y: 0, z: -1 }) => 0
+lambert({ x: 0, y: 1, z: 0 }, { x: 0, y: 0.6, z: 0.8 }) => 0.6
+@hints
+A translation matrix has the offsets in the last column. A scale matrix has the factors on the diagonal.
+Rotating 90° anticlockwise sends (x, y) to (−y, x). Read the matrix off that.
+For `apply`, treat the point as (x, y, 1) and compute the first two rows.
+For barycentric coordinates use the standard formula with the common denominator `(b.y − c.y)(a.x − c.x) + (c.x − b.x)(a.y − c.y)`; then `w = 1 − u − v`.
+A point is inside the triangle when none of the three weights is negative.
+
+#EXAM 15
+#Q In screen coordinates, which way does y usually increase?
+- Upwards
+* Downwards
+- Toward the viewer
+! The origin is normally at the top-left.
+#Q Which transformation cannot be written as a 2 × 2 matrix acting on (x, y)?
+- Rotation
+- Scaling
+* Translation
+! A matrix leaves the origin fixed; homogeneous coordinates are needed.
+#Q What is gimbal lock?
+- A locked frame rate
+* Losing a degree of rotational freedom when combining rotations about three axes in sequence
+- A depth-buffer error
+! Quaternions avoid it.
+#Q What is the view frustum?
+- The frame buffer
+* The volume of space the camera can see, between the near and far planes
+- A type of texture
+! Geometry outside it is culled or clipped.
+#Q Two distant surfaces flicker where they overlap. What is this called and what causes it?
+- Aliasing, from low resolution
+* Z-fighting, from limited depth-buffer precision
+- Culling, from a wrong normal
+! Rounding makes the nearer surface change from frame to frame.
+#Q Which stage of the pipeline runs once for every pixel a triangle covers?
+- The vertex shader
+* The fragment shader
+- The model matrix
+! Per-pixel work is the fragment stage.
+#W Describe the journey of one vertex of a 3D model to a pixel on the screen. Name each coordinate system and the matrix or operation that moves between them, explain where perspective comes from, and explain how the renderer decides which surface is visible when two overlap.
++ Model coordinates to world coordinates by the model matrix
++ World to camera coordinates by the view matrix (the inverse of the camera's placement)
++ Projection matrix and the divide by w (depth) producing perspective
++ Viewport mapping to pixels, then rasterisation with interpolation across the triangle
++ The depth buffer keeps the nearest fragment at each pixel
+
+#PROJECT A software 3D renderer
+Write a renderer that draws a 3D model to a canvas using only your own code: no graphics library and no WebGL.
+@requirements
+Vector and 4 × 4 matrix functions with unit tests
+Model, view and perspective projection transforms, with a camera that can be moved
+Triangle rasterisation using barycentric coordinates
+A depth buffer, shown to be working by two intersecting objects
+Back-face culling, with a measurement of how many triangles it removes
+Lambert diffuse lighting with per-pixel (interpolated normal) shading
+Either texture mapping or a specular highlight
+A frame-time measurement and one optimisation with before and after figures
+@deliverables
+The renderer, running in a browser
+The source with tests
+Screenshots of each stage: wireframe, filled, depth-tested, lit
+A short write-up of one visual bug you met and its cause
+@rubric
+Correct transforms and projection | 25
+Rasterisation and depth buffering | 25
+Lighting and the extra feature | 20
+Tests and code quality | 15
+Measurement, optimisation and write-up | 15
+
+#COURSE gd103
+#LESSON Decision making: state machines and behaviour trees | 12
+**Game AI** is not machine learning. Its job is to make characters behave believably and to make the game fun, within a fraction of a millisecond per character. Mostly it is carefully organised rules.
+
+### Finite state machines
+The simplest useful structure. A guard is in one **state** at a time, and **events** move it between states.
+
+```diagram
+   patrol --(sees player)--> chase --(in range)--> attack
+     ^                         |                      |
+     +---(lost sight 5 s)------+<---(out of range)----+
+```
+
+Each state has behaviour while active, and optionally actions on entering and leaving. State machines are easy to write, to debug and to draw.
+
+Their weakness is growth. With many states the transitions multiply, and behaviour shared between states ("flee when badly hurt, whatever you were doing") must be repeated everywhere. **Hierarchical** state machines group states so that a transition can be defined once on the group.
+
+### Behaviour trees
+The structure most commercial games use. A behaviour tree is evaluated from the root on every update. Each node returns **success**, **failure** or **running**.
+
+- A **sequence** runs its children in order and fails as soon as one fails: "see the enemy AND have ammunition AND shoot".
+- A **selector** tries its children in order and succeeds as soon as one succeeds: "attack, OR ELSE take cover, OR ELSE patrol". It encodes priorities.
+- **Leaf** nodes are conditions and actions.
+- **Decorators** modify one child: invert, repeat, limit by a timer.
+
+Behaviours become reusable subtrees, and priorities are visible in the layout, which is why designers can edit them.
+
+### Utility AI
+Instead of fixed priorities, score every possible action by how useful it is right now (a function of health, distance, ammunition) and choose the best. Behaviour becomes graded and less predictable.
+
+### Perception
+A character should act on what it could plausibly know. Give it **senses**: a vision cone with a range and a line-of-sight test, hearing with a radius, and a memory of where the player was last seen. An enemy that always knows where you are feels unfair.
+
+### Believability beats intelligence
+Players need to **understand** what an enemy is doing. Characters announce their intentions, hesitate, and miss on purpose. A perfectly optimal opponent is usually not fun. Difficulty is tuned by reaction times, accuracy and aggression, not by making the AI smarter.
+
+### Cost
+AI shares the frame with everything else. Stagger updates so that not every character thinks on every frame, and give distant characters cheaper logic.
+
+> Key idea: Game AI is structured decision making. State machines suit simple characters; behaviour trees scale by composing sequences (all must succeed) and selectors (first that succeeds).
+#Q In a behaviour tree, what does a selector node do?
+- Runs all its children at once
+* Tries its children in order and succeeds as soon as one succeeds
+- Always fails
+! It expresses a list of alternatives in priority order.
+#Q Why is a perfectly optimal game opponent usually undesirable?
+- It uses too much memory
+* Players need opponents that are understandable and beatable; fun matters more than strength
+- It cannot be programmed
+! Game AI serves the player's experience.
+
+#LESSON Pathfinding | 13
+A character must get from where it is to where it wants to be without walking through walls. **Pathfinding** treats the level as a graph and searches it.
+
+### Representing the world
+- A **grid:** each cell is walkable or blocked; neighbours are the adjacent cells. Simple, and wasteful for large open spaces.
+- **Waypoints:** hand-placed nodes joined by edges.
+- A **navigation mesh:** the walkable floor divided into convex polygons. A character can move freely inside a polygon, so far fewer nodes are needed. This is the standard in 3D games.
+
+### Breadth-first search
+On a grid where every step costs the same, **breadth-first search** explores outward in rings from the start and finds a shortest path. It explores in every direction equally, including directly away from the goal.
+
+### Dijkstra's algorithm
+When steps have different costs (mud is slower than road), always expand the node with the smallest total cost so far, using a priority queue. It finds the cheapest path and still searches in all directions.
+
+### A*
+A* adds a sense of direction. For each node it computes
+
+```text
+f = g + h
+```
+
+where **g** is the cost from the start and **h** is a **heuristic**: an estimate of the cost remaining to the goal. It expands the node with the smallest f, so it prefers nodes that are both cheap to reach and apparently close to the goal.
+
+If h never **overestimates** the true remaining cost (it is **admissible**), A* is guaranteed to find a shortest path. Common heuristics:
+
+- **Manhattan distance** |dx| + |dy| for grids with four-way movement.
+- **Straight-line distance** when movement is unrestricted.
+
+With h = 0, A* is Dijkstra's algorithm. A larger h explores less; one that overestimates is faster and no longer guaranteed optimal, a trade games sometimes make deliberately.
+
+### After the path is found
+Grid paths are jagged. **Smoothing** removes unnecessary corners by checking whether later points are directly reachable. Characters then follow the path with **steering behaviours**: seek the next point, arrive by slowing down, and avoid obstacles and each other.
+
+### Many characters
+Finding a path for each of a thousand units every frame is too slow.
+
+- Spread requests over several frames.
+- Share one **flow field** (a direction stored in every cell, pointing toward the goal) among all units heading to the same place.
+- Use a **hierarchy**: plan between regions first, then within a region.
+- Recompute only when the world changes.
+
+### Dynamic worlds
+Doors open and bridges fall. Paths are re-planned when blocked, and local avoidance handles moving obstacles that the planner did not know about.
+
+> Key idea: A* searches by f = g + h. With a heuristic that never overestimates, it finds a shortest path while exploring far less than a blind search.
+#Q In A*, what does h represent?
+- The cost from the start to the node
+* An estimate of the remaining cost from the node to the goal
+- The number of nodes explored
+! g is the known cost so far; h is the estimate ahead.
+#Q What property of the heuristic guarantees that A* finds a shortest path?
+- It is always zero
+* It never overestimates the true remaining cost
+- It is as large as possible
+! Such a heuristic is called admissible.
+
+#LESSON Physics: forces, impulses and collision response | 13
+The foundation course detected collisions. This lesson makes objects **respond** like physical things.
+
+### Newton's laws in code
+An object has a position, a velocity and a **mass**. Forces cause acceleration:
+
+```text
+acceleration = force / mass
+```
+
+Each step: add up the forces (gravity, thrust, drag), compute the acceleration, update the velocity, then the position, using the semi-implicit Euler order. Heavier objects respond less to the same force, which is what makes them feel heavy.
+
+A convenient trick is to store **inverse mass** (1/m). An immovable object such as a wall has inverse mass 0 and never moves, with no special cases.
+
+### Impulses
+A collision changes velocity almost instantly. Simulating the huge, brief forces is impractical, so physics engines apply an **impulse**: an immediate change in velocity.
+
+When two objects collide along a **normal** direction n (pointing from one to the other), the speed at which they approach along the normal is
+
+```text
+v_rel = (v_b − v_a) · n
+```
+
+If it is positive they are already separating, and nothing is done. Otherwise the impulse magnitude is
+
+```text
+j = −(1 + e) · v_rel / (1/m_a + 1/m_b)
+```
+
+and the velocities change by j·n divided by each mass, in opposite directions. **Momentum is conserved**: what one object gains the other loses.
+
+### Restitution
+**e** is the **coefficient of restitution**, the bounciness, from 0 to 1.
+
+- e = 1: perfectly elastic. The objects part at the speed they met.
+- e = 0: perfectly inelastic. They do not bounce.
+
+A ball dropped on the floor with e = 0.8 leaves at 80% of its arrival speed.
+
+### Bouncing off a fixed surface
+Against an immovable wall, the result simplifies to **reflection**:
+
+```text
+v' = v − (1 + e) · (v · n) · n
+```
+
+With e = 1 this is the mirror reflection used for a ball in Pong or Breakout.
+
+### Positional correction
+Because time advances in steps, objects are usually found already overlapping. As well as fixing velocities, push them apart along the normal by the penetration depth, shared according to inverse mass. Without this, objects sink slowly into the floor.
+
+### Friction and drag
+**Friction** opposes sliding along the surface and is proportional to how hard the surfaces are pressed together. **Drag** opposes motion through air or water; a simple model multiplies velocity by a factor slightly below 1 each step.
+
+### Stability
+Stacks of boxes jitter and springs explode when the time step is too large or varies. Use a fixed time step, solve contacts several times per step (**iterations**), and put objects that have come to rest to **sleep** so that they cost nothing.
+
+### Use an engine for the hard part
+Rotation, joints and continuous collision are intricate. Commercial games use established physics libraries. Knowing the principles lets you configure them and understand their artefacts.
+
+> Key idea: Collisions are resolved with impulses along the contact normal. Restitution sets the bounce, inverse mass shares the effect, and momentum is conserved.
+#Q What does a coefficient of restitution of 0 mean?
+- A perfectly bouncy collision
+* No bounce: the objects do not separate after impact
+- No collision occurred
+! The relative speed along the normal becomes zero.
+#Q Why do physics engines store inverse mass?
+- To save memory
+* An immovable object has inverse mass 0, so it is handled by the same formulas with no special case
+- Because mass cannot be measured
+! Dividing by an infinite mass becomes multiplying by zero.
+
+#LESSON Animation, feel and optimisation | 12
+Two games with identical rules can feel completely different. The difference is in motion, feedback and smoothness.
+
+### Interpolation
+Almost all animation is **interpolation**: moving a value from a start to an end over time.
+
+```text
+lerp(a, b, t) = a + (b − a) · t          t runs from 0 to 1
+```
+
+Linear motion looks mechanical. **Easing functions** reshape t so that motion accelerates and decelerates:
+
+```text
+ease-in (quadratic):       t²                starts slowly
+ease-out (quadratic):      1 − (1 − t)²      ends slowly
+ease-in-out (smoothstep):  t² · (3 − 2t)     slow at both ends
+```
+
+A menu that eases into place, a camera that eases after the player: easing is everywhere in polished games. A **tween** is an object that drives a value from a to b over a duration with a chosen easing.
+
+### Sprite animation
+A 2D character animates by showing a sequence of frames from a **sprite sheet**. The frame to show is derived from **elapsed time**, never from a count of rendered frames, or the animation would run at different speeds on different machines:
+
+```text
+frame = floor(elapsed / frameDuration) mod frameCount
+```
+
+### Skeletal animation
+3D characters are a mesh attached to a **skeleton** of bones. Animations store **keyframes**, the bone poses at chosen moments, and the engine interpolates between them. Animations are **blended** (walk into run) and layered (run while aiming). **Inverse kinematics** works backwards from where a hand or foot should be to the joint angles that put it there.
+
+### Game feel
+Small responses to the player's actions make a game satisfying:
+
+- **Immediate response** to input. Delay of even a tenth of a second is felt.
+- **Anticipation and follow-through:** a brief wind-up before a jump, a squash on landing.
+- **Feedback:** a flash, a sound, particles, a few frames of screen shake on impact.
+- **Forgiveness:** let the player jump for a moment after walking off a ledge ("coyote time"), and remember a jump pressed slightly too early (**input buffering**).
+
+None of these change the rules. All of them change how the rules feel.
+
+### Optimisation for real time
+A frame at 60 frames a second has 16.7 ms for everything.
+
+- **Measure first.** Profile to find whether the processor or the graphics card is the limit, and which system dominates.
+- **Do less:** cull what is off screen; update distant objects less often; use simpler models far away.
+- **Avoid allocation in the loop.** Creating objects every frame triggers garbage collection and visible hitches. Reuse them with an **object pool**.
+- **Spatial partitioning** (grids, quadtrees) so that collision and queries look only at nearby objects.
+- **Batching:** draw many objects that share a texture in one call.
+- **Data layout:** keep the data a system loops over contiguous in memory.
+
+Frame **consistency** matters as much as the average. One long frame in a hundred is seen as a stutter.
+
+> Key idea: Derive animation from elapsed time, shape it with easing, respond to the player at once, and keep every frame inside its time budget.
+#Q Why should the animation frame be computed from elapsed time and not from a frame counter?
+- Time is easier to store
+* So the animation plays at the same speed whatever the frame rate
+- Frame counters overflow
+! Counting rendered frames ties speed to the machine.
+#Q What does an ease-out function do?
+- Starts fast and stays fast
+* Decelerates toward the end of the motion
+- Reverses the motion
+! Motion that settles gently looks natural.
+
+#LAB js | Game AI, pathfinding and physics response
+Implement decision logic, a pathfinder and collision response.
+
+- `guardNext(state, event)` is a state machine for a guard with states `"patrol"`, `"chase"`, `"attack"`. Events: `"see"` (patrol → chase), `"inRange"` (chase → attack), `"outOfRange"` (attack → chase), `"lost"` (chase or attack → patrol). Any other combination leaves the state unchanged.
+- `selector(children)` and `sequence(children)` evaluate behaviour-tree nodes. `children` is an array of functions returning `true` (success) or `false` (failure). A selector returns true at the first child that succeeds and **does not call the rest**. A sequence returns false at the first child that fails and does not call the rest. An empty selector fails; an empty sequence succeeds.
+- `manhattan(a, b)` returns |dx| + |dy| for points `[x, y]`.
+- `shortestPath(grid, start, goal)` returns the number of steps in a shortest path on a grid (array of strings, `"#"` is a wall, anything else is free) moving up, down, left or right. `start` and `goal` are `[row, col]`. Return `-1` if there is no path, and 0 if start equals goal.
+- `reflect(v, n, e)` returns the velocity `{ x, y }` after bouncing off a fixed surface with unit normal `n` and restitution `e`: `v − (1 + e)(v · n) n`. If the object is already moving away from the surface (`v · n > 0`), return `v` unchanged.
+- `easeOut(t)` returns `1 − (1 − t)²` and `smoothstep(t)` returns `t²(3 − 2t)`, each with `t` clamped to the range 0 to 1 first.
+- `spriteFrame(elapsedMs, frameMs, count)` returns the index of the animation frame to show.
+@starter
+function guardNext(state, event) {
+  return state;
+}
+
+function selector(children) {
+  return false;
+}
+
+function sequence(children) {
+  return true;
+}
+
+function manhattan(a, b) {
+  return 0;
+}
+
+function shortestPath(grid, start, goal) {
+  return -1;
+}
+
+function reflect(v, n, e) {
+  return v;
+}
+
+function easeOut(t) {
+  return t;
+}
+
+function smoothstep(t) {
+  return t;
+}
+
+function spriteFrame(elapsedMs, frameMs, count) {
+  return 0;
+}
+@solution
+function guardNext(state, event) {
+  if (state === "patrol" && event === "see") return "chase";
+  if (state === "chase" && event === "inRange") return "attack";
+  if (state === "attack" && event === "outOfRange") return "chase";
+  if ((state === "chase" || state === "attack") && event === "lost") return "patrol";
+  return state;
+}
+
+function selector(children) {
+  for (const child of children) {
+    if (child()) return true;
+  }
+  return false;
+}
+
+function sequence(children) {
+  for (const child of children) {
+    if (!child()) return false;
+  }
+  return true;
+}
+
+function manhattan(a, b) {
+  return Math.abs(a[0] - b[0]) + Math.abs(a[1] - b[1]);
+}
+
+function shortestPath(grid, start, goal) {
+  const rows = grid.length, cols = rows ? grid[0].length : 0;
+  const free = (r, c) => r >= 0 && c >= 0 && r < rows && c < cols && grid[r][c] !== "#";
+  if (!free(start[0], start[1]) || !free(goal[0], goal[1])) return -1;
+  const dist = new Map();
+  dist.set(start[0] + "," + start[1], 0);
+  const queue = [start];
+  let head = 0;
+  while (head < queue.length) {
+    const [r, c] = queue[head++];
+    const d = dist.get(r + "," + c);
+    if (r === goal[0] && c === goal[1]) return d;
+    for (const [dr, dc] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+      const nr = r + dr, nc = c + dc, key = nr + "," + nc;
+      if (free(nr, nc) && !dist.has(key)) {
+        dist.set(key, d + 1);
+        queue.push([nr, nc]);
+      }
+    }
+  }
+  return -1;
+}
+
+function reflect(v, n, e) {
+  const dot = v.x * n.x + v.y * n.y;
+  if (dot > 0) return v;
+  return { x: v.x - (1 + e) * dot * n.x, y: v.y - (1 + e) * dot * n.y };
+}
+
+function clamp01(t) {
+  return Math.max(0, Math.min(1, t));
+}
+
+function easeOut(t) {
+  const x = clamp01(t);
+  return 1 - (1 - x) * (1 - x);
+}
+
+function smoothstep(t) {
+  const x = clamp01(t);
+  return x * x * (3 - 2 * x);
+}
+
+function spriteFrame(elapsedMs, frameMs, count) {
+  return Math.floor(elapsedMs / frameMs) % count;
+}
+@tests
+guardNext("patrol", "see") => "chase"
+guardNext("chase", "inRange") => "attack"
+guardNext("attack", "outOfRange") => "chase"
+guardNext("attack", "lost") => "patrol"
+guardNext("chase", "lost") => "patrol"
+guardNext("patrol", "inRange") => "patrol"
+guardNext("patrol", "lost") => "patrol"
+selector([() => false, () => true, () => false]) => true
+selector([() => false, () => false]) => false
+selector([]) => false
+sequence([() => true, () => true]) => true
+sequence([() => true, () => false, () => true]) => false
+sequence([]) => true
+(() => { const log = []; selector([() => { log.push("a"); return false; }, () => { log.push("b"); return true; }, () => { log.push("c"); return true; }]); return log; })() => ["a", "b"]
+(() => { const log = []; sequence([() => { log.push("a"); return true; }, () => { log.push("b"); return false; }, () => { log.push("c"); return true; }]); return log; })() => ["a", "b"]
+manhattan([0, 0], [3, 4]) => 7
+manhattan([5, 2], [1, 2]) => 4
+shortestPath(["....", "....", "...."], [0, 0], [2, 3]) => 5
+shortestPath(["..#.", "..#.", "...."], [0, 0], [0, 3]) => 7
+shortestPath([".#.", ".#.", ".#."], [0, 0], [0, 2]) => -1
+shortestPath(["..."], [0, 1], [0, 1]) => 0
+shortestPath(["#.."], [0, 0], [0, 2]) => -1
+shortestPath([".....", ".###.", ".#...", ".#.#.", "...#."], [4, 0], [4, 4]) => 8
+reflect({ x: 3, y: -4 }, { x: 0, y: 1 }, 1) => {"x": 3, "y": 4}
+reflect({ x: 3, y: -4 }, { x: 0, y: 1 }, 0.5) => {"x": 3, "y": 2}
+reflect({ x: 3, y: -4 }, { x: 0, y: 1 }, 0) => {"x": 3, "y": 0}
+reflect({ x: -5, y: 0 }, { x: 1, y: 0 }, 1) => {"x": 5, "y": 0}
+reflect({ x: 3, y: 4 }, { x: 0, y: 1 }, 1) => {"x": 3, "y": 4}
+easeOut(0) => 0
+easeOut(1) => 1
+easeOut(0.5) => 0.75
+easeOut(2) => 1
+smoothstep(0.5) => 0.5
+smoothstep(0.25) => 0.15625
+smoothstep(-1) => 0
+spriteFrame(0, 100, 4) => 0
+spriteFrame(250, 100, 4) => 2
+spriteFrame(450, 100, 4) => 0
+spriteFrame(99, 100, 4) => 0
+@hints
+The state machine is four `if` statements and a default that returns the state unchanged.
+A selector loops and returns true at the first success; a sequence loops and returns false at the first failure. Returning early is what stops the later children being called.
+For the path, use breadth-first search with a queue of cells and a map of distances. Check the goal when you take a cell off the queue.
+Reflection: compute `dot = v · n`. If it is positive the object is leaving, so return `v`. Otherwise subtract `(1 + e) * dot` times the normal.
+Clamp `t` with `Math.max(0, Math.min(1, t))` before applying the easing formula.
+
+#EXAM 15
+#Q A guard should flee when badly hurt, whatever it was doing. Why is this awkward in a flat state machine?
+- State machines cannot have more than three states
+* The transition to "flee" must be added to every state separately
+- Fleeing is not a behaviour
+! Hierarchical machines or behaviour trees express it once.
+#Q What does a sequence node return if its second of three children fails?
+- Success
+* Failure, without running the third child
+- Running
+! All children must succeed in order.
+#Q Which search is A* with a heuristic of zero equivalent to?
+- Depth-first search
+* Dijkstra's algorithm
+- Binary search
+! Without the estimate, only the cost so far guides it.
+#Q On a four-direction grid, which heuristic is admissible for A*?
+* Manhattan distance
+- Twice the straight-line distance
+- A random number
+! It never exceeds the true number of steps.
+#Q Two objects collide head-on. What quantity is the same before and after?
+- Each object's speed
+* Total momentum
+- Restitution
+! The impulse on one equals the opposite impulse on the other.
+#Q What is "coyote time"?
+- A debugging tool
+* Allowing a jump for a brief moment after the player has left a ledge
+- A physics time step
+! It forgives slightly late input and makes controls feel fair.
+#W A player reports that enemies in your game "feel robotic and unfair": they turn instantly, always know where the player is, and their movement looks stiff. Explain the likely technical causes and the changes you would make, covering perception, decision making, movement and animation.
++ Perception: give enemies a vision cone, line of sight and memory of the last known position, not global knowledge
++ Decision making: add reaction delays, visible intentions and tuned accuracy; use a behaviour tree or utility scores for varied choices
++ Movement: path smoothing and steering with acceleration and turning rates instead of instant changes
++ Animation: easing, anticipation and blending between animations
++ Mentions testing the changes with players, since the goal is perceived fairness
+
+#PROJECT A game with AI opponents
+Extend a 2D game (your foundation project or a new one) with opponents that navigate and make decisions.
+@requirements
+At least two kinds of enemy whose behaviour is implemented with a state machine or a behaviour tree, drawn as a diagram in the documentation
+Perception: vision range with a line-of-sight test, and behaviour when the player is lost
+A* pathfinding on a grid or navigation graph, with a debug view that draws the path
+Collision response with restitution for at least one kind of object, using impulses or reflection
+Eased animation for at least three things (for example menus, camera, pickups), driven by elapsed time
+An object pool for a frequently created object, with a measurement of allocations before and after
+Unit tests for the decision logic, the pathfinder and the physics response, run without a canvas
+Frame time measured with many enemies on screen, and the largest cost identified
+@deliverables
+The game, playable in a browser
+The source with tests
+The behaviour diagrams
+A short performance note with the measurements
+@rubric
+Decision making and perception | 25
+Pathfinding correctness and debug view | 20
+Physics response and animation quality | 20
+Tests | 15
+Performance measurement and optimisation | 10
+Overall playability | 10
+
+#COURSE ce102
+#LESSON Microcontrollers and memory-mapped hardware | 12
+A desktop processor is one part of a computer that also needs memory chips, storage and many supporting parts. A **microcontroller** puts a small processor, memory and input/output hardware on **one chip**, costing from under a dollar. Microcontrollers are inside washing machines, cars, toys, thermostats and medical devices: billions are made every year. Software written for them is **embedded software**, or **firmware**.
+
+### What is on the chip
+- A **CPU**, often 32-bit, running at tens of megahertz.
+- **Flash memory** for the program: tens of kilobytes to a few megabytes. It keeps its contents without power.
+- **RAM** for variables: often only a few kilobytes.
+- **Peripherals:** general-purpose input/output pins, timers, analogue-to-digital converters, serial interfaces.
+
+Resources are thousands of times smaller than a laptop's. There is usually no operating system, no file system and no screen.
+
+### Registers control the hardware
+How does software switch on a pin? Each peripheral is controlled by **registers** that appear at fixed **memory addresses**. Writing a number to that address changes what the hardware does. This is **memory-mapped I/O**.
+
+```c
+#define GPIO_OUT (*(volatile unsigned int *)0x40020014)
+
+GPIO_OUT |= (1u << 5);       // set bit 5: pin 5 goes high, the LED lights
+GPIO_OUT &= ~(1u << 5);      // clear bit 5: pin 5 goes low
+```
+
+`volatile` tells the compiler that the value can change outside the program's control, so it must really read and write it every time.
+
+### Bit manipulation
+A register packs many settings into one number, one or a few bits each. Four operations are used constantly:
+
+```text
+set bit n:      reg |=  (1 << n)
+clear bit n:    reg &= ~(1 << n)
+toggle bit n:   reg ^=  (1 << n)
+test bit n:     (reg >> n) & 1
+```
+
+Always change only the bits you mean to, leaving the others as they were: read the register, modify, write back.
+
+### General-purpose I/O
+A **GPIO** pin can be configured as an **output** (the program drives it high or low) or an **input** (the program reads whether the outside world is driving it high or low). Typically one register sets the direction, one writes outputs and one reads inputs.
+
+### The datasheet
+Each chip's registers, addresses and bit meanings are defined in its **datasheet** and reference manual, which run to hundreds of pages. Reading them carefully is a central skill of embedded work.
+
+### No safety net
+There is no operating system to catch a bad pointer. A bug can lock the device until someone presses reset. Products therefore use a **watchdog timer**: a hardware counter that resets the chip unless the program regularly "kicks" it, so a hung program recovers by itself.
+
+> Key idea: In embedded systems, hardware is controlled by writing bits to registers at fixed memory addresses.
+#Q What is memory-mapped I/O?
+- Storing files in RAM
+* Controlling hardware by reading and writing registers that appear at memory addresses
+- A kind of network protocol
+! The peripheral responds to writes at its address.
+#Q Which expression clears bit 3 of `reg` and leaves the other bits unchanged?
+- reg |= (1 << 3)
+* reg &= ~(1 << 3)
+- reg = 0
+! AND with a mask that has only bit 3 at zero.
+
+#LESSON Basic electronics for programmers | 13
+Embedded software exists to control electricity. You need a little circuit theory to avoid destroying the hardware and to understand why your code does not work.
+
+### Voltage, current and resistance
+- **Voltage** (V, volts) is electrical pressure: the push that moves charge.
+- **Current** (I, amperes) is the flow of charge.
+- **Resistance** (R, ohms, Ω) opposes the flow.
+
+**Ohm's law** relates them:
+
+```text
+V = I × R          I = V / R          R = V / I
+```
+
+**Power** dissipated as heat is P = V × I, in watts.
+
+### Lighting an LED safely
+An LED needs a certain **forward voltage** (about 2 V for red) and must have its current limited (typically 5 to 20 mA), or it burns out. A **resistor** in series does that. From a 3.3 V pin, for 10 mA:
+
+```text
+R = (supply − forward voltage) / current = (3.3 − 2.0) / 0.010 = 130 Ω
+```
+
+Choose the next standard value above. A GPIO pin itself can supply only a few milliamps; anything larger, such as a motor, must be switched through a **transistor**.
+
+### Logic levels
+Digital pins interpret a voltage near the supply as 1 and near zero as 0. Microcontrollers commonly run at 3.3 V; older parts use 5 V. Connecting a 5 V output to a 3.3 V input can damage it. Always check.
+
+### Floating inputs and pull-ups
+An input connected to nothing **floats**: it picks up electrical noise and reads randomly. A **pull-up resistor** connects the pin weakly to the supply, so that it reads 1 unless something actively pulls it to 0. A button is then wired between the pin and ground: pressed reads 0, released reads 1. Most microcontrollers have pull-ups built in that software can switch on.
+
+### The voltage divider
+Two resistors in series divide a voltage:
+
+```text
+V_out = V_in × R2 / (R1 + R2)
+```
+
+It is used to scale a voltage down to a safe range and to read resistive sensors, such as a thermistor whose resistance changes with temperature.
+
+### Analogue and digital
+The physical world is **analogue**: temperature and light vary continuously. An **analogue-to-digital converter** (ADC) measures a voltage and returns a number. A 10-bit converter with a 3.3 V reference returns 0 to 1023:
+
+```text
+voltage = reading × 3.3 / 1023
+```
+
+### Switch bounce
+A mechanical button does not close cleanly. Its contacts bounce for a few milliseconds, producing a burst of on-off transitions. Software that reacts to each one counts a single press many times. **Debouncing** accepts a change only after the input has been stable for a short period.
+
+### Decoupling and noise
+Digital chips draw current in sharp bursts, which disturbs the supply. Small **capacitors** placed beside each chip smooth it. Noise problems look like random software bugs, which is why hardware and software must be debugged together, with a **multimeter** and an **oscilloscope** as well as a debugger.
+
+> Key idea: V = I × R. Limit current with a resistor, never leave an input floating, and expect buttons to bounce.
+#Q A 5 V supply drives an LED with a forward voltage of 2 V. What resistor gives 10 mA?
+- 200 Ω
+* 300 Ω
+- 500 Ω
+! (5 − 2) / 0.010 = 300.
+#Q Why is a pull-up resistor used on a button input?
+- To make the button brighter
+* To give the input a defined level when the button is not pressed
+- To increase the current
+! A floating input reads noise.
+
+#LESSON Timers, interrupts, PWM and analogue input | 13
+### The problem with waiting
+A naive program waits in a loop for a button to be pressed, doing nothing else. Meanwhile it cannot read a sensor or update a display. Two hardware features solve this.
+
+### Interrupts
+An **interrupt** is a signal from hardware that makes the processor **suspend what it is doing**, run a short function called an **interrupt service routine** (ISR), and then resume exactly where it left off.
+
+```diagram
+   main program ----------+              +-------- continues
+                          | interrupt    |
+                          v              |
+                        [ ISR runs ] ----+
+```
+
+Sources include a pin changing, a timer expiring, a byte arriving on a serial port, or a conversion finishing.
+
+Rules for ISRs:
+
+- **Keep them short.** Set a flag or store a value, and let the main loop do the work.
+- **Shared data is dangerous.** If the ISR and the main program both use a variable, an interrupt can arrive halfway through an update. Mark the variable `volatile` and briefly disable interrupts round multi-step accesses.
+- Do not call slow functions inside one.
+
+This is a race condition, exactly as with threads, and the remedy, protecting the critical section, is the same.
+
+### Timers
+A **timer** is a hardware counter driven by the clock. It can raise an interrupt at a regular interval, giving the program a reliable heartbeat, measure the length of a pulse, or generate output signals. Timing derived from a timer does not drift when the code changes; timing from delay loops does.
+
+The interval follows from the clock frequency, a **prescaler** that divides it, and the count at which the timer resets:
+
+```text
+interval = prescaler × (reload + 1) / clock frequency
+```
+
+### Pulse-width modulation
+A digital pin is on or off. To dim an LED or control a motor's speed, switch it on and off very fast and vary the proportion of time it is on: the **duty cycle**.
+
+```diagram
+   25% duty:   ‾|___|‾|___|‾|___       average = 25% of the supply
+   75% duty:   ‾‾‾|_|‾‾‾|_|‾‾‾|_       average = 75% of the supply
+```
+
+At a high enough frequency the load responds to the average. A timer generates **PWM** in hardware with no effort from the program. Servo motors read the pulse width itself as a position command.
+
+### Analogue input in practice
+Reading an ADC takes time and the result is noisy. Common practice: take several readings and average them, or apply a simple filter. Resolution limits what you can distinguish: a 10-bit converter on 3.3 V has steps of about 3.2 mV.
+
+### Polling or interrupts
+**Polling** checks a device repeatedly in the main loop: simple, and fine for slow things. **Interrupts** respond immediately and let the processor **sleep** in between, which matters greatly for battery life. Most firmware mixes the two.
+
+### Low power
+A device may need to run for years on a coin cell. The processor spends almost all its time in a **sleep mode** drawing microamps, waking on a timer or an external event, doing its work in milliseconds, and sleeping again. The average current, and so the battery life, is set by how short the awake periods are.
+
+> Key idea: Interrupts let hardware get the processor's attention at once. Keep service routines tiny, protect shared data, and use timers for anything that depends on time.
+#Q What should an interrupt service routine generally do?
+- Perform all the program's work
+* As little as possible, such as setting a flag for the main loop
+- Wait for user input
+! Long ISRs delay other interrupts and the main program.
+#Q A PWM signal on a 5 V pin has a 40% duty cycle. What is the average voltage?
+- 0.4 V
+* 2 V
+- 5 V
+! 40% of 5 V.
+
+#LESSON Serial buses and firmware structure | 13
+A microcontroller talks to sensors, displays, radios and other chips over **serial buses**, which send one bit at a time down a few wires.
+
+### UART
+Two wires, transmit and receive, with **no shared clock**. Both ends agree a speed in advance, the **baud rate**. Each byte is framed: a **start bit** (0), eight data bits with the least significant first, an optional **parity** bit, and a **stop bit** (1).
+
+```diagram
+   idle ‾‾‾|_| d0 d1 d2 d3 d4 d5 d6 d7 |‾| idle
+          start        data          stop
+```
+
+Simple and universal: it is how boards print debug messages to a computer. It connects exactly two devices, and both must agree on the speed.
+
+### I²C
+Two wires shared by many devices: a clock line and a data line. One **controller** drives the clock and addresses each **peripheral** by a 7-bit address, and the peripheral **acknowledges** each byte. Few wires, many devices, moderate speed. Common for sensors.
+
+### SPI
+Four wires: clock, data out, data in, and a separate **chip-select** line per device. No addressing and no acknowledgement, but simple and fast. Common for displays, memory cards and fast sensors.
+
+| | Wires | Devices | Speed | Typical use |
+|---|---|---|---|---|
+| UART | 2 | 2 | Low to medium | Debug output, modules |
+| I²C | 2 | Many, by address | Medium | Sensors |
+| SPI | 3 + 1 per device | Several | High | Displays, storage |
+
+In cars, **CAN** adds robust error handling and priorities. Wireless links (Bluetooth Low Energy, Wi-Fi) are usually a separate module spoken to over one of the buses above.
+
+### Checking the data
+Wires pick up noise. Protocols add a **parity bit**, a **checksum** or a **CRC**, so that corrupted data is detected and discarded or requested again.
+
+### How firmware is organised
+**The super-loop.** The simplest structure:
+
+```c
+int main(void) {
+    setup();
+    while (1) {
+        read_inputs();
+        update_state();
+        write_outputs();
+    }
+}
+```
+
+Each function must return quickly. Nothing may block, or everything else stops.
+
+**State machines.** Because nothing may wait, each activity is written as a state machine that advances a little on every pass: a button's debounce, a communication protocol, a heating cycle. This is the dominant style in small firmware.
+
+**A real-time operating system** (RTOS) provides tasks with priorities, a scheduler, queues and timers. It suits larger firmware with several independent activities and deadlines, at the cost of memory and of the usual concurrency hazards.
+
+### Real time
+A **real-time** system must respond within a **deadline**. It is about predictability, not speed. In a **hard** real-time system (an airbag, a motor controller) a missed deadline is a failure. Designers analyse the **worst-case** execution time, avoid dynamic memory allocation because its timing is unpredictable, and keep interrupts short.
+
+### Development practice
+- Code is **cross-compiled** on a computer and **flashed** onto the chip.
+- A **debug probe** lets you set breakpoints on the real hardware.
+- A **hardware abstraction layer** separates the logic from the registers, so the logic can be **unit tested on a computer**.
+- Updates in the field need a **bootloader** and a safe update procedure that survives power loss halfway.
+- Embedded devices are attacked too: sign firmware, disable debug ports in production, and never ship default passwords.
+
+> Key idea: UART, I²C and SPI trade wires, speed and device count. Firmware is a loop of non-blocking state machines, and real time means meeting deadlines predictably.
+#Q Which bus addresses many devices over only two shared wires?
+- UART
+* I²C
+- SPI
+! Each peripheral has an address on the shared bus.
+#Q What defines a hard real-time system?
+- It is very fast
+* Missing a deadline counts as a failure of the system
+- It uses a large processor
+! Predictability, not raw speed, is the requirement.
+
+#LAB js | Registers, circuits and signals
+Implement the calculations of embedded programming. Registers are whole numbers treated as 32-bit unsigned values.
+
+- `setBit(reg, n)`, `clearBit(reg, n)`, `toggleBit(reg, n)` return the new register value. `readBit(reg, n)` returns 0 or 1.
+- `writeField(reg, shift, width, value)` replaces the `width`-bit field starting at bit `shift` with `value` (only its lowest `width` bits), leaving all other bits unchanged.
+- `ledResistor(supply, forward, milliamps)` returns the series resistance in ohms, rounded to the nearest whole number.
+- `divider(vin, r1, r2)` returns the voltage-divider output `vin × r2 / (r1 + r2)`, rounded to 3 decimal places.
+- `adcToVolts(reading, bits, vref)` converts an ADC reading to volts, rounded to 3 decimal places. The maximum reading is `2^bits − 1`.
+- `pwmAverage(supply, dutyPercent)` returns the average voltage, rounded to 2 decimal places.
+- `timerInterval(clockHz, prescaler, reload)` returns the interval in milliseconds: `prescaler × (reload + 1) / clockHz × 1000`.
+- `debounce(samples, needed)` takes an array of 0/1 samples of a button read at regular intervals and returns the debounced sequence: the output starts at the first sample's value and changes only after `needed` consecutive samples show the new value.
+- `uartFrame(byte, parity)` returns the array of bits sent for one byte: a start bit 0, the eight data bits **least significant first**, a parity bit if `parity` is `"even"` (chosen so that the number of 1s among the data bits and the parity bit is even) or nothing if `"none"`, then a stop bit 1.
+@starter
+function setBit(reg, n) {
+  return reg;
+}
+
+function clearBit(reg, n) {
+  return reg;
+}
+
+function toggleBit(reg, n) {
+  return reg;
+}
+
+function readBit(reg, n) {
+  return 0;
+}
+
+function writeField(reg, shift, width, value) {
+  return reg;
+}
+
+function ledResistor(supply, forward, milliamps) {
+  return 0;
+}
+
+function divider(vin, r1, r2) {
+  return 0;
+}
+
+function adcToVolts(reading, bits, vref) {
+  return 0;
+}
+
+function pwmAverage(supply, dutyPercent) {
+  return 0;
+}
+
+function timerInterval(clockHz, prescaler, reload) {
+  return 0;
+}
+
+function debounce(samples, needed) {
+  return samples;
+}
+
+function uartFrame(byte, parity) {
+  return [];
+}
+@solution
+function setBit(reg, n) {
+  return (reg | (1 << n)) >>> 0;
+}
+
+function clearBit(reg, n) {
+  return (reg & ~(1 << n)) >>> 0;
+}
+
+function toggleBit(reg, n) {
+  return (reg ^ (1 << n)) >>> 0;
+}
+
+function readBit(reg, n) {
+  return (reg >>> n) & 1;
+}
+
+function writeField(reg, shift, width, value) {
+  const mask = ((1 << width) - 1) << shift;
+  return ((reg & ~mask) | ((value << shift) & mask)) >>> 0;
+}
+
+function ledResistor(supply, forward, milliamps) {
+  return Math.round((supply - forward) / (milliamps / 1000));
+}
+
+function divider(vin, r1, r2) {
+  return Math.round(vin * r2 / (r1 + r2) * 1000) / 1000;
+}
+
+function adcToVolts(reading, bits, vref) {
+  return Math.round(reading * vref / (Math.pow(2, bits) - 1) * 1000) / 1000;
+}
+
+function pwmAverage(supply, dutyPercent) {
+  return Math.round(supply * dutyPercent / 100 * 100) / 100;
+}
+
+function timerInterval(clockHz, prescaler, reload) {
+  return prescaler * (reload + 1) / clockHz * 1000;
+}
+
+function debounce(samples, needed) {
+  const out = [];
+  if (samples.length === 0) return out;
+  let state = samples[0], run = 0;
+  for (const s of samples) {
+    if (s === state) {
+      run = 0;
+    } else {
+      run++;
+      if (run >= needed) { state = s; run = 0; }
+    }
+    out.push(state);
+  }
+  return out;
+}
+
+function uartFrame(byte, parity) {
+  const bits = [0];
+  let ones = 0;
+  for (let i = 0; i < 8; i++) {
+    const b = (byte >> i) & 1;
+    bits.push(b);
+    ones += b;
+  }
+  if (parity === "even") bits.push(ones % 2);
+  bits.push(1);
+  return bits;
+}
+@tests
+setBit(0, 5) => 32
+setBit(32, 5) => 32
+setBit(1, 3) => 9
+clearBit(255, 0) => 254
+clearBit(8, 0) => 8
+toggleBit(5, 0) => 4
+toggleBit(4, 0) => 5
+readBit(8, 3) => 1
+readBit(8, 2) => 0
+setBit(0, 31) => 2147483648
+writeField(0, 4, 3, 5) => 80
+writeField(255, 4, 4, 0) => 15
+writeField(255, 0, 4, 9) => 249
+writeField(0, 0, 2, 7) => 3
+ledResistor(3.3, 2, 10) => 130
+ledResistor(5, 2, 10) => 300
+ledResistor(5, 3, 20) => 100
+divider(5, 1000, 1000) => 2.5
+divider(5, 2000, 1000) => 1.667
+divider(3.3, 10000, 0) => 0
+adcToVolts(1023, 10, 3.3) => 3.3
+adcToVolts(0, 10, 3.3) => 0
+adcToVolts(512, 10, 3.3) => 1.652
+adcToVolts(4095, 12, 5) => 5
+pwmAverage(5, 40) => 2
+pwmAverage(3.3, 50) => 1.65
+pwmAverage(12, 0) => 0
+timerInterval(1000000, 1000, 999) => 1000
+timerInterval(16000000, 64, 249) => 1
+debounce([0, 1, 0, 1, 1, 1, 0, 0, 1, 0, 0, 0], 3) => [0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 0]
+debounce([1, 1, 1], 2) => [1, 1, 1]
+debounce([], 3) => []
+debounce([0, 1, 1, 0, 0], 2) => [0, 0, 1, 1, 0]
+uartFrame(0, "none") => [0, 0, 0, 0, 0, 0, 0, 0, 0, 1]
+uartFrame(1, "none") => [0, 1, 0, 0, 0, 0, 0, 0, 0, 1]
+uartFrame(65, "none") => [0, 1, 0, 0, 0, 0, 0, 1, 0, 1]
+uartFrame(65, "even") => [0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 1]
+uartFrame(7, "even") => [0, 1, 1, 1, 0, 0, 0, 0, 0, 1, 1]
+@hints
+JavaScript bit operators work on signed 32-bit numbers. Finish each register function with `>>> 0` to get an unsigned result.
+For `writeField`, build a mask of `width` ones shifted to the field's position, clear those bits, then OR in the shifted value.
+The LED resistor is (supply − forward voltage) divided by the current in amperes.
+In `debounce`, keep the current output state and a counter of consecutive samples that disagree with it. A sample that agrees resets the counter.
+For the UART frame, take the bits of the byte from bit 0 upward. Even parity is 1 when the count of 1s in the data is odd.
+
+#EXAM 15
+#Q What distinguishes a microcontroller from a desktop microprocessor?
+- It is faster
+* It combines a processor, memory and peripherals on a single chip
+- It cannot run programs
+! Everything needed for a small system is on one device.
+#Q Why is the `volatile` keyword used for hardware registers?
+- To make them faster
+* To tell the compiler the value can change outside the program, so every access must really happen
+- To make them constant
+! Otherwise the compiler may optimise reads and writes away.
+#Q A 10 kΩ and a 10 kΩ resistor form a divider across 3.3 V. What is the output?
+- 3.3 V
+* 1.65 V
+- 0.33 V
+! Equal resistors halve the voltage.
+#Q A button press is counted five times by the firmware. What is the usual cause?
+- A broken processor
+* Contact bounce that was not debounced
+- A missing pull-up
+! The contacts bounce for a few milliseconds.
+#Q Which protocol needs both ends to agree a baud rate because there is no clock wire?
+* UART
+- SPI
+- I²C
+! It is asynchronous.
+#Q Why do battery-powered devices spend most of their time asleep?
+- The processor needs rest
+* Average current, and so battery life, depends on keeping awake periods short
+- To avoid interrupts
+! Sleep modes draw microamps.
+#W You are writing firmware for a battery-powered temperature logger that reads a sensor once a minute and has one button and one LED. Describe its structure: how time is kept, how the button is read reliably, how shared data is protected, how power is saved, and what happens if the program hangs.
++ A timer interrupt or real-time clock wakes the device; no delay loops
++ The button is debounced, by interrupt plus timer or by sampling
++ Interrupt routines are short; shared variables are volatile and accessed with interrupts briefly disabled
++ The processor sleeps between events to save power
++ A watchdog timer resets the device if the program stops responding
+
+#PROJECT An embedded device, simulated or real
+Build the firmware for a small device. Use a real microcontroller board if you have one; otherwise use a free browser-based simulator, or write your own hardware simulation that your firmware logic runs against.
+@requirements
+A stated purpose with inputs and outputs: at least one button, one analogue sensor, one PWM output and one serial output
+A schematic or wiring description with component values calculated and the calculations shown
+Firmware structured as a non-blocking super-loop of state machines, drawn as diagrams
+Timing from a hardware timer or its simulated equivalent, not from delay loops
+Debounced button input
+At least one interrupt, with shared data protected
+A hardware abstraction layer so that the logic is unit tested on a computer without hardware
+A power budget: estimated current awake and asleep, and the resulting battery life
+@deliverables
+The firmware source and tests
+The schematic and calculations
+The state diagrams
+A demonstration (video, simulator link or test log) and the power budget
+@rubric
+Correct, non-blocking firmware structure | 25
+Circuit design and calculations | 20
+Interrupts, timing and debouncing | 20
+Unit tests through an abstraction layer | 20
+Power budget and documentation | 15
+
+#COURSE ce103
+#LESSON Memory technologies and addressing | 12
+Programs see memory as one long array of bytes. Underneath are several technologies with very different speed, cost and behaviour, arranged so that the common case is fast.
+
+### Volatile memory
+- **SRAM** holds each bit in a small circuit of about six transistors. Very fast, expensive and bulky. Used for processor caches.
+- **DRAM** holds each bit as charge on a tiny capacitor with one transistor. Dense and cheap, but the charge leaks, so every cell is **refreshed** many times a second. Used for main memory.
+
+Both forget everything when power is removed.
+
+### Non-volatile memory
+- **Flash** traps charge in an insulated gate and keeps it for years without power. It can be read quickly, but it must be **erased in whole blocks** before being rewritten, and each block survives only a limited number of erase cycles.
+- **ROM** and one-time-programmable memory hold fixed code.
+- **EEPROM** allows small amounts of data to be rewritten byte by byte.
+
+### The hierarchy
+```diagram
+   registers    <1 ns      bytes
+   cache        1–15 ns    KB to MB
+   main memory  ~100 ns    GB
+   solid state  ~100 µs    hundreds of GB
+   hard disk    ~10 ms     TB
+```
+
+Each level is larger, cheaper per byte and slower than the one above. Because programs reuse the same data and nearby data, keeping recent items in the fast levels makes the whole behave almost as fast as the top and almost as large as the bottom.
+
+### Addresses
+Every byte has an **address**. With n address bits a processor can address 2ⁿ bytes: 32 bits reach 4 GB; 64-bit systems reach far more than any machine holds.
+
+Data larger than a byte occupies several consecutive addresses. Many processors require or prefer **alignment**: a 4-byte value at an address divisible by 4. Compilers insert **padding** into structures to achieve it, which is why reordering fields can shrink a structure.
+
+### Endianness
+The number 0x12345678 needs four bytes. In which order?
+
+```text
+address:        0     1     2     3
+big-endian:     12    34    56    78      most significant byte first
+little-endian:  78    56    34    12      least significant byte first
+```
+
+x86 and most ARM systems are **little-endian**. Network protocols are **big-endian** ("network byte order"). Whenever binary data crosses between machines, in a file or on a network, the byte order must be defined and converted, or 1 becomes 16,777,216.
+
+### Paging, briefly
+An operating system divides memory into **pages**, typically 4 KB. A virtual address splits into a **page number** and an **offset** within the page; the page number is translated to a physical frame and the offset is kept. With 4 KB pages the low 12 bits are the offset.
+
+### Memory errors
+Cosmic rays and electrical noise occasionally flip a bit. Servers use **ECC memory**, which stores extra check bits to correct single-bit errors and detect double ones. Storage devices use much stronger codes.
+
+> Key idea: Memory is a hierarchy of technologies trading speed for cost. Multi-byte values have a byte order that must be agreed whenever data leaves the machine.
+#Q Why must DRAM be refreshed?
+- To update the software
+* Each bit is stored as charge on a capacitor that leaks away
+- To cool it down
+! Refresh rewrites every cell before the charge is lost.
+#Q The 16-bit value 0x1234 is stored little-endian at address 100. What is at address 100?
+- 0x12
+* 0x34
+- 0x00
+! The least significant byte comes first.
+
+#LESSON Storage devices and file systems | 12
+Storage keeps data when the power is off. Its characteristics shape how databases and operating systems are designed.
+
+### Hard disk drives
+Spinning magnetic platters with a head on a moving arm. To read a block the arm must **seek** to the right track and wait for the disk to **rotate** to the right place: around 10 milliseconds, an eternity for a processor. Reading consecutive blocks afterwards is fast. Disks are therefore good at **sequential** access and very poor at **random** access, a fact that shaped decades of software design. They remain the cheapest storage per terabyte.
+
+### Solid-state drives
+Flash memory with no moving parts. Random reads take about a tenth of a millisecond, a hundred times better than a disk. Flash has awkward rules, however:
+
+- It is read and written in **pages** (a few kilobytes) but erased only in much larger **blocks**.
+- A page cannot be overwritten; the block must be erased first.
+- Each block wears out after a limited number of erases.
+
+A controller inside the drive hides this with a **flash translation layer**. It writes new data to fresh pages, remaps addresses, **garbage-collects** blocks of stale pages in the background, and spreads erases evenly over the device (**wear levelling**). Writing can cause more physical writes than were requested: **write amplification**.
+
+### Blocks
+Both kinds of device present themselves as an array of fixed-size **blocks**, read and written whole. Everything above is built on that.
+
+### File systems
+A **file system** turns blocks into named files in directories. It records, for each file, its size, permissions, timestamps and **which blocks hold its contents**, in a structure often called an **inode**. A directory maps names to inodes. Free blocks are tracked so they can be allocated.
+
+### Surviving a crash
+Creating a file changes several structures. If power fails between the writes, they disagree: a block marked used that belongs to no file, or a file pointing at a block that is free.
+
+**Journaling** file systems first write a description of the change to a **journal**, then make the change, then mark it complete. After a crash, the journal is replayed or discarded, and the structures are consistent again. It is write-ahead logging, the same idea databases use. **Copy-on-write** file systems never overwrite live data: they write a new version and switch a pointer atomically.
+
+### When is data really saved?
+For speed, operating systems keep written data in memory and write it to the device later. A program that must be sure, such as a database committing a transaction, calls **fsync** to force it out. Skipping it is fast and loses data in a power failure.
+
+### Redundancy
+Devices fail. **RAID** combines several:
+
+- **Mirroring** keeps identical copies on two devices.
+- **Parity** schemes store data across several devices with extra parity, surviving one or two failures with less overhead than mirroring.
+
+RAID protects against device failure. It is **not a backup**: a deleted or corrupted file is deleted or corrupted on every copy at once.
+
+### Choosing
+Use solid-state storage for anything with random access. Keep rarely used bulk data on cheaper media. Whatever you choose, keep tested backups elsewhere.
+
+> Key idea: Disks are slow to seek; flash must erase before writing and wears out. File systems use journaling or copy-on-write so that a crash cannot leave them inconsistent.
+#Q Why is random access slow on a hard disk?
+- The data is encrypted
+* The arm must move and the platter must rotate to the right position for each block
+- Disks have little capacity
+! Mechanical movement takes milliseconds.
+#Q What does a journaling file system do before changing its structures?
+- Deletes old files
+* Writes a record of the intended change to a journal, so that it can be completed or undone after a crash
+- Compresses the disk
+! It is write-ahead logging applied to file-system metadata.
+
+#LESSON Buses, drivers and the hardware interface | 13
+A processor is useless alone. It reaches memory and devices over **buses**, and software reaches devices through **drivers**.
+
+### Buses
+A bus is a shared set of wires with a protocol. Conceptually there are three groups:
+
+- the **address bus** says which location;
+- the **data bus** carries the value;
+- the **control bus** says whether this is a read or a write, and when.
+
+The number of address lines sets how much can be addressed; the number of data lines how much moves at once. Modern machines use fast serial links instead of wide parallel ones: **PCI Express** for cards and fast storage, **USB** for external devices, **SATA** and **NVMe** for drives.
+
+### Address decoding
+When the processor puts an address on the bus, exactly one device must respond. **Address decoding** logic examines the high bits of the address and enables the right chip. Each device occupies a **range** of addresses, and the collection of ranges is the system's **memory map**.
+
+```text
+0x0000_0000 – 0x0FFF_FFFF    flash (program)
+0x2000_0000 – 0x2001_FFFF    RAM
+0x4000_0000 – 0x4000_0FFF    timer registers
+0x4001_0000 – 0x4001_0FFF    serial port registers
+```
+
+### Talking to a device
+A device exposes **registers**: a status register (is data ready? was there an error?), a control register (start, stop, configure) and data registers. Three ways for software to work with them:
+
+- **Polling:** check the status register repeatedly. Simple, wastes processor time.
+- **Interrupts:** the device signals when it needs attention. Efficient for events that are occasional.
+- **Direct memory access (DMA):** the device transfers a whole block to or from memory by itself and interrupts once at the end. Essential for fast devices such as disks and network cards, where an interrupt per byte would swamp the processor.
+
+### Device drivers
+A **driver** is the software that knows one device's registers and protocol and presents a standard interface to the rest of the operating system: open, read, write, close. Applications use the same calls whatever the hardware. This is abstraction doing real work: a new printer needs a new driver, not new applications.
+
+Drivers run with full privileges inside the **kernel**. A bug in one can crash the whole machine, and they are a common source of both crashes and security holes.
+
+### User mode and kernel mode
+Processors have at least two **privilege levels**. Application code runs in **user mode** and cannot touch hardware or other programs' memory. To do I/O, it makes a **system call**, which switches the processor to **kernel mode**, runs trusted operating-system code, and returns. The hardware enforces the boundary; it is the foundation of system security and stability.
+
+### Starting up
+When power is applied the processor begins executing at a fixed address in **firmware** (BIOS or UEFI on a PC). The firmware tests and initialises hardware, then loads a **bootloader**, which loads the operating-system kernel, which starts drivers and then the first programs. **Secure boot** checks a cryptographic signature at each step, so that tampered code is refused.
+
+### Concurrency with hardware
+A driver's interrupt handler can run at any moment, in the middle of other driver code. Shared data must be protected by disabling interrupts briefly or with locks designed for interrupt context. This is concurrency at its least forgiving.
+
+> Key idea: Devices appear as registers at addresses in the memory map. Drivers wrap them behind a standard interface, and the processor's privilege levels keep applications away from the hardware.
+#Q What is the purpose of address decoding?
+- To encrypt addresses
+* To make sure exactly one device responds to each address
+- To speed up the clock
+! It enables the chip whose address range contains the address.
+#Q Why is DMA used for disks and network cards?
+- It is more secure
+* The device moves whole blocks to memory itself, avoiding an interrupt for every byte
+- It needs no memory
+! High data rates would otherwise overwhelm the processor.
+
+#LESSON Designing a small computer system | 12
+Computer engineering is the practice of choosing and combining hardware and software to meet a requirement within limits of cost, power, size and time.
+
+### Start from requirements
+- What must it do, and how fast?
+- What does it connect to?
+- What power is available: mains, a battery, energy harvested from light?
+- What environment: temperature, vibration, moisture?
+- How many will be made, and at what cost each?
+- How long must it last, and how will it be updated?
+- What happens if it fails?
+
+A device made in millions is optimised to the cent. One made in tens uses a ready-made board.
+
+### Choosing the processor
+- A small **microcontroller** for simple control at microwatts.
+- An **application processor** running Linux for cameras, displays and networking, at watts.
+- An **FPGA**, whose logic is configured and not programmed, for very fast or highly parallel signal processing.
+
+Choose the smallest that meets the need with margin. Development boards and reference designs reduce risk.
+
+### Partitioning hardware and software
+A function can be done in software (flexible, cheap to change, slower) or in dedicated hardware (fast, low power, costly to change). Filtering a signal might be an analogue circuit, a hardware block or a few lines of code. The split is a central design decision.
+
+### The power budget
+List every component with its current in each mode and the fraction of time in that mode:
+
+```text
+average current = Σ (current in mode × fraction of time in mode)
+battery life (hours) = capacity (mAh) / average current (mA)
+```
+
+A sensor node drawing 20 mA for 100 ms each minute and 5 µA asleep averages about 38 µA, and a 220 mAh coin cell lasts roughly eight months. Shortening the awake time does far more than choosing a slightly more efficient processor.
+
+### Timing budgets
+For real-time behaviour, add up the worst case of every step from event to response: sensor delay, interrupt latency, computation, communication, actuator delay. The total must be inside the deadline with margin.
+
+### Reliability
+- **Watchdog timers** recover from hung software.
+- **Brown-out detection** holds the processor in reset when the supply is too low to run correctly.
+- **Checksums** on stored data and firmware.
+- **Redundancy** for critical functions.
+- Safe **default states**: if the controller fails, the heater turns off.
+- For safety-critical products, development follows formal standards and is independently assessed.
+
+### Testing hardware and software together
+- Unit-test logic on a computer through a hardware abstraction layer.
+- **Hardware-in-the-loop** testing connects the real controller to a simulated environment.
+- Test at the extremes: low battery, temperature limits, noisy signals, power removed during a write.
+- Build in **diagnostics**: a serial log, status lights, test points.
+
+### Design for the whole life
+Plan how the device will be manufactured and tested on the production line, updated securely in the field, repaired, and eventually recycled. A device that cannot be updated cannot be fixed.
+
+### The engineer's judgement
+Every choice trades performance, power, cost, size and development effort. There is rarely one right answer. Write down the alternatives you rejected and why.
+
+> Key idea: Design from requirements and budgets. Sum the power and the worst-case timing before building, and plan for failure and for updates.
+#Q A device draws 10 mA for 1% of the time and 10 µA for the rest. What is its approximate average current?
+- 10 mA
+* About 0.11 mA
+- 10 µA
+! 0.01 × 10 + 0.99 × 0.01 ≈ 0.11 mA.
+#Q What is a safe default state?
+- The fastest operating mode
+* The condition a system falls into on failure that does no harm, such as a heater switching off
+- The factory password
+! Failure should lead to safety, not danger.
+
+#LAB js | Bytes, addresses and buffers
+Implement low-level data handling. Bytes are whole numbers from 0 to 255.
+
+- `toBytes(value, endian)` returns the four bytes of a 32-bit unsigned number as an array, in `"big"` or `"little"` endian order.
+- `fromBytes(bytes, endian)` does the reverse and returns an unsigned number.
+- `swap16(value)` swaps the two bytes of a 16-bit number.
+- `splitAddress(address, pageSize)` returns `{ page, offset }` for a page size that is a power of two.
+- `decode(address, map)` takes a memory map, an array of `{ name, start, end }` (inclusive ranges), and returns the name of the device that owns the address, or `null`.
+- `checksum(bytes)` returns the sum of the bytes modulo 256.
+- `parity(byte)` returns 1 if the byte has an odd number of 1 bits, otherwise 0.
+- `alignUp(address, alignment)` returns the smallest multiple of `alignment` that is at least `address`.
+- `class RingBuffer`, created with `new RingBuffer(capacity)`, is the fixed-size queue used between an interrupt handler and the main loop. `push(value)` adds a value and returns `true`, or returns `false` and stores nothing if the buffer is full. `pop()` removes and returns the oldest value, or `null` if empty. `size()` returns how many values are stored.
+- `batteryLifeHours(capacityMah, modes)` takes modes as `[{ ma, fraction }]` and returns capacity divided by the average current, rounded to 1 decimal place.
+@starter
+function toBytes(value, endian) {
+  return [0, 0, 0, 0];
+}
+
+function fromBytes(bytes, endian) {
+  return 0;
+}
+
+function swap16(value) {
+  return value;
+}
+
+function splitAddress(address, pageSize) {
+  return { page: 0, offset: 0 };
+}
+
+function decode(address, map) {
+  return null;
+}
+
+function checksum(bytes) {
+  return 0;
+}
+
+function parity(byte) {
+  return 0;
+}
+
+function alignUp(address, alignment) {
+  return address;
+}
+
+class RingBuffer {
+  constructor(capacity) {
+    this.capacity = capacity;
+  }
+  push(value) {
+    return false;
+  }
+  pop() {
+    return null;
+  }
+  size() {
+    return 0;
+  }
+}
+
+function batteryLifeHours(capacityMah, modes) {
+  return 0;
+}
+@solution
+function toBytes(value, endian) {
+  const big = [(value >>> 24) & 255, (value >>> 16) & 255, (value >>> 8) & 255, value & 255];
+  return endian === "big" ? big : big.reverse();
+}
+
+function fromBytes(bytes, endian) {
+  const b = endian === "big" ? bytes : bytes.slice().reverse();
+  return ((b[0] << 24) | (b[1] << 16) | (b[2] << 8) | b[3]) >>> 0;
+}
+
+function swap16(value) {
+  return ((value & 255) << 8) | ((value >> 8) & 255);
+}
+
+function splitAddress(address, pageSize) {
+  return { page: Math.floor(address / pageSize), offset: address % pageSize };
+}
+
+function decode(address, map) {
+  for (const d of map) {
+    if (address >= d.start && address <= d.end) return d.name;
+  }
+  return null;
+}
+
+function checksum(bytes) {
+  let sum = 0;
+  for (const b of bytes) { sum = (sum + b) % 256; }
+  return sum;
+}
+
+function parity(byte) {
+  let ones = 0;
+  for (let i = 0; i < 8; i++) { ones += (byte >> i) & 1; }
+  return ones % 2;
+}
+
+function alignUp(address, alignment) {
+  return Math.ceil(address / alignment) * alignment;
+}
+
+class RingBuffer {
+  constructor(capacity) {
+    this.capacity = capacity;
+    this.data = new Array(capacity);
+    this.head = 0;
+    this.count = 0;
+  }
+  push(value) {
+    if (this.count === this.capacity) return false;
+    this.data[(this.head + this.count) % this.capacity] = value;
+    this.count++;
+    return true;
+  }
+  pop() {
+    if (this.count === 0) return null;
+    const value = this.data[this.head];
+    this.head = (this.head + 1) % this.capacity;
+    this.count--;
+    return value;
+  }
+  size() {
+    return this.count;
+  }
+}
+
+function batteryLifeHours(capacityMah, modes) {
+  let average = 0;
+  for (const m of modes) { average += m.ma * m.fraction; }
+  return Math.round(capacityMah / average * 10) / 10;
+}
+@tests
+toBytes(305419896, "big") => [18, 52, 86, 120]
+toBytes(305419896, "little") => [120, 86, 52, 18]
+toBytes(1, "little") => [1, 0, 0, 0]
+toBytes(1, "big") => [0, 0, 0, 1]
+toBytes(4294967295, "big") => [255, 255, 255, 255]
+fromBytes([18, 52, 86, 120], "big") => 305419896
+fromBytes([120, 86, 52, 18], "little") => 305419896
+fromBytes([1, 0, 0, 0], "big") => 16777216
+fromBytes([255, 255, 255, 255], "little") => 4294967295
+(() => { const b = [1, 2, 3, 4]; fromBytes(b, "little"); return b; })() => [1, 2, 3, 4]
+swap16(4660) => 13330
+swap16(255) => 65280
+splitAddress(8196, 4096) => {"page": 2, "offset": 4}
+splitAddress(4095, 4096) => {"page": 0, "offset": 4095}
+splitAddress(0, 4096) => {"page": 0, "offset": 0}
+decode(1073741828, [{ name: "flash", start: 0, end: 268435455 }, { name: "ram", start: 536870912, end: 537001983 }, { name: "timer", start: 1073741824, end: 1073745919 }]) => "timer"
+decode(100, [{ name: "flash", start: 0, end: 268435455 }, { name: "ram", start: 536870912, end: 537001983 }]) => "flash"
+decode(536870912, [{ name: "flash", start: 0, end: 268435455 }, { name: "ram", start: 536870912, end: 537001983 }]) => "ram"
+decode(300000000, [{ name: "flash", start: 0, end: 268435455 }, { name: "ram", start: 536870912, end: 537001983 }]) => null
+checksum([1, 2, 3]) => 6
+checksum([200, 100]) => 44
+checksum([]) => 0
+parity(0) => 0
+parity(1) => 1
+parity(3) => 0
+parity(7) => 1
+parity(255) => 0
+alignUp(13, 4) => 16
+alignUp(16, 4) => 16
+alignUp(1, 8) => 8
+alignUp(0, 8) => 0
+(() => { const r = new RingBuffer(3); return [r.push(1), r.push(2), r.push(3), r.push(4), r.size()]; })() => [true, true, true, false, 3]
+(() => { const r = new RingBuffer(3); r.push(1); r.push(2); return [r.pop(), r.pop(), r.pop(), r.size()]; })() => [1, 2, null, 0]
+(() => { const r = new RingBuffer(2); r.push("a"); r.push("b"); r.pop(); r.push("c"); return [r.pop(), r.pop(), r.size()]; })() => ["b", "c", 0]
+(() => { const r = new RingBuffer(2); for (let i = 0; i < 10; i++) { r.push(i); r.pop(); } r.push(98); r.push(99); return [r.size(), r.pop(), r.pop()]; })() => [2, 98, 99]
+batteryLifeHours(220, [{ ma: 20, fraction: 0.5 }, { ma: 0, fraction: 0.5 }]) => 22
+batteryLifeHours(1000, [{ ma: 10, fraction: 0.01 }, { ma: 0.01, fraction: 0.99 }]) => 9099.2
+batteryLifeHours(2000, [{ ma: 100, fraction: 1 }]) => 20
+@hints
+Extract bytes with shifts and a mask: `(value >>> 24) & 255` is the most significant byte. Little-endian is the same list reversed.
+When rebuilding a number, finish with `>>> 0` so that values above 2 billion are not shown as negative.
+The page number is the address divided by the page size, rounded down; the offset is the remainder.
+A ring buffer needs an array, the index of the oldest item and a count. The next free slot is `(head + count) % capacity`.
+Battery life is the capacity divided by the sum of current × fraction over the modes.
+
+#EXAM 15
+#Q Which memory type is used for main memory because it is dense and cheap?
+- SRAM
+* DRAM
+- Flash
+! One transistor and one capacitor per bit.
+#Q Network protocols send multi-byte numbers in which order?
+* Big-endian
+- Little-endian
+- It is not specified
+! "Network byte order" is most significant byte first.
+#Q Why does a solid-state drive use wear levelling?
+- To increase capacity
+* Flash blocks survive a limited number of erases, so writes are spread evenly
+- To cool the drive
+! Without it, frequently rewritten blocks would fail early.
+#Q Is RAID a substitute for backups?
+- Yes
+* No: it protects against device failure, but a deleted or corrupted file is lost on every copy
+- Only with mirroring
+! Backups protect against mistakes, corruption and disasters.
+#Q What happens when an application needs to read a file?
+- It accesses the disk registers directly
+* It makes a system call; the processor switches to kernel mode and the operating system performs the I/O
+- It disables interrupts
+! User-mode code cannot touch hardware.
+#Q What does secure boot verify?
+- The amount of memory installed
+* A cryptographic signature on each stage of start-up code before running it
+- The network connection
+! Tampered firmware or bootloaders are refused.
+#W A wearable device must run for a year on a 250 mAh battery. Its radio draws 15 mA when transmitting, its sensor 2 mA when measuring, and the whole device 4 µA asleep. Explain how you would work out whether the target is achievable, what the design must do to meet it, and two other budgets or risks a computer engineer must check before building it.
++ Computes the allowed average current: 250 mAh over about 8,760 hours is roughly 28 µA
++ Builds a power budget from current × fraction of time in each mode
++ Concludes the radio and sensor may be on only a tiny fraction of the time, and proposes short, infrequent wake-ups
++ Names another budget such as worst-case timing, memory, or cost
++ Names a reliability or lifecycle risk such as brown-out, a hung program needing a watchdog, or secure field updates
+
+#PROJECT A system design for a small device
+Produce the complete engineering design for a small computer-based product of your choice, such as a weather station, a bike computer or a plant monitor. Building it is optional; the design must be complete enough that someone else could.
+@requirements
+Requirements: functions, performance, power source, environment, cost target and lifetime
+A block diagram of the hardware, and a justified choice of processor and each major component
+The memory map and the choice of buses for each peripheral, with reasons
+The partition between hardware and software for at least two functions, with the alternative considered
+A power budget with every mode, giving battery life or supply requirements
+A worst-case timing budget for the most time-critical response
+The storage design: what is stored, in what format including byte order, with a checksum, and what happens if power fails during a write
+A failure analysis: at least five things that can go wrong and how the design detects or tolerates each
+A test plan covering unit tests off the hardware, tests at the extremes, and production-line testing
+A plan for secure firmware updates
+@deliverables
+The design document
+The power and timing budgets as spreadsheets or scripts
+A prototype of the riskiest part (simulation or hardware), with what it showed
+@rubric
+Requirements and component choices | 20
+Memory, bus and storage design | 20
+Power and timing budgets | 20
+Failure analysis and safety | 20
+Test and update plans | 10
+Prototype of the riskiest part | 10

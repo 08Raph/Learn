@@ -1,0 +1,1371 @@
+#COURSE mb102
+#LESSON Android development | 13
+**Android** runs on phones, tablets, watches, televisions and cars from hundreds of manufacturers. Apps are written mainly in **Kotlin**, built with **Gradle**, and developed in **Android Studio**, which is free.
+
+### The building blocks
+An Android app is a set of **components** declared in a file called the **manifest**.
+
+- An **activity** is a screen with a user interface. Modern apps often have a single activity that hosts every screen.
+- A **service** does work without a user interface, such as playing music.
+- A **broadcast receiver** reacts to system events such as "charging started".
+- A **content provider** shares structured data with other apps.
+
+Components are started by **intents**: messages that say "open this screen" (explicit) or "something that can share a photo" (implicit, and the system offers the matching apps).
+
+### The activity lifecycle
+The system, not your code, decides when an activity lives and dies.
+
+```diagram
+   created --> started --> resumed (visible and interactive)
+      ^           ^           |
+      |           +-- paused -+     another window partly covers it
+      +---- stopped <---------+     no longer visible
+                |
+            destroyed            also on screen rotation, by default
+```
+
+Rotating the screen destroys and recreates the activity. Anything held only in its fields is lost. State that must survive belongs in a **ViewModel** (survives rotation) and, for anything important, in saved state or storage (survives the process being killed).
+
+### Jetpack Compose
+Android's modern UI toolkit is **declarative**. You write functions that describe the screen for the current state; when the state changes, the affected functions run again.
+
+```kotlin
+@Composable
+fun Counter() {
+    var count by remember { mutableStateOf(0) }
+    Button(onClick = { count++ }) {
+        Text("Pressed $count times")
+    }
+}
+```
+
+There is no code that finds a label and changes its text. The UI is a function of state. The older system, XML layouts updated by hand, is still found in existing apps.
+
+### Resources and device variety
+Screens differ in size and pixel density. Sizes are given in **density-independent pixels** (dp): 1 dp is one physical pixel on a 160 dpi screen and scales in proportion, so a 48 dp button is about the same physical size everywhere.
+
+```text
+pixels = dp × (screen dpi / 160)
+```
+
+Text, images and layouts are kept as **resources**, with alternatives selected automatically by language, screen size and dark mode.
+
+### Permissions
+Access to the camera, location, contacts and similar is denied until the user grants it **at run time**. Ask at the moment the feature is used, explain why, and keep working if the answer is no. After repeated refusal the system stops showing the prompt, and the app can only direct the user to settings.
+
+### Background work
+To protect the battery, Android restricts what apps do in the background. Deferred work (uploading, syncing) is scheduled with **WorkManager**, which runs it when conditions such as "on Wi-Fi" are met, even after a restart.
+
+### Building and shipping
+Gradle compiles the code and resources into an **Android App Bundle**, which is **signed** with your key and uploaded to Google Play. Different **build variants** (debug, release, free, paid) come from one code base.
+
+> Key idea: Android creates and destroys your components as it sees fit. Keep state out of the screen, describe the UI as a function of state, and ask for permissions only when needed.
+#Q What happens to an activity, by default, when the device is rotated?
+- Nothing
+* It is destroyed and recreated, so state held only in its fields is lost
+- The app is uninstalled
+! A ViewModel or saved state preserves what matters.
+#Q A button is 48 dp wide. How many pixels is that on a 320 dpi screen?
+- 48
+* 96
+- 160
+! 48 × 320 / 160 = 96.
+
+#LESSON iOS development concepts | 13
+**iOS** runs on iPhone, with close relatives on iPad, Apple Watch, Apple TV and Mac. Apps are written in **Swift** using **Xcode**, which runs only on a Mac. That is a real constraint: to build and publish a native iOS app you need access to a Mac and a paid developer membership. You can still learn the concepts, and the Swift language itself, without one.
+
+### Swift in brief
+Swift is a compiled, statically typed language designed for safety.
+
+```swift
+struct Task: Identifiable {
+    let id: Int
+    var title: String
+    var done = false
+}
+
+var first: Task? = tasks.first        // an optional: may be nil
+if let task = first {
+    print(task.title)                 // safely unwrapped
+}
+```
+
+- **Optionals** make "no value" part of the type. The compiler will not let you use a value that might be missing until you have checked.
+- **Structs** are value types: assigning one copies it. **Classes** are reference types.
+- Memory is managed by **automatic reference counting**. Two objects that refer to each other strongly are never freed (a retain cycle); one side is marked `weak`.
+
+### SwiftUI
+Like Compose, SwiftUI is declarative.
+
+```swift
+struct CounterView: View {
+    @State private var count = 0
+    var body: some View {
+        Button("Pressed \(count) times") { count += 1 }
+    }
+}
+```
+
+`@State` marks data the view owns; changing it recomputes `body`. The older framework, **UIKit**, with view controllers updated by hand, underlies a great many existing apps.
+
+### The app lifecycle
+An iOS app moves between **not running**, **inactive**, **active**, **background** and **suspended**. A suspended app is in memory but executes no code, and the system may remove it without notice when memory is short. Save state when moving to the background; you will not be told when the end comes.
+
+### The sandbox
+Every app runs in a **sandbox**: its own directory and no access to other apps' files. Sharing happens through controlled system services such as the share sheet and document picker. Secrets are stored in the **Keychain**, encrypted by the system. Access to location, photos, the microphone and tracking needs permission, with a purpose string you write shown to the user.
+
+### Layout
+Layouts must adapt to many screen sizes, to the **safe area** (clear of the notch and home indicator), to **Dynamic Type** (the user's chosen text size) and to both orientations on iPad. Sizes are in **points**, which map to 1, 2 or 3 pixels according to the screen.
+
+### Distribution
+Apps are **code signed** with a certificate from Apple, tested with outside users through **TestFlight**, and submitted to the App Store, where each version goes through **review** against published guidelines. Rejections are common for crashes, unclear permission requests and incomplete information.
+
+### What the two platforms share
+| Concept | Android | iOS |
+|---|---|---|
+| Language | Kotlin | Swift |
+| Declarative UI | Jetpack Compose | SwiftUI |
+| Unit of size | dp | point |
+| Secure storage | Keystore | Keychain |
+| Background work | WorkManager | Background tasks |
+| Store | Google Play | App Store |
+
+The names differ and the ideas match. Learning one platform well makes the other much easier.
+
+> Key idea: iOS apps are sandboxed, signed and reviewed, and can be suspended or removed at any time. Swift's optionals and value types remove whole classes of bug.
+#Q What does a Swift optional express?
+- That a variable is constant
+* That a value may be absent, and must be checked before use
+- That a function is asynchronous
+! The compiler enforces the check.
+#Q What do you need in order to build and publish a native iOS app?
+- Any computer with a browser
+* A Mac running Xcode and a developer membership
+- An Android phone
+! Xcode is available only on macOS.
+
+#LESSON Designing interfaces for touch | 12
+A phone is held in one hand, used in sunlight, on a train, in short bursts, with a thumb that covers what it touches. Interfaces designed for a mouse fail there.
+
+### Touch targets
+A fingertip is about a centimetre wide and imprecise. Both platforms give a minimum size for anything tappable:
+
+- Android: **48 × 48 dp**.
+- iOS: **44 × 44 points**.
+
+The visible icon may be smaller, but the touchable area must not be. Leave space between targets so that a near miss does not hit the neighbour.
+
+### Reach
+On a large phone held in one hand, the thumb comfortably reaches the lower half of the screen. That is why primary navigation moved to the **bottom** (tab bars, bottom navigation) and why the main action often floats near the lower right.
+
+### Navigation patterns
+- **Tabs** at the bottom for three to five top-level sections.
+- A **stack**: tapping an item pushes a detail screen; back pops it.
+- **Modal** screens for a self-contained task that must be completed or cancelled.
+
+Respect each platform's back behaviour. Android has a system back gesture; iOS relies on a back button and an edge swipe.
+
+### Gestures
+Taps are discoverable; swipes, long presses and pinches are not. Use gestures as **shortcuts** for something also available visibly, and follow platform conventions (pull to refresh, swipe to delete).
+
+### Adaptive layout
+One layout cannot serve a small phone and a tablet. Layouts change at **breakpoints**; Android's guidance uses width classes:
+
+```text
+compact    under 600 dp     one column, bottom navigation
+medium     600 to 839 dp    navigation rail, perhaps two panes
+expanded   840 dp and over  list and detail side by side
+```
+
+Within a screen, space is shared **flexibly**: each element has a base size, and leftover space is divided according to weights. This is the same model as CSS flexbox.
+
+### Text entry is expensive
+Typing on glass is slow and error-prone.
+
+- Ask for less. Every field removed raises completion.
+- Show the right keyboard (number, email).
+- Support autofill and password managers.
+- Offer pickers, toggles and sensible defaults.
+- Validate as the user goes, with messages beside the field.
+
+### Feedback and state
+Every touch should produce a visible response within about a tenth of a second. Each screen has more states than the happy one: **loading**, **empty**, **error**, **offline** and **partial**. Design all of them. A blank screen is the commonest design bug in mobile apps.
+
+### Accessibility
+- Label every control for screen readers (TalkBack, VoiceOver).
+- Respect the user's text size; layouts must not break at 200%.
+- Keep text contrast at 4.5:1 or better.
+- Do not convey meaning by colour alone.
+- Honour "reduce motion".
+
+### Follow the platform
+Users bring habits from every other app on their phone. Material Design (Android) and the Human Interface Guidelines (iOS) describe what they expect. An app that follows them feels familiar at once.
+
+> Key idea: Design for thumbs, small screens and interruptions: large targets within reach, little typing, every state designed, and platform conventions followed.
+#Q What is the minimum recommended touch target on Android?
+- 24 × 24 dp
+* 48 × 48 dp
+- 100 × 100 dp
+! Smaller targets are hard to hit reliably.
+#Q Why is primary navigation usually placed at the bottom of a phone screen?
+- It looks more modern
+* It is within easy reach of the thumb when the phone is held in one hand
+- The top is reserved by the system
+! The lower half of the screen is the comfortable zone.
+
+#LESSON App architecture | 12
+A mobile app is long-lived, stateful, asynchronous and regularly destroyed by the system. Without structure, logic ends up tangled in screen code that cannot be tested.
+
+### Separate the layers
+```diagram
+   UI layer         screens that display state and send user events
+        |  ^
+   events  state
+        v  |
+   presentation     view models: hold screen state, handle events
+        |
+   domain           business rules (optional in small apps)
+        |
+   data layer       repositories over the network and local storage
+```
+
+Each layer depends only on the one below it. The UI knows nothing about HTTP; the data layer knows nothing about screens.
+
+### MVVM and unidirectional data flow
+In **Model-View-ViewModel**, a **view model** holds the state of one screen and exposes it as an observable value. The view displays that state and forwards user actions. It contains no logic of its own.
+
+Data moves in **one direction**:
+
+```diagram
+   state --> view --> user event (intent) --> view model --> new state
+```
+
+The screen is always a function of a single state object:
+
+```kotlin
+data class TasksUiState(
+    val items: List<Task> = emptyList(),
+    val loading: Boolean = false,
+    val error: String? = null
+)
+```
+
+Because the state is one immutable value, impossible combinations are easy to rule out, every change is traceable, and the view model can be **unit tested** with no device: send an event, assert on the state.
+
+### Repositories
+A **repository** hides where data comes from. A common rule is the **single source of truth**: the screen observes the local database only. The repository fetches from the network and writes the result into the database, and the screen updates because the database changed. The app works offline with no special cases.
+
+### Asynchronous work
+The **main thread** draws the interface. Blocking it for more than a few milliseconds freezes the app, and the system may offer to close it. Network and disk work runs elsewhere, using **coroutines** in Kotlin and **async/await** in Swift, tied to a scope so that work is cancelled when its screen goes away. Forgetting to cancel leaks memory and updates screens that no longer exist.
+
+### Dependency injection
+A view model should **receive** its repository, not construct it. Then a test can pass a fake one. Frameworks automate the wiring, but the principle is only "pass dependencies in".
+
+### Navigation
+Treat navigation as state too: a **back stack** of destinations. **Deep links** map a URL to a destination, and the stack beneath it must be rebuilt so that back behaves sensibly.
+
+### Native or cross-platform
+- **Native** (Kotlin and Swift): best platform fit and access to everything, two code bases.
+- **Kotlin Multiplatform:** share business logic, keep native UI.
+- **Flutter** and **React Native:** share the UI too, with their own trade-offs in fidelity and dependence on the framework.
+- **Web apps (PWAs):** one code base and no store, with limited access to device features.
+
+Choose by team skills, required platform features and budget. There is no universal answer.
+
+> Key idea: Keep logic out of the screen. A view model turns events into a single immutable state, repositories hide data sources, and dependencies are passed in so that everything can be tested.
+#Q In unidirectional data flow, how does the view change what is displayed?
+- It modifies its own widgets directly
+* It sends an event to the view model, which produces a new state that the view displays
+- It writes to the database
+! State flows down and events flow up.
+#Q Why should long-running work stay off the main thread?
+- The main thread is slower
+* The main thread draws the interface; blocking it freezes the app
+- Background threads use less battery
+! A frozen interface may be reported as "not responding".
+
+#LAB js | Mobile UI and architecture logic
+Implement the platform-independent logic behind a mobile screen.
+
+- `dpToPx(dp, dpi)` returns pixels, rounded to a whole number: `dp × dpi / 160`.
+- `touchTargetOk(widthDp, heightDp)` returns true if both are at least 48.
+- `widthClass(widthDp)` returns `"compact"` (under 600), `"medium"` (600 to 839) or `"expanded"`.
+- `flexRow(container, items)` lays out a row. `items` is `[{ basis, grow }]`. Each item gets its `basis`, and the space left over (container minus all bases) is shared in proportion to `grow`. If no item grows, each keeps its basis. Return the array of widths.
+- `lifecycleNext(state, event)` models an Android activity: `"start"` moves `"created"` → `"started"`; `"resume"` moves `"started"` → `"resumed"`; `"pause"` moves `"resumed"` → `"started"`; `"stop"` moves `"started"` → `"created"`. Anything else leaves the state unchanged.
+- `reduce(state, intent)` is a view model. State is `{ items, loading, error }`. Intents: `{ type: "load" }` sets `loading` true and `error` null; `{ type: "loaded", items }` sets the items and `loading` false; `{ type: "failed", message }` sets `error` and `loading` false and keeps the items. Unknown intents return the state unchanged. **Never mutate the state passed in.**
+- `permissionNext(status, action)` models a run-time permission. Status is `"notAsked"`, `"granted"`, `"denied"` or `"deniedForever"`. Action `"allow"` gives `"granted"` unless the status is `"deniedForever"`. Action `"deny"` turns `"notAsked"` into `"denied"` and `"denied"` into `"deniedForever"`. `"granted"` and `"deniedForever"` never change.
+@starter
+function dpToPx(dp, dpi) {
+  return dp;
+}
+
+function touchTargetOk(widthDp, heightDp) {
+  return true;
+}
+
+function widthClass(widthDp) {
+  return "compact";
+}
+
+function flexRow(container, items) {
+  return items.map((i) => i.basis);
+}
+
+function lifecycleNext(state, event) {
+  return state;
+}
+
+function reduce(state, intent) {
+  return state;
+}
+
+function permissionNext(status, action) {
+  return status;
+}
+@solution
+function dpToPx(dp, dpi) {
+  return Math.round(dp * dpi / 160);
+}
+
+function touchTargetOk(widthDp, heightDp) {
+  return widthDp >= 48 && heightDp >= 48;
+}
+
+function widthClass(widthDp) {
+  if (widthDp < 600) return "compact";
+  if (widthDp < 840) return "medium";
+  return "expanded";
+}
+
+function flexRow(container, items) {
+  let used = 0, grow = 0;
+  for (const i of items) { used += i.basis; grow += i.grow; }
+  const free = container - used;
+  return items.map((i) => (grow > 0 ? i.basis + free * i.grow / grow : i.basis));
+}
+
+function lifecycleNext(state, event) {
+  if (state === "created" && event === "start") return "started";
+  if (state === "started" && event === "resume") return "resumed";
+  if (state === "resumed" && event === "pause") return "started";
+  if (state === "started" && event === "stop") return "created";
+  return state;
+}
+
+function reduce(state, intent) {
+  if (intent.type === "load") return { items: state.items, loading: true, error: null };
+  if (intent.type === "loaded") return { items: intent.items, loading: false, error: null };
+  if (intent.type === "failed") return { items: state.items, loading: false, error: intent.message };
+  return state;
+}
+
+function permissionNext(status, action) {
+  if (status === "granted" || status === "deniedForever") return status;
+  if (action === "allow") return "granted";
+  if (action === "deny") return status === "notAsked" ? "denied" : "deniedForever";
+  return status;
+}
+@tests
+dpToPx(48, 160) => 48
+dpToPx(48, 320) => 96
+dpToPx(10, 420) => 26
+touchTargetOk(48, 48) => true
+touchTargetOk(60, 40) => false
+touchTargetOk(24, 24) => false
+widthClass(360) => "compact"
+widthClass(600) => "medium"
+widthClass(839) => "medium"
+widthClass(840) => "expanded"
+flexRow(300, [{ basis: 100, grow: 0 }, { basis: 100, grow: 1 }]) => [100, 200]
+flexRow(400, [{ basis: 50, grow: 1 }, { basis: 50, grow: 2 }]) => [150, 250]
+flexRow(400, [{ basis: 100, grow: 0 }, { basis: 100, grow: 0 }]) => [100, 100]
+flexRow(360, [{ basis: 0, grow: 1 }, { basis: 0, grow: 1 }, { basis: 0, grow: 1 }]) => [120, 120, 120]
+lifecycleNext("created", "start") => "started"
+lifecycleNext("started", "resume") => "resumed"
+lifecycleNext("resumed", "pause") => "started"
+lifecycleNext("started", "stop") => "created"
+lifecycleNext("created", "resume") => "created"
+lifecycleNext("resumed", "stop") => "resumed"
+reduce({ items: [], loading: false, error: "old" }, { type: "load" }) => {"items": [], "loading": true, "error": null}
+reduce({ items: [], loading: true, error: null }, { type: "loaded", items: ["a", "b"] }) => {"items": ["a", "b"], "loading": false, "error": null}
+reduce({ items: ["a"], loading: true, error: null }, { type: "failed", message: "offline" }) => {"items": ["a"], "loading": false, "error": "offline"}
+reduce({ items: ["a"], loading: false, error: null }, { type: "unknown" }) => {"items": ["a"], "loading": false, "error": null}
+(() => { const s = { items: ["a"], loading: false, error: null }; reduce(s, { type: "load" }); reduce(s, { type: "failed", message: "x" }); return s; })() => {"items": ["a"], "loading": false, "error": null}
+permissionNext("notAsked", "allow") => "granted"
+permissionNext("notAsked", "deny") => "denied"
+permissionNext("denied", "deny") => "deniedForever"
+permissionNext("denied", "allow") => "granted"
+permissionNext("deniedForever", "allow") => "deniedForever"
+permissionNext("granted", "deny") => "granted"
+@hints
+Density conversion is one line: multiply by the dpi, divide by 160, round.
+For `flexRow`, first add up the bases and the grow values. The free space is the container minus the bases; each item receives `free × grow / totalGrow` on top of its basis.
+The lifecycle is four `if` statements and a default.
+In `reduce`, build and return a new object for each intent. Do not assign to `state.loading`.
+Handle `granted` and `deniedForever` first in `permissionNext`, because they never change.
+
+#EXAM 15
+#Q What is an Android intent?
+- A layout file
+* A message that asks the system to start a component or perform an action
+- A database table
+! Explicit intents name a component; implicit ones describe an action.
+#Q In Compose and SwiftUI, how is the interface updated?
+- By finding views and changing their properties
+* The UI is declared as a function of state and recomputed when the state changes
+- By reloading the app
+! This is the declarative model.
+#Q Where should an iOS app store a login token?
+- In a plain text file
+* In the Keychain
+- In the app's name
+! The Keychain is encrypted by the system.
+#Q Which states should be designed for every screen that loads data?
+- Only the successful one
+* Loading, empty, error and offline as well as success
+- Only loading
+! Blank or frozen screens are the commonest mobile design failure.
+#Q What is the "single source of truth" pattern in a mobile data layer?
+- The server is always asked first
+* The UI observes the local database; the network only updates that database
+- Every screen keeps its own copy
+! It makes offline behaviour automatic.
+#Q Why is a repository passed into a view model instead of being created inside it?
+- To make the app start faster
+* So a fake can be supplied in tests and the view model does not depend on concrete data sources
+- Because view models cannot create objects
+! This is dependency injection.
+#W You are asked to build a notes app for both Android and iOS with a small team. Describe the architecture you would use on a screen that lists notes, how state survives rotation and the process being killed, how the screen behaves offline, and how you would decide between two native apps and a cross-platform approach.
++ A view model exposing one immutable UI state; the view sends events and renders state
++ State kept in the view model for rotation and in saved state or local storage for process death
++ A repository with the local database as the single source of truth, synchronised with the network
++ Loading, empty and error states handled explicitly
++ A reasoned native versus cross-platform comparison based on team skills, platform features and cost
+
+#PROJECT A native-style mobile app
+Build a small mobile app with at least three screens. Use Kotlin with Compose or Swift with SwiftUI if you have the tools; otherwise build it as an installable web app that follows the same architecture, and say so in the documentation.
+@requirements
+A stated purpose and a list of screens with a navigation diagram
+A list screen, a detail screen and an edit or create screen, with a back stack that behaves correctly
+Each screen driven by a view model exposing a single immutable state, with loading, empty and error states shown
+A repository with local persistence as the single source of truth
+State that survives rotation or reload, and the app being closed and reopened
+Touch targets of at least 48 dp or 44 points, and a layout that adapts to a phone and a tablet width
+Accessibility: labels for controls, working at 200% text size, and sufficient contrast
+Unit tests for every view model, run without a device
+@deliverables
+The source code in a repository
+The navigation and architecture diagrams
+Screenshots at phone and tablet widths, in light and dark mode
+The test results and a note of which platform tools you used
+@rubric
+Architecture and state management | 25
+Navigation and lifecycle handling | 20
+Interface quality and adaptive layout | 20
+Accessibility | 10
+View-model tests | 15
+Documentation | 10
+
+#COURSE mb103
+#LESSON Storing data on the device | 12
+A mobile app that needs the network for everything is slow, and useless in a tunnel. Local storage makes an app fast and dependable. There are several kinds, for different jobs.
+
+### Key-value storage
+For small settings such as the chosen theme: **DataStore** or SharedPreferences on Android, **UserDefaults** on iOS. Simple, unstructured, and **not for secrets**: on a compromised device it can be read.
+
+### Files
+Each app has private directories. Use them for documents, downloaded images and exports. Distinguish data that must be kept from a **cache**, which the system may delete when space is short and which should not be included in backups.
+
+### A relational database
+For structured data that is queried, sorted and related, both platforms include **SQLite**, a complete SQL database in a single file. It is usually used through a library: **Room** on Android, **Core Data** or **SwiftData** on iOS, which map rows to objects and check queries.
+
+A database gives transactions, indexes and queries, and can notify the interface when a query's results change, which is what makes the single-source-of-truth pattern work.
+
+### Migrations
+Version 2 of your app adds a column. Users' devices hold version 1 databases full of data they care about. A **migration** is a script that upgrades the schema from one version to the next, preserving the data.
+
+```sql
+-- migration from version 1 to 2
+ALTER TABLE notes ADD COLUMN pinned INTEGER NOT NULL DEFAULT 0;
+```
+
+Rules:
+
+- Number schema versions and write a migration for every step.
+- Users skip releases. Someone on version 1 installing version 4 must run 2, 3 and 4 **in order**.
+- Never edit a migration that has shipped.
+- Test migrations against real old databases. A failed migration can destroy a user's data, and "delete everything and start again" is acceptable only for a cache.
+
+### Secure storage
+Passwords, tokens and keys go in the platform's protected store: the **Keystore** on Android, the **Keychain** on iOS. They are encrypted with keys held by hardware and can require the device to be unlocked or a fingerprint to be given.
+
+### What to keep, and for how long
+- Store what the app needs to work offline, not everything the server has.
+- Give cached data a **lifetime**, and show its age when it matters.
+- Cap the size of caches and evict the least recently used entries.
+- Remove a user's data when they sign out.
+- Remember that devices are backed up to the cloud: decide what should and should not be included.
+
+### Synchronisation
+If data can change both on the device and on the server, the two must be reconciled. Record local changes in an **outbox** and send them when online. Decide what happens in a conflict: last write wins, a merge, or asking the user. Give every change an identifier so that a retry cannot apply it twice.
+
+> Key idea: Use key-value storage for settings, a database for structured data, and the secure store for secrets. Migrate schemas step by step and never lose the user's data.
+#Q A user upgrades from schema version 1 directly to version 4. What must happen?
+- Only the version 4 migration runs
+* Migrations 2, 3 and 4 run in order
+- The database is deleted
+! Each migration assumes the previous version's schema.
+#Q Where should an authentication token be stored?
+- SharedPreferences or UserDefaults
+* The Keystore or Keychain
+- A text file in the cache directory
+! The secure store is hardware-backed and encrypted.
+
+#LESSON Networking and APIs | 13
+Mobile networks are slow, expensive, intermittent and change from moment to moment. Networking code must assume failure.
+
+### Talking to an API
+Most apps use **HTTPS** with JSON. Libraries handle the mechanics: **Retrofit** and **Ktor** on Android, **URLSession** on iOS. JSON is decoded into typed objects, and a response that does not match the expected shape is an error to handle, not a crash.
+
+Never perform a request on the main thread, and give every request a **timeout**. A request without one can hang for minutes.
+
+### Failures are normal
+Classify them:
+
+- **No connection**, a **timeout** or a **5xx** response: temporary. Retrying may work.
+- **4xx** responses: the request is wrong. Retrying the same thing will not help. `401` means sign in again; `429` means slow down.
+
+### Retrying safely
+Retry temporary failures with **exponential backoff**: wait 1 s, 2 s, 4 s, 8 s, up to a maximum, and add random **jitter** so that thousands of phones do not retry at the same instant after an outage.
+
+```text
+delay = min(maximum, base × 2^attempt) + random jitter
+```
+
+Only retry operations that are **idempotent**. A retried "create order" must not create two orders: send an **idempotency key** that the server uses to recognise the repeat.
+
+### Caching
+The fastest request is the one not made.
+
+- Honour HTTP caching headers (`Cache-Control`, `ETag`). A conditional request that returns `304 Not Modified` costs almost nothing.
+- Show cached data at once and refresh it in the background (**stale-while-revalidate**).
+- Give cached data a maximum age.
+
+### Pagination
+A list of ten thousand items is not downloaded at once. The API returns a **page** and a **cursor** for the next one, and the app loads more as the user scrolls. Cursors are more reliable than page numbers when items are being added.
+
+### Being a good citizen
+The radio is among the largest drains on the battery, and it stays powered for seconds after each use.
+
+- **Batch** requests instead of trickling them.
+- Defer non-urgent uploads until the device is on Wi-Fi and charging.
+- Compress, and request only the fields and image sizes needed.
+- Respect the user's data-saver setting.
+
+### Real-time updates
+For chat or live scores, use **push notifications** to wake the app, or a **WebSocket** while it is open. Do not poll every few seconds. Push delivery is not guaranteed and is delayed in low-power modes, so treat a push as a hint to synchronise, not as the data.
+
+### Authentication
+The usual pattern is a short-lived **access token** sent with each request and a long-lived **refresh token** kept in secure storage. When a request returns 401, refresh once and retry; if refreshing fails, sign the user out. Use the system browser for sign-in with OAuth, not an embedded web view, so that the app never sees the password.
+
+### Test without the network
+Put the API behind an interface and test against fakes that return errors, slow responses and malformed data. Use the platform's network conditioning tools to try the app on a bad connection, because that is where users are.
+
+> Key idea: Expect requests to fail. Use timeouts, retry temporary failures with backoff and idempotency, cache aggressively, and spare the battery.
+#Q Which failure should not simply be retried?
+- A timeout
+- A 503 response
+* A 400 response
+! The request itself is wrong; repeating it gives the same result.
+#Q Why is jitter added to retry delays?
+- To make debugging harder
+* So that many clients do not all retry at the same moment
+- To use more battery
+! Synchronised retries can overwhelm a recovering server.
+
+#LESSON Mobile security | 13
+A phone holds messages, photos, location history and banking apps, and is easily lost. A mobile app also runs on a device the **attacker may control**: they can inspect its files, intercept its traffic and take it apart.
+
+### The first rule: the client is not trusted
+Anything shipped inside an app can be extracted. Therefore:
+
+- **Never embed secrets.** An API key with real privileges, placed in the app, is public. Keys that must exist in a client should be restricted (by platform, by quota) and able to do only harmless things.
+- **Enforce every rule on the server.** Checks in the app are for convenience only. Prices, permissions and limits are validated by the server on every request.
+
+### Protect data at rest
+- Tokens and keys in the Keystore or Keychain.
+- Do not write personal data to logs. Logs are readable in more ways than you expect.
+- Mark sensitive screens so that they do not appear in the app switcher's snapshot or in screenshots.
+- Exclude sensitive files from cloud backups.
+- Clear data on sign-out.
+
+### Protect data in transit
+- **HTTPS everywhere.** Both platforms block plain HTTP by default; do not switch that off.
+- Never disable certificate validation "to make it work in testing". Such code reaches production.
+- **Certificate pinning** makes the app accept only your server's key, defeating an attacker who has installed a rogue certificate authority. It raises the bar and adds operational risk: a mistake in rotating the key locks every user out.
+
+### Platform entry points
+Other apps and web pages can send your app input.
+
+- **Deep links:** treat the URL as untrusted input. Validate the host and every parameter. A link must never perform a sensitive action (pay, delete) without confirmation.
+- **Intents and exported components** (Android): export only what must be public.
+- **Web views:** load only content you control, and expose no native functions to untrusted pages.
+- **Clipboard:** other apps can read it. Do not put secrets there.
+
+### Authentication on the device
+**Biometrics** (fingerprint, face) are a convenient way to unlock a key held in secure hardware. The app does not see the fingerprint; it asks the system whether the user was verified. Always offer a fallback, and require re-authentication for high-risk actions.
+
+### Permissions and privacy
+Ask for the minimum, at the moment of need, with an honest explanation. Prefer approximate location to precise, a photo picker to full library access. Both stores require you to declare what data you collect, and misdeclaring it gets apps removed. Privacy law applies to mobile apps like any other software.
+
+### Reverse engineering and tampering
+Apps can be decompiled and modified. **Obfuscation** slows an attacker a little. **Integrity attestation** services let your server check that a request comes from a genuine, unmodified app on a genuine device. Use them for high-value operations, as one signal among several, never as the only defence.
+
+### Dependencies
+A typical app is mostly third-party libraries, each able to do anything the app can. Keep them few, updated and from reputable sources, and review what advertising and analytics libraries collect.
+
+### A checklist
+The **OWASP Mobile Application Security** project publishes a verification standard and a testing guide. Use them as a checklist before release.
+
+> Key idea: Assume the attacker holds the device and can read the app. Keep secrets out of it, enforce rules on the server, store tokens securely, and treat every incoming link as untrusted.
+#Q Why must an app never contain a privileged API key?
+- It makes the app larger
+* Anything inside the app can be extracted by anyone who downloads it
+- Keys expire quickly
+! Apps can be unpacked and decompiled.
+#Q How should an app treat the parameters of a deep link?
+- As trusted, because the system delivered them
+* As untrusted input that must be validated
+- As encrypted
+! Any web page or app can craft a link.
+
+#LESSON Testing, release and operations | 12
+A web application can be fixed in minutes. A mobile release passes through review and then depends on users installing the update: a serious bug can stay in people's hands for weeks. Testing and careful release matter more here than almost anywhere.
+
+### The test pyramid on mobile
+- **Unit tests** for view models, reducers and repositories. They run on your computer in seconds and should be the majority.
+- **Integration tests** for the database and migrations, and for the network layer against a fake server.
+- **UI tests** drive the real app on an emulator or device (Espresso and Compose testing on Android, XCUITest on iOS). They are slow and less reliable, so keep them to the critical journeys: sign in, the main task, purchase.
+
+### The device matrix
+Android alone has thousands of device models. You cannot test them all. Choose a matrix deliberately: the oldest supported OS version and the newest, a small and a large screen, a low-memory device. **Device farms** in the cloud run your tests on real hardware.
+
+Test the conditions that emulators hide: a slow network, no network, low storage, an incoming call, rotation, the app being killed in the background, large text and dark mode.
+
+### Versioning
+Each release has a human-readable **version name** (`2.4.1`) and a **build number** that must increase with every upload. Compare versions numerically, part by part: `1.10.0` is newer than `1.9.0`, though a text comparison says the opposite.
+
+The server must go on supporting old app versions, because users do not update at once. Version your API, and build in a way to tell very old clients that they must update.
+
+### Signing
+Every release is **cryptographically signed**. The signature proves that an update comes from the same developer as the installed app. Lose the signing key and you cannot update your app, so store it securely and use the stores' key-management services.
+
+### Review and store rules
+Both stores review submissions. Common reasons for rejection: crashes, broken links, permission requests without clear purpose, missing privacy information, and no way to delete an account. Allow time for review in your plans.
+
+### Staged rollout
+Do not release to everyone at once. Release to a small percentage, watch the health metrics, and widen in steps: 1%, 5%, 20%, 50%, 100%. Halt if the crash rate rises. Each user is assigned consistently, so the same people stay in the rollout as it grows.
+
+**Feature flags** controlled from the server go further: ship the code switched off, turn it on gradually, and turn it off at once if it misbehaves, with no new release.
+
+### Watching production
+- **Crash reporting** collects stack traces with the device model and OS version, grouped by cause. Watch the **crash-free rate**.
+- **Performance monitoring:** start-up time, frozen frames, network latency.
+- **Analytics**, used with care and consent, to see where users give up.
+- Store reviews and support requests.
+
+Do not log personal data in any of them.
+
+### Continuous integration and delivery
+On every change, automation builds the app, runs the tests and static analysis, and produces a signed build for testers. Releasing becomes routine, which makes releases small, which makes them safe.
+
+> Key idea: A mobile release is hard to take back. Test the logic heavily and the critical journeys on real devices, roll out in stages, and watch crash rates.
+#Q Which is the newer version: 1.9.0 or 1.10.0?
+- 1.9.0
+* 1.10.0
+- They are equal
+! Compare each part as a number: 10 is greater than 9.
+#Q What is the purpose of a staged rollout?
+- To make the release larger
+* To expose a new version to a small share of users first, limiting the damage if it is faulty
+- To avoid store review
+! Problems are caught before most users receive the update.
+
+#LAB js | Mobile data, networking and release logic
+Implement the logic that keeps a mobile app reliable.
+
+- `backoff(attempt, baseMs, maxMs)` returns the retry delay without jitter: `min(maxMs, baseMs × 2^attempt)`, where the first retry is attempt 0.
+- `shouldRetry(status)` returns true for status 0 (no connection), 408, 429 and anything from 500 to 599; otherwise false.
+- `migrationsToRun(current, target, available)` returns the schema versions to apply, in ascending order: every version in `available` greater than `current` and not greater than `target`.
+- `paginate(items, pageSize, cursor)` returns `{ page, next }`: the items from index `cursor` (a cursor of `null` means the start), at most `pageSize` of them, and the cursor for the following page, or `null` if there are no more.
+- `isFresh(storedAtMs, nowMs, maxAgeSeconds)` returns true while a cached entry is younger than its maximum age.
+- `compareVersions(a, b)` compares version names such as `"1.10.0"` numerically part by part and returns -1, 0 or 1. Missing parts count as 0, so `"1.2"` equals `"1.2.0"`.
+- `inRollout(userId, percent)` returns true when `userId % 100` is less than `percent`.
+- `redact(record, keys)` returns a **copy** of the object with the named keys replaced by `"***"` (only if present), for safe logging.
+- `deepLinkAllowed(url, hosts)` returns true only if the URL starts with `https://`, its host (the text up to the first `/`, `?` or `#`) is exactly one of `hosts`, and the host contains no `@`.
+@starter
+function backoff(attempt, baseMs, maxMs) {
+  return baseMs;
+}
+
+function shouldRetry(status) {
+  return false;
+}
+
+function migrationsToRun(current, target, available) {
+  return [];
+}
+
+function paginate(items, pageSize, cursor) {
+  return { page: [], next: null };
+}
+
+function isFresh(storedAtMs, nowMs, maxAgeSeconds) {
+  return false;
+}
+
+function compareVersions(a, b) {
+  return 0;
+}
+
+function inRollout(userId, percent) {
+  return false;
+}
+
+function redact(record, keys) {
+  return record;
+}
+
+function deepLinkAllowed(url, hosts) {
+  return false;
+}
+@solution
+function backoff(attempt, baseMs, maxMs) {
+  return Math.min(maxMs, baseMs * Math.pow(2, attempt));
+}
+
+function shouldRetry(status) {
+  return status === 0 || status === 408 || status === 429 || (status >= 500 && status <= 599);
+}
+
+function migrationsToRun(current, target, available) {
+  return available.filter((v) => v > current && v <= target).sort((x, y) => x - y);
+}
+
+function paginate(items, pageSize, cursor) {
+  const start = cursor === null ? 0 : cursor;
+  const end = start + pageSize;
+  return { page: items.slice(start, end), next: end < items.length ? end : null };
+}
+
+function isFresh(storedAtMs, nowMs, maxAgeSeconds) {
+  return nowMs - storedAtMs < maxAgeSeconds * 1000;
+}
+
+function compareVersions(a, b) {
+  const pa = a.split(".").map(Number), pb = b.split(".").map(Number);
+  const n = Math.max(pa.length, pb.length);
+  for (let i = 0; i < n; i++) {
+    const x = pa[i] || 0, y = pb[i] || 0;
+    if (x < y) return -1;
+    if (x > y) return 1;
+  }
+  return 0;
+}
+
+function inRollout(userId, percent) {
+  return userId % 100 < percent;
+}
+
+function redact(record, keys) {
+  const copy = Object.assign({}, record);
+  for (const k of keys) {
+    if (k in copy) copy[k] = "***";
+  }
+  return copy;
+}
+
+function deepLinkAllowed(url, hosts) {
+  const prefix = "https://";
+  if (!url.startsWith(prefix)) return false;
+  const rest = url.slice(prefix.length);
+  let end = rest.length;
+  for (const ch of ["/", "?", "#"]) {
+    const i = rest.indexOf(ch);
+    if (i !== -1 && i < end) end = i;
+  }
+  const host = rest.slice(0, end);
+  if (host.includes("@")) return false;
+  return hosts.includes(host);
+}
+@tests
+backoff(0, 1000, 30000) => 1000
+backoff(3, 1000, 30000) => 8000
+backoff(10, 1000, 30000) => 30000
+shouldRetry(503) => true
+shouldRetry(0) => true
+shouldRetry(429) => true
+shouldRetry(408) => true
+shouldRetry(400) => false
+shouldRetry(404) => false
+shouldRetry(200) => false
+migrationsToRun(1, 4, [2, 3, 4, 5]) => [2, 3, 4]
+migrationsToRun(3, 5, [5, 2, 4, 3]) => [4, 5]
+migrationsToRun(4, 4, [2, 3, 4]) => []
+paginate(["a", "b", "c", "d", "e"], 2, null) => {"page": ["a", "b"], "next": 2}
+paginate(["a", "b", "c", "d", "e"], 2, 2) => {"page": ["c", "d"], "next": 4}
+paginate(["a", "b", "c", "d", "e"], 2, 4) => {"page": ["e"], "next": null}
+paginate(["a", "b"], 2, null) => {"page": ["a", "b"], "next": null}
+paginate([], 10, null) => {"page": [], "next": null}
+isFresh(1000, 60000, 60) => true
+isFresh(1000, 61000, 60) => false
+isFresh(0, 0, 0) => false
+compareVersions("1.9.0", "1.10.0") => -1
+compareVersions("2.0", "1.99.99") => 1
+compareVersions("1.2", "1.2.0") => 0
+compareVersions("1.2.1", "1.2") => 1
+compareVersions("3.0.0", "3.0.0") => 0
+inRollout(105, 10) => true
+inRollout(110, 10) => false
+inRollout(42, 0) => false
+inRollout(99, 100) => true
+redact({ user: "ana", token: "abc123", note: "hi" }, ["token", "password"]) => {"user": "ana", "token": "***", "note": "hi"}
+(() => { const r = { token: "abc" }; redact(r, ["token"]); return r; })() => {"token": "abc"}
+deepLinkAllowed("https://example.com/notes/5", ["example.com"]) => true
+deepLinkAllowed("http://example.com/notes/5", ["example.com"]) => false
+deepLinkAllowed("https://evil.com/notes/5", ["example.com"]) => false
+deepLinkAllowed("https://example.com.evil.com/x", ["example.com"]) => false
+deepLinkAllowed("https://example.com@evil.com/x", ["example.com", "example.com@evil.com"]) => false
+deepLinkAllowed("https://example.com?id=5", ["example.com"]) => true
+deepLinkAllowed("https://example.com", ["example.com"]) => true
+@hints
+`Math.pow(2, attempt)` doubles the delay each time; `Math.min` applies the cap.
+Filter the available versions, then sort them numerically with a comparison function.
+For `paginate`, the next cursor is the index after the last item returned, or `null` when that index reaches the end of the list.
+Split each version on "." and convert the parts to numbers before comparing. Treat a missing part as 0.
+For the deep link, remove the `https://` prefix, then find the earliest `/`, `?` or `#` to isolate the host, and compare the host exactly.
+
+#EXAM 15
+#Q Which storage is appropriate for a list of several thousand notes that must be searched and sorted?
+- Key-value preferences
+* A SQLite database
+- The Keychain
+! Structured, queried data belongs in a database.
+#Q What is an idempotency key for?
+- Encrypting a request
+* Letting the server recognise a retried request so that it is not applied twice
+- Compressing a response
+! It makes retrying non-idempotent operations safe.
+#Q What does a 304 Not Modified response tell the app?
+- The request failed
+* The cached copy is still valid and can be used
+- The user must sign in
+! Conditional requests save data and time.
+#Q Which statement about checks performed inside the app is correct?
+- They are sufficient for security
+* They are for convenience; the server must enforce every rule again
+- They cannot be bypassed
+! The client can be modified by an attacker.
+#Q What is the risk of certificate pinning?
+- It disables HTTPS
+* A mistake when the server's key changes can lock every user out until they update
+- It exposes the private key
+! Pinning needs a careful rotation plan.
+#Q Why must the build number increase with every upload?
+- For marketing
+* The stores and devices use it to tell which build is newer
+- To change the app's name
+! An update must have a higher number than the installed build.
+#W Your team is about to release version 2.0 of a mobile app that changes the local database schema and the sign-in flow. Describe how you would test the release, how you would roll it out, what you would monitor, and what you would do if the crash rate rose after release.
++ Tests migrations from every older schema version using real or realistic databases
++ Unit tests for logic plus UI tests of the critical journeys on a chosen device matrix and poor network conditions
++ A staged rollout by percentage, ideally with server-controlled feature flags
++ Monitoring of crash-free rate, sign-in success and performance, without logging personal data
++ A response plan: halt the rollout, switch off the flag, ship a fix; notes that a release cannot simply be withdrawn from devices
+
+#PROJECT A reliable, secure mobile data layer
+Build the data layer and release process for a mobile app (extend your earlier project or start a new one). The focus is behaviour under failure.
+@requirements
+A local database with at least two schema versions and a tested migration between them
+A repository that serves cached data immediately and refreshes in the background, with a stated cache lifetime
+Network calls with timeouts and retry with exponential backoff and jitter, only for retryable failures
+An offline outbox for changes, sent when the connection returns, safe against duplicates through idempotency keys
+Paginated loading of a long list
+Tokens held in the platform's secure store, or a documented equivalent if you build for the web, and no secrets in the code
+Validation of every deep link or incoming URL
+Logging that redacts personal data
+A written release plan: versioning, signing, staged rollout percentages, health metrics and the conditions for halting
+Automated tests for the migration, the retry policy, the outbox and the deep-link validation
+@deliverables
+The source code and tests
+A short threat model listing at least six threats and their mitigations
+The release plan
+A demonstration of the app working offline and recovering
+@rubric
+Storage and migration correctness | 20
+Networking resilience and offline behaviour | 25
+Security and threat model | 20
+Automated tests | 20
+Release plan and documentation | 15
+
+#COURSE hc101
+#LESSON Usability and design principles | 12
+**Human-computer interaction** (HCI) studies how people use computer systems and how to design systems that people can use well. Software that is correct and fast still fails if its users cannot work out what to do.
+
+### What usability means
+The international standard defines usability by three measures, for specified users doing specified tasks:
+
+- **Effectiveness:** can people complete the task, and accurately?
+- **Efficiency:** how much time and effort does it take?
+- **Satisfaction:** how do they feel about it?
+
+The words "specified users" matter. An interface that suits an expert who uses it eight hours a day may be wrong for someone who uses it twice a year.
+
+### Norman's principles
+Donald Norman described what makes everyday things understandable:
+
+- **Affordances:** what an object allows. A button affords pressing.
+- **Signifiers:** the visible cues that show where to act. A raised, labelled shape says "press me". Flat text that is secretly a button has an affordance and no signifier.
+- **Feedback:** every action produces an immediate, visible result.
+- **Mapping:** the relation between controls and their effects is natural, such as a volume slider that goes up for louder.
+- **Constraints:** the design prevents wrong actions, such as a greyed-out button.
+- **Conceptual model:** the user can form an accurate picture of how the system works.
+
+### Two gulfs
+A user must bridge the **gulf of execution** (how do I do what I want?) and the **gulf of evaluation** (what happened, and was it what I wanted?). Good design narrows both: visible options for the first, clear feedback for the second.
+
+### Nielsen's ten heuristics
+A widely used checklist for judging an interface:
+
+1. Visibility of system status.
+2. Match between the system and the real world: the user's words, not the developer's.
+3. User control and freedom: undo, cancel, a way out.
+4. Consistency and standards.
+5. Error prevention.
+6. Recognition rather than recall: show options, do not make people remember.
+7. Flexibility and efficiency: shortcuts for experts.
+8. Aesthetic and minimalist design.
+9. Help users recognise, diagnose and recover from errors.
+10. Help and documentation.
+
+### Errors are design problems
+When people make mistakes, the design usually invited them. Distinguish **slips** (the right intention, the wrong action, such as tapping the neighbouring button) from **mistakes** (the wrong intention, from a wrong mental model). Prevent slips with spacing, confirmation of destructive actions and, above all, **undo**. Prevent mistakes with clearer models and language.
+
+A good error message says what happened in plain words, why, and what to do next. "Error 0x80070057" does none of these.
+
+### You are not the user
+Designers and programmers know how the system works, so everything looks obvious to them. That knowledge cannot be switched off. The only way to learn whether a design works is to **watch real users try to use it**.
+
+> Key idea: Usability is effectiveness, efficiency and satisfaction for real users. Make actions visible, give feedback, prevent errors, and test with people who are not you.
+#Q What is a signifier?
+- The function a control performs
+* A perceivable cue that indicates where and how to act
+- An error message
+! An affordance without a signifier goes undiscovered.
+#Q Which heuristic does "show a list of recent files instead of asking the user to type a file name" follow?
+- Aesthetic and minimalist design
+* Recognition rather than recall
+- Help and documentation
+! Recognising is far easier than remembering.
+
+#LESSON Human capabilities and limits | 13
+Interfaces are used by human perception, memory and movement, which have measurable properties. Designing with them in mind is engineering, not taste.
+
+### Perception
+- **Visual hierarchy:** people scan, they do not read. Size, weight, colour and position tell the eye what matters. One primary action per screen should stand out.
+- **Gestalt principles:** items that are close together (**proximity**) or look alike (**similarity**) are seen as a group. Spacing is therefore the main tool for showing structure.
+- **Colour:** about one man in twelve has a colour-vision deficiency. Never use colour as the only signal; add an icon, a label or a shape.
+- **Contrast:** text needs enough luminance contrast with its background. The Web Content Accessibility Guidelines require a ratio of at least **4.5:1** for normal text and 3:1 for large text.
+
+### Attention
+Attention is narrow. People miss changes outside the spot they are looking at (**change blindness**), so a message appearing at the far edge of the screen may never be seen. Put feedback near where the user acted. Interruptions are costly: after one, it takes time to resume.
+
+### Memory
+**Working memory** holds only a few items for a few seconds. Do not ask people to remember something from one screen to use on another. Show it. **Recognition** is much easier than **recall**, which is why menus beat command lines for occasional users.
+
+People rely on **consistency** to avoid thinking: if "Save" is in the same place everywhere, it is found without a search.
+
+### Fitts's law
+The time to move to a target depends on its distance and size:
+
+```text
+T = a + b × log2(D / W + 1)
+```
+
+D is the distance to the target, W its width, and a and b are constants found by measurement. Consequences:
+
+- Make frequent targets **large** and **near**.
+- Screen edges and corners are easy to hit with a mouse, because the pointer stops there: they act as targets of unlimited depth.
+- Tiny, distant close buttons are slow and error-prone.
+
+### Hick's law
+The time to decide among n equally likely choices grows with the logarithm of n:
+
+```text
+T = b × log2(n + 1)
+```
+
+More options mean slower decisions, but only logarithmically, and only when the options are organised. A long, well-ordered list can be faster than a deep tree of small menus. Group, order and highlight the commonest choices.
+
+### Response time
+Three thresholds are well established:
+
+- **0.1 s:** feels instantaneous.
+- **1 s:** the user notices the delay but keeps their train of thought.
+- **10 s:** attention is lost. Show progress and allow cancelling.
+
+For anything over a second, show that work is happening; for long operations, show how far it has got.
+
+### Predicting performance
+The **keystroke-level model** estimates how long an expert takes to do a task by adding standard times for each elementary operation: pressing a key (about 0.28 s), pointing with a mouse (1.1 s), moving a hand between keyboard and mouse (0.4 s), and mental preparation (1.35 s). It lets you compare two designs before building either.
+
+### Human variety
+Users differ in eyesight, hearing, dexterity, language, experience and context. Designing for the edges (one-handed use, bright sunlight, a screen reader) improves the design for everyone.
+
+> Key idea: Human perception, memory and movement have known limits. Fitts's law and Hick's law turn "make it easy" into numbers.
+#Q According to Fitts's law, which change makes a target faster to reach?
+- Making it smaller and farther away
+* Making it larger or closer
+- Changing its colour
+! Time grows with distance and shrinks with width.
+#Q Why should a design favour recognition over recall?
+- Recall is more accurate
+* Working memory is small; recognising a shown option is far easier than remembering it
+- Recognition needs less screen space
+! Show the choices instead of making people remember them.
+
+#LESSON The user-centred design process | 12
+Good interfaces are not invented in one step. They are reached by a cycle: **understand** the users, **design**, **prototype**, **evaluate** with users, and repeat.
+
+### Understand the users
+Before designing, find out who the users are, what they are trying to achieve, and in what circumstances.
+
+- **Interviews:** ask about what people did last time, not what they think they would do. People are poor at predicting their own behaviour.
+- **Observation** (contextual inquiry): watch them do the work where it happens. You see the workarounds they no longer notice.
+- **Surveys** for breadth, once you know the right questions.
+- **Analytics** show what users do, never why.
+
+Summarise the research so that the team can use it:
+
+- A **persona** is a short description of a representative user, based on the research: goals, context, frustrations. It stops everyone designing for themselves.
+- A **scenario** tells the story of a persona using the product to reach a goal.
+- A **journey map** follows the steps and feelings across the whole experience and shows where it hurts.
+
+### Define the problem
+State what users need before proposing solutions. "Users need to know when their bus will arrive" is a need. "Add a map" is a solution, and perhaps not the best one.
+
+### Prototype cheaply
+A **prototype** is anything that lets you test an idea before building it.
+
+- **Paper sketches:** minutes to make, and people criticise them freely because they are plainly unfinished.
+- **Wireframes:** layout and structure without visual styling.
+- **Interactive prototypes:** clickable mock-ups.
+
+The cheaper the prototype, the more ideas you can try, and the earlier a bad one dies. Generate several different designs, not variations of one.
+
+### Usability testing
+Give representative users realistic **tasks** and watch.
+
+- Ask them to **think aloud** as they work.
+- Do **not help**. When they struggle, that is the finding.
+- Record where they hesitate, go wrong and give up.
+- Say clearly that the design is being tested, not them.
+
+**Five users** find most of the serious problems in a design. It is better to test with five, fix, and test again with five more than to test once with fifteen.
+
+Measure where useful: the **task success rate**, the time on task, the number of errors, and a satisfaction score.
+
+### Iterate
+Fix the most severe problems and test again. Each cycle should be short. A design tested weekly with paper beats one tested once, complete, after six months.
+
+### In an agile team
+Design work runs slightly ahead of development: research and prototypes for the next piece of work are tested while the current piece is being built, and what is built is tested in turn.
+
+### Ethics of research
+People who take part must give **informed consent**, may stop at any time, and must have their data protected and anonymised. Research with children or vulnerable people needs extra care and usually formal approval.
+
+> Key idea: Understand users, prototype cheaply, test with real people, and iterate. Five users, thinking aloud, will find most of the serious problems.
+#Q During a usability test, a participant struggles to find a button. What should the observer do?
+- Point to it at once
+* Stay quiet and note the difficulty, because it is a finding about the design
+- End the session
+! Helping hides the problem you came to find.
+#Q Why are paper prototypes useful?
+- They look professional
+* They are quick and cheap, so many ideas can be tested and discarded early
+- They need no users
+! Cheap prototypes invite honest criticism and fast iteration.
+
+#LESSON Accessibility, evaluation and ethics | 12
+### Accessibility
+About one person in six has a significant disability, and everyone is sometimes limited: a broken wrist, bright sunlight, a noisy room. An accessible interface can be used by people who cannot see well or at all, cannot hear, cannot use a mouse, or process information differently.
+
+The **Web Content Accessibility Guidelines** (WCAG) organise the requirements under four principles. Content must be:
+
+- **Perceivable:** text alternatives for images, captions for video, sufficient contrast, content that survives being enlarged.
+- **Operable:** everything works from the keyboard, focus is visible, nothing depends on precise timing, nothing flashes dangerously.
+- **Understandable:** plain language, predictable behaviour, clear labels and error messages.
+- **Robust:** correct, semantic markup that assistive technology can interpret.
+
+Conformance has three levels: A, AA and AAA. **AA** is the usual legal and contractual target.
+
+### Contrast, exactly
+WCAG defines contrast from the **relative luminance** of the two colours:
+
+```text
+ratio = (L_lighter + 0.05) / (L_darker + 0.05)
+```
+
+The ratio runs from 1 (identical) to 21 (black on white). Level AA requires 4.5 for normal text and 3 for large text; AAA requires 7 and 4.5.
+
+### Testing accessibility
+- **Automated checkers** find missing labels and low contrast. They detect only a minority of real problems.
+- **Keyboard only:** put the mouse away and try to complete the task.
+- **A screen reader:** listen to your interface.
+- **Zoom** to 200% and check that nothing is cut off.
+- **People with disabilities** using their own equipment. Nothing replaces this.
+
+Do not claim that a product is accessible on the strength of an automated scan.
+
+### Evaluating without users
+In a **heuristic evaluation**, several evaluators inspect the interface against a checklist such as Nielsen's heuristics and rate each problem's severity. It is quick and cheap, and finds different problems from user testing, so use both.
+
+### Measuring satisfaction
+The **System Usability Scale** (SUS) is a ten-statement questionnaire answered on a scale of 1 to 5. Odd-numbered statements are positive and even-numbered ones negative. To score it:
+
+```text
+odd items:  score − 1          even items:  5 − score
+total × 2.5 gives a result from 0 to 100
+```
+
+The average across many systems is about **68**. A SUS score is not a percentage.
+
+### Experiments
+An **A/B test** shows two versions to randomly chosen groups of users and compares a measured outcome. Decide the measure and the sample size in advance, run the test to completion, and check that the difference is statistically significant. A/B tests say which version performed better, not why, and optimise only what you chose to measure.
+
+### Ethics: dark patterns
+Knowledge of human psychology can be used against users. **Dark patterns** are designs that trick people into choices they would not otherwise make:
+
+- a subscription that takes one tap to start and a telephone call to cancel;
+- a pre-ticked box for something the user did not ask for;
+- "confirm-shaming" ("No thanks, I don't like saving money");
+- false urgency ("only 2 left!") when it is not true;
+- hiding the cost until the final step.
+
+These damage trust and are increasingly unlawful. Design for the user's real goals, including the goal of leaving. Attention-maximising features (infinite feeds, constant notifications) deserve the same scrutiny: ask whether the product serves the user or exploits them.
+
+> Key idea: Accessibility is measurable and testable, but only partly by tools. Evaluate with heuristics, measures and real users, and never use design to deceive.
+#Q What is the minimum contrast ratio for normal text at WCAG level AA?
+- 3:1
+* 4.5:1
+- 21:1
+! Large text may use 3:1.
+#Q Which is a dark pattern?
+- An undo button
+* Making a subscription easy to start and deliberately hard to cancel
+- A visible focus indicator
+! It works against the user's own intentions.
+
+#LAB js | Usability by numbers
+Implement the measures used to evaluate an interface.
+
+- `fitts(a, b, distance, width)` returns the predicted movement time `a + b × log2(distance / width + 1)`, rounded to 2 decimal places.
+- `hick(b, n)` returns the decision time `b × log2(n + 1)`, rounded to 2 decimal places.
+- `luminance(rgb)` returns the WCAG relative luminance of a colour `[r, g, b]` (each 0 to 255). For each channel, let `c = value / 255`; if `c <= 0.03928` use `c / 12.92`, otherwise `((c + 0.055) / 1.055) ^ 2.4`. The luminance is `0.2126 R + 0.7152 G + 0.0722 B`. Round to 4 decimal places.
+- `contrast(rgb1, rgb2)` returns the contrast ratio `(lighter + 0.05) / (darker + 0.05)` using unrounded luminances, rounded to 2 decimal places.
+- `wcagLevel(ratio, largeText)` returns `"AAA"`, `"AA"` or `"fail"`. Normal text: 7 for AAA, 4.5 for AA. Large text: 4.5 for AAA, 3 for AA.
+- `susScore(answers)` scores a System Usability Scale questionnaire: an array of ten answers from 1 to 5. Items 1, 3, 5, 7 and 9 (indexes 0, 2, ...) contribute `answer − 1`; the others contribute `5 − answer`. Multiply the total by 2.5.
+- `successRate(results)` takes an array of booleans (did each participant complete the task?) and returns the percentage, rounded to a whole number. An empty array gives 0.
+- `klm(operators)` estimates expert task time from a string of keystroke-level operators: `K` 0.28 s, `P` 1.1 s, `H` 0.4 s, `M` 1.35 s, `B` 0.1 s. Ignore any other character. Round to 2 decimal places.
+@starter
+function fitts(a, b, distance, width) {
+  return 0;
+}
+
+function hick(b, n) {
+  return 0;
+}
+
+function luminance(rgb) {
+  return 0;
+}
+
+function contrast(rgb1, rgb2) {
+  return 1;
+}
+
+function wcagLevel(ratio, largeText) {
+  return "fail";
+}
+
+function susScore(answers) {
+  return 0;
+}
+
+function successRate(results) {
+  return 0;
+}
+
+function klm(operators) {
+  return 0;
+}
+@solution
+function fitts(a, b, distance, width) {
+  return Math.round((a + b * Math.log2(distance / width + 1)) * 100) / 100;
+}
+
+function hick(b, n) {
+  return Math.round(b * Math.log2(n + 1) * 100) / 100;
+}
+
+function rawLuminance(rgb) {
+  const ch = rgb.map((v) => {
+    const c = v / 255;
+    return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+  });
+  return 0.2126 * ch[0] + 0.7152 * ch[1] + 0.0722 * ch[2];
+}
+
+function luminance(rgb) {
+  return Math.round(rawLuminance(rgb) * 10000) / 10000;
+}
+
+function contrast(rgb1, rgb2) {
+  const l1 = rawLuminance(rgb1), l2 = rawLuminance(rgb2);
+  const hi = Math.max(l1, l2), lo = Math.min(l1, l2);
+  return Math.round((hi + 0.05) / (lo + 0.05) * 100) / 100;
+}
+
+function wcagLevel(ratio, largeText) {
+  const aaa = largeText ? 4.5 : 7, aa = largeText ? 3 : 4.5;
+  if (ratio >= aaa) return "AAA";
+  if (ratio >= aa) return "AA";
+  return "fail";
+}
+
+function susScore(answers) {
+  let total = 0;
+  for (let i = 0; i < answers.length; i++) {
+    total += i % 2 === 0 ? answers[i] - 1 : 5 - answers[i];
+  }
+  return total * 2.5;
+}
+
+function successRate(results) {
+  if (results.length === 0) return 0;
+  return Math.round(results.filter((r) => r).length / results.length * 100);
+}
+
+function klm(operators) {
+  const times = { K: 0.28, P: 1.1, H: 0.4, M: 1.35, B: 0.1 };
+  let total = 0;
+  for (const op of operators) {
+    total += times[op] || 0;
+  }
+  return Math.round(total * 100) / 100;
+}
+@tests
+fitts(0, 100, 7, 1) => 300
+fitts(50, 150, 300, 100) => 350
+fitts(50, 150, 100, 100) => 200
+fitts(0, 100, 0, 10) => 0
+hick(200, 7) => 600
+hick(200, 1) => 200
+hick(150, 3) => 300
+hick(100, 0) => 0
+luminance([255, 255, 255]) => 1
+luminance([0, 0, 0]) => 0
+luminance([255, 0, 0]) => 0.2126
+luminance([0, 255, 0]) => 0.7152
+luminance([119, 119, 119]) => 0.1845
+contrast([0, 0, 0], [255, 255, 255]) => 21
+contrast([255, 255, 255], [0, 0, 0]) => 21
+contrast([255, 255, 255], [255, 255, 255]) => 1
+contrast([119, 119, 119], [255, 255, 255]) => 4.48
+contrast([255, 0, 0], [255, 255, 255]) => 4
+wcagLevel(21, false) => "AAA"
+wcagLevel(4.5, false) => "AA"
+wcagLevel(4.48, false) => "fail"
+wcagLevel(4.5, true) => "AAA"
+wcagLevel(3, true) => "AA"
+wcagLevel(2.9, true) => "fail"
+susScore([3, 3, 3, 3, 3, 3, 3, 3, 3, 3]) => 50
+susScore([5, 1, 5, 1, 5, 1, 5, 1, 5, 1]) => 100
+susScore([1, 5, 1, 5, 1, 5, 1, 5, 1, 5]) => 0
+susScore([4, 2, 4, 2, 4, 2, 4, 2, 4, 2]) => 75
+successRate([true, true, false, true]) => 75
+successRate([true, false, false]) => 33
+successRate([]) => 0
+klm("K") => 0.28
+klm("MHPKK") => 3.41
+klm("") => 0
+klm("P K") => 1.38
+@hints
+`Math.log2` gives the base-2 logarithm. Round with `Math.round(x * 100) / 100`.
+Write a helper that returns the unrounded luminance, and use it in both `luminance` and `contrast`.
+The contrast ratio always puts the lighter colour on top, whichever order the arguments came in.
+In the SUS score, index 0 is item 1, which is an odd-numbered (positive) statement.
+For `klm`, keep the times in an object and add `times[op] || 0` for each character.
+
+#EXAM 15
+#Q Which three measures define usability in the international standard?
+- Speed, colour and price
+* Effectiveness, efficiency and satisfaction
+- Security, privacy and safety
+! All three are judged for specified users and tasks.
+#Q A user meant to tap "Save" and hit the neighbouring "Delete". What kind of error is this, and what is the best protection?
+- A mistake; more documentation
+* A slip; spacing, confirmation and undo
+- A crash; more testing
+! The intention was right and the action went wrong.
+#Q What does Hick's law predict?
+- Pointing time grows with distance
+* Decision time grows with the logarithm of the number of choices
+- Reading speed depends on font size
+! Organised options keep decisions quick.
+#Q About how many users are needed in one round of usability testing to find most serious problems?
+- One
+* Five
+- One hundred
+! Test with a few, fix, and test again.
+#Q An automated checker reports no accessibility errors. What may you conclude?
+- The product is fully accessible
+* Only that certain detectable faults are absent; manual and user testing are still required
+- Nothing at all was tested
+! Tools find a minority of real barriers.
+#Q A product scores 68 on the System Usability Scale. What does that mean?
+- 68% of users succeeded
+* It is about average; SUS scores are not percentages
+- It failed
+! The scale runs from 0 to 100 with a mean near 68.
+#W A hospital asks you to redesign the screen nurses use to record medication given to patients. Describe how you would find out what is wrong with the current screen, how you would design and test the replacement, which human factors matter most in this setting, and one ethical or safety point you must attend to.
++ Research in context: observing and interviewing nurses at work, not relying on opinion
++ Low-cost prototypes tested with representative users performing realistic tasks, thinking aloud, over several iterations
++ Human factors named and applied: interruptions and attention, error prevention with constraints and confirmation, recognition over recall, large targets, clear feedback
++ Measures such as task success, errors and time, plus accessibility
++ An ethical or safety point: consent and privacy of patient data in research, or that design errors here can harm patients
+
+#PROJECT A usability study and redesign
+Evaluate a real interface, redesign it, and show with evidence that your version is better. Choose a website, app or device that you and others can use freely.
+@requirements
+A description of the users, their goals and the context, based on at least three short interviews or observations
+A persona and a scenario derived from that research
+A heuristic evaluation of the existing interface against Nielsen's ten heuristics, with a severity for each problem
+A usability test of the existing interface with at least three participants and three tasks, recording success, time and errors
+At least two alternative designs sketched on paper, and a reasoned choice between them
+An interactive prototype of the chosen design
+An accessibility review covering contrast ratios, keyboard operation, labels and text enlargement
+A second usability test of your prototype with the same tasks, and a comparison of the measurements
+Informed consent from every participant, and anonymised results
+@deliverables
+The research notes, persona and scenario
+The heuristic evaluation
+The sketches and the prototype
+A report comparing before and after, with the measurements and their limits
+@rubric
+User research and problem definition | 20
+Heuristic evaluation | 15
+Design exploration and prototype | 20
+Usability testing method and evidence | 25
+Accessibility review | 10
+Ethics and reporting | 10

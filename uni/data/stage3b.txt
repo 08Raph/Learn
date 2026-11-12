@@ -1,0 +1,1805 @@
+#COURSE c306
+#LESSON How the internet is layered | 13
+The internet connects billions of devices made by thousands of companies. It works because the problem is cut into **layers**, each solving one part and relying on the layer below.
+
+```diagram
+  +-------------------------------------------------------------+
+  | Application   HTTP, DNS, email      what programs say       |
+  +-------------------------------------------------------------+
+  | Transport     TCP, UDP              process to process      |
+  +-------------------------------------------------------------+
+  | Internet      IP                    machine to machine      |
+  +-------------------------------------------------------------+
+  | Link          Ethernet, Wi-Fi       one hop along the way   |
+  +-------------------------------------------------------------+
+```
+
+### Packets
+Data is not sent as one continuous stream. It is cut into **packets**, each carrying a piece of data and a header saying where it is going. Each packet finds its own way and may take a different route. This is **packet switching**, and it lets many conversations share the same wires and survive the failure of any one path.
+
+### Encapsulation
+Each layer wraps the data from the layer above in its own header, like an envelope inside an envelope.
+
+```diagram
+  [ Ethernet hdr [ IP hdr [ TCP hdr [ HTTP request ] ] ] ]
+```
+
+At the destination the layers are unwrapped in reverse.
+
+### IP addresses
+Every machine on the internet has an **IP address**. IPv4 addresses are 32 bits, written as four numbers: `192.0.2.17`. There are only about 4.3 billion, which is not enough, so **IPv6** uses 128 bits: `2001:db8::1`.
+
+**Routers** forward each packet one hop closer to its destination by consulting a routing table. No single device knows the whole route.
+
+IP is deliberately simple: it makes a **best effort**. Packets can be lost, duplicated or arrive out of order. Reliability is added by the layer above.
+
+### Private networks and NAT
+Home and office networks use private address ranges such as `192.168.x.x`. A router performing **network address translation** lets many devices share one public address.
+
+### Ports
+An IP address identifies a machine. A **port** number (0 to 65535) identifies a program on it. Web servers listen on 80 (HTTP) and 443 (HTTPS). A connection is identified by source address and port plus destination address and port.
+
+> Key idea: Each layer offers a service to the layer above and hides how it is done. This is abstraction applied to networking, and it is why Wi-Fi could replace cables without changing the web.
+#Q Which layer is responsible for getting a packet from one machine to another across networks?
+- Application
+- Transport
+* Internet (IP)
+! IP addresses machines and routers forward packets hop by hop.
+#Q What does a port number identify?
+- A machine on the network
+* A particular program or service on a machine
+- A cable
+! The address finds the machine; the port finds the program.
+
+#LESSON TCP and UDP | 14
+IP delivers packets unreliably. The transport layer turns that into something programs can use. There are two choices.
+
+### TCP: reliable, ordered, connected
+**TCP** gives a program a reliable stream of bytes that arrive complete and in order, or an error.
+
+**Connection set-up** is a three-way handshake:
+
+```diagram
+  client                         server
+    | ------- SYN ------------->  |     "I want to connect"
+    | <------ SYN, ACK ---------  |     "OK, and I want to connect to you"
+    | ------- ACK ------------->  |     "OK"
+    |      connection open        |
+```
+
+**Reliability.** Every byte is numbered. The receiver sends **acknowledgements** saying how much it has received. If an acknowledgement does not arrive in time, the sender **retransmits**. The receiver uses the numbers to put packets in order and discard duplicates.
+
+**Flow control.** The receiver states how much buffer space it has, so a fast sender cannot overwhelm a slow receiver.
+
+**Congestion control.** If the network is overloaded, packets are dropped. TCP treats loss as a signal to slow down, then speeds up again gradually. Every TCP connection in the world cooperating like this is what stops the internet collapsing under load.
+
+### UDP: fast, simple, no guarantees
+**UDP** sends individual messages (**datagrams**) with no connection, no acknowledgement and no ordering. If one is lost, nobody is told.
+
+Why would anyone want that? Because reliability costs time. In a video call, a packet that arrives late is useless; it is better to skip it and move on.
+
+| | TCP | UDP |
+|---|---|---|
+| Connection | yes | no |
+| Reliable and ordered | yes | no |
+| Overhead | higher | minimal |
+| Used for | web, email, file transfer, databases | DNS lookups, video calls, games, streaming |
+
+### Head-of-line blocking
+In TCP, one lost packet holds up everything behind it until it is resent, even data that already arrived. This is why the newest version of HTTP, **HTTP/3**, runs over **QUIC**, a protocol built on UDP that provides reliability per stream.
+
+### Sockets
+Programs use the network through **sockets**. A server opens a socket, binds it to a port and listens. A client connects. Each side then reads and writes bytes.
+
+> In industry: "Connection refused" means nothing is listening on that port. "Connection timed out" means packets are not getting through at all, usually a firewall. Telling them apart is the first step in diagnosing any network problem.
+#Q How does TCP recover from a lost packet?
+- It ignores the loss
+* The sender retransmits when an acknowledgement does not arrive
+- The router sends a copy
+! Sequence numbers and acknowledgements detect and repair loss.
+#Q Why do video calls typically use UDP rather than TCP?
+- UDP is more secure
+* A late packet is useless, so waiting for retransmission would only add delay
+- UDP guarantees delivery
+! Timeliness matters more than completeness.
+
+#LESSON DNS | 12
+People use names; networks use addresses. The **Domain Name System** translates `www.example.com` into `93.184.215.14`. It is a distributed, hierarchical database with no central server holding everything.
+
+### The hierarchy
+Names are read right to left: the **root**, then the **top-level domain** (`com`), then the domain (`example`), then any subdomain (`www`).
+
+```diagram
+                    . (root)
+              /       |        \
+            com      org       ca
+           /   \
+      example   google
+         |
+        www
+```
+
+Each level knows who is responsible for the level below it.
+
+### A lookup
+```diagram
+  your computer -> resolver:           "what is www.example.com?"
+  resolver -> a root server:           "ask the .com servers"
+  resolver -> a .com server:           "ask example.com's servers"
+  resolver -> example.com's server:    "93.184.215.14"
+  resolver -> your computer:           "93.184.215.14"
+```
+
+The **resolver**, usually run by your internet provider or a public service, does the walking. The servers holding the final answer for a domain are its **authoritative** name servers.
+
+### Caching
+Every answer carries a **time to live** (TTL). Resolvers, operating systems and browsers cache answers for that long, so most lookups never leave your machine. The consequence: when you change a DNS record, the world sees the change gradually, as cached copies expire.
+
+### Record types
+| Type | Maps a name to |
+|---|---|
+| `A` | an IPv4 address |
+| `AAAA` | an IPv6 address |
+| `CNAME` | another name (an alias) |
+| `MX` | the mail servers for the domain |
+| `TXT` | arbitrary text, used for verification and email security |
+| `NS` | the authoritative name servers |
+
+### DNS in system design
+- **Load distribution:** a name can return several addresses.
+- **Failover:** point the name at a healthy server.
+- **Geography:** answer with the nearest data centre.
+
+A low TTL lets you switch quickly but causes more lookups.
+
+### Security
+Classic DNS is unencrypted and unauthenticated, so answers can be observed or forged. **DNSSEC** signs records. **DNS over HTTPS** encrypts the question.
+
+### Tools
+`dig example.com` or `nslookup example.com` shows what DNS returns.
+
+> In industry: "It's always DNS" is a running joke among engineers because so many outages trace back to a DNS mistake. When a service is unreachable, check the name resolves before anything else.
+#Q What does DNS do?
+- Encrypts web traffic
+* Translates domain names into IP addresses
+- Assigns port numbers
+! It is the naming system of the internet.
+#Q Why does a changed DNS record not take effect everywhere immediately?
+- DNS servers are slow
+* Earlier answers are cached until their time to live expires
+- Changes must be approved manually
+! Resolvers keep using the cached answer for the TTL.
+
+#LESSON HTTP in depth | 14
+**HTTP** is the protocol of the web: a client sends a request, a server sends a response. It is text-based (in its original versions) and **stateless**: each request stands alone.
+
+### A request
+```text
+GET /products?sort=price HTTP/1.1
+Host: shop.example
+Accept: application/json
+Authorization: Bearer eyJhbGciOi...
+```
+
+The first line has the **method**, the **path** with optional **query string**, and the version. Then come **headers**, a blank line, and an optional **body**.
+
+### A response
+```text
+HTTP/1.1 200 OK
+Content-Type: application/json
+Cache-Control: max-age=60
+Content-Length: 42
+
+{"products":[{"id":1,"name":"Lamp"}]}
+```
+
+A status line, headers, a blank line, the body.
+
+### Headers that matter
+| Header | Purpose |
+|---|---|
+| `Host` | which site is wanted (one server may host many) |
+| `Content-Type` | the format of the body |
+| `Authorization` | credentials |
+| `Cookie`, `Set-Cookie` | state across requests |
+| `Cache-Control` | whether and how long a response may be cached |
+| `ETag`, `If-None-Match` | "send it only if it changed" |
+| `Location` | where to go, with a redirect or after creating something |
+
+### Caching
+A response with `Cache-Control: max-age=3600` may be reused for an hour without asking again. With an `ETag`, the browser can ask "has this changed?" and receive a tiny `304 Not Modified`. Caching is why the web is fast.
+
+### URLs
+```text
+https://shop.example:443/products/42?sort=price#reviews
+scheme   host       port   path       query       fragment
+```
+
+The fragment is never sent to the server. Special characters in a URL are **percent-encoded**: a space becomes `%20`.
+
+### The versions
+- **HTTP/1.1:** text, one request at a time per connection. Browsers open several connections to work around that.
+- **HTTP/2:** binary, with many requests **multiplexed** over one connection, and header compression.
+- **HTTP/3:** runs over QUIC (on UDP), so one lost packet no longer stalls every request.
+
+The meaning (methods, status codes, headers) is the same in all three.
+
+### CORS
+A browser will not let a page's script read a response from a different **origin** (scheme plus host plus port) unless that server permits it with `Access-Control-Allow-Origin` headers. This **same-origin policy** stops a malicious page reading your data from other sites. It is enforced by browsers only; it is not a server-side security control.
+
+### See it yourself
+The Network tab in browser developer tools shows every request. `curl -v https://example.com` shows the raw exchange.
+
+> Key idea: HTTP is plain and inspectable. When something goes wrong between a client and a server, look at the actual request and response.
+#Q Which header tells the client what format the response body is in?
+- Host
+* Content-Type
+- Location
+! For example application/json or text/html.
+#Q What is the main improvement of HTTP/2 over HTTP/1.1?
+- It removes status codes
+* Many requests can be multiplexed over a single connection
+- It no longer needs TCP
+! This removes the need for many parallel connections.
+
+#LESSON TLS, HTTPS and real-time connections | 14
+Plain HTTP is readable and alterable by anyone on the path: the café Wi-Fi, an internet provider, a compromised router. **HTTPS** is HTTP sent through **TLS** (Transport Layer Security).
+
+### What TLS provides
+- **Confidentiality:** nobody else can read the traffic.
+- **Integrity:** nobody can alter it undetected.
+- **Authentication:** you are really talking to the site you asked for.
+
+### How it works, in outline
+Two kinds of cryptography are combined.
+
+- **Asymmetric** (public key) cryptography uses a key pair. What one key locks, only the other opens. It is slow, but it lets two strangers agree on a secret over an open channel.
+- **Symmetric** cryptography uses one shared key and is fast.
+
+The **TLS handshake** uses the first to establish a shared key, then the second for the actual data.
+
+```diagram
+  client  --- hello, supported ciphers ----------------------->  server
+  client  <-- certificate, key exchange parameters ------------  server
+  client       verifies the certificate
+  client  --- key exchange ------------------------------------> server
+            both derive the same session keys
+  client  <== encrypted HTTP in both directions ==============>  server
+```
+
+### Certificates
+How do you know the public key belongs to `bank.example` and not an impostor? The server presents a **certificate**: its name and public key, **signed** by a **certificate authority** (CA). Your device ships with a list of trusted CAs and checks the chain of signatures up to one of them. It also checks that the name matches and the certificate has not expired.
+
+Certificates are free through Let's Encrypt and can be renewed automatically. An expired certificate is one of the most common causes of outages.
+
+### What HTTPS does not hide
+The destination IP address, and usually the host name, are still visible to observers. And HTTPS says nothing about whether the site itself is honest.
+
+### Use it everywhere
+Modern browser features require HTTPS. The `Strict-Transport-Security` header tells browsers never to contact your site without it.
+
+### Real-time communication
+HTTP is request and response: the server cannot speak first. For live updates there are several techniques.
+
+- **Polling:** ask repeatedly. Simple and wasteful.
+- **Long polling:** the server holds the request open until it has something to say.
+- **Server-sent events:** one long-lived response down which the server streams messages. One-way.
+- **WebSocket:** an HTTP request "upgrades" the connection to a persistent two-way channel. Used for chat, games and collaborative editing.
+
+```js
+const ws = new WebSocket("wss://chat.example/room/1");
+ws.onmessage = (event) => show(JSON.parse(event.data));
+ws.send(JSON.stringify({ text: "hello" }));
+```
+
+Persistent connections change server design: each one uses memory, and with several servers a message must reach users connected to a different one.
+#Q Why does TLS use both asymmetric and symmetric cryptography?
+- Symmetric cryptography is insecure
+* Asymmetric cryptography establishes a shared secret; fast symmetric cryptography then protects the data
+- Browsers require two algorithms
+! Each is used for what it does best.
+#Q What does a certificate prove?
+- That the website's content is trustworthy
+* That the public key belongs to the named site, as vouched for by a certificate authority
+- That the server is fast
+! It binds a name to a key through a chain of signatures.
+
+#LAB js | Parsing HTTP and URLs
+Write three functions that work on the text of the web.
+
+- `parseUrl(url)` takes a URL of the form `scheme://host[:port]/path[?query]` and returns `{ scheme, host, port, path, query }`.
+  - `port` is a number. If absent, use 443 for `https` and 80 for `http`.
+  - `path` defaults to `"/"` when the URL has none.
+  - `query` is an object of decoded keys and values (use `decodeURIComponent`, and treat `+` as a space). A key with no `=` has the value `""`. No query string gives `{}`.
+- `parseRequest(text)` takes a raw HTTP request (lines separated by `\r\n`, headers ended by a blank line) and returns `{ method, path, headers, body }`. Header names are **lower-cased**; values have surrounding spaces trimmed. `body` is everything after the blank line, or `""`.
+- `statusClass(code)` returns `"informational"`, `"success"`, `"redirect"`, `"client error"` or `"server error"` for codes in the 100s to 500s, and `"unknown"` otherwise.
+@starter
+function parseUrl(url) {
+  return { scheme: "", host: "", port: 0, path: "/", query: {} };
+}
+
+function parseRequest(text) {
+  return { method: "", path: "", headers: {}, body: "" };
+}
+
+function statusClass(code) {
+  return "unknown";
+}
+@solution
+function parseUrl(url) {
+  const m = /^(\w+):\/\/([^\/:?]+)(?::(\d+))?([^?]*)(?:\?(.*))?$/.exec(url);
+  const scheme = m[1], host = m[2];
+  const port = m[3] ? Number(m[3]) : scheme === "https" ? 443 : 80;
+  const path = m[4] || "/";
+  const query = {};
+  if (m[5]) {
+    for (const pair of m[5].split("&")) {
+      if (pair === "") continue;
+      const i = pair.indexOf("=");
+      const key = i < 0 ? pair : pair.slice(0, i);
+      const value = i < 0 ? "" : pair.slice(i + 1);
+      const dec = (s) => decodeURIComponent(s.replace(/\+/g, " "));
+      query[dec(key)] = dec(value);
+    }
+  }
+  return { scheme, host, port, path, query };
+}
+
+function parseRequest(text) {
+  const split = text.indexOf("\r\n\r\n");
+  const head = split < 0 ? text : text.slice(0, split);
+  const body = split < 0 ? "" : text.slice(split + 4);
+  const lines = head.split("\r\n");
+  const first = lines[0].split(" ");
+  const headers = {};
+  for (const line of lines.slice(1)) {
+    const i = line.indexOf(":");
+    if (i < 0) continue;
+    headers[line.slice(0, i).trim().toLowerCase()] = line.slice(i + 1).trim();
+  }
+  return { method: first[0], path: first[1], headers, body };
+}
+
+function statusClass(code) {
+  const names = { 1: "informational", 2: "success", 3: "redirect", 4: "client error", 5: "server error" };
+  return names[Math.floor(code / 100)] || "unknown";
+}
+@tests
+parseUrl("https://shop.example/products?sort=price&page=2") => {"scheme": "https", "host": "shop.example", "port": 443, "path": "/products", "query": {"sort": "price", "page": "2"}}
+parseUrl("http://localhost:8080/") => {"scheme": "http", "host": "localhost", "port": 8080, "path": "/", "query": {}}
+parseUrl("http://example.com") => {"scheme": "http", "host": "example.com", "port": 80, "path": "/", "query": {}}
+parseUrl("https://a.b/search?q=hello+world&x=%26") => {"scheme": "https", "host": "a.b", "port": 443, "path": "/search", "query": {"q": "hello world", "x": "&"}}
+parseUrl("https://a.b/p?flag") => {"scheme": "https", "host": "a.b", "port": 443, "path": "/p", "query": {"flag": ""}}
+parseRequest("GET /users HTTP/1.1\r\nHost: api.example\r\nAccept: application/json\r\n\r\n") => {"method": "GET", "path": "/users", "headers": {"host": "api.example", "accept": "application/json"}, "body": ""}
+parseRequest("POST /users HTTP/1.1\r\nContent-Type:  application/json \r\n\r\n{\"name\":\"ada\"}") => {"method": "POST", "path": "/users", "headers": {"content-type": "application/json"}, "body": "{\"name\":\"ada\"}"}
+parseRequest("DELETE /x HTTP/1.1").method => "DELETE"
+parseRequest("GET / HTTP/1.1\r\nX-Time: 10:30:00\r\n\r\n").headers => {"x-time": "10:30:00"}
+statusClass(200) => "success"
+statusClass(404) => "client error"
+statusClass(503) => "server error"
+statusClass(301) => "redirect"
+statusClass(700) => "unknown"
+@hints
+A regular expression with groups for scheme, host, optional port, path and optional query makes `parseUrl` short. Alternatively, find `://`, then the first `/`, then the first `?`.
+Split the query on `&`, then each pair at its **first** `=`.
+In `parseRequest`, the headers end at the first blank line, which is the text `\r\n\r\n`.
+Split each header line at its **first** colon only, because values such as times contain colons.
+`Math.floor(code / 100)` gives the class digit.
+
+#EXAM 20
+#Q In which order are the layers wrapped around an HTTP request as it is sent?
+- IP, TCP, HTTP
+* HTTP inside TCP inside IP
+- TCP inside HTTP inside IP
+! Each lower layer encapsulates the one above.
+#Q What are the three steps of TCP connection set-up?
+- GET, POST, ACK
+* SYN, SYN-ACK, ACK
+- HELLO, OK, BYE
+! The three-way handshake synchronises both directions.
+#Q Which transport protocol offers no delivery guarantee?
+- TCP
+* UDP
+- TLS
+! UDP sends datagrams without acknowledgement.
+#Q Which DNS record type maps a name to an IPv4 address?
+* A
+- MX
+- CNAME
+! AAAA does the same for IPv6.
+#Q A response has the header Cache-Control: max-age=600. What may a browser do?
+- Never store it
+* Reuse it for ten minutes without contacting the server
+- Send it to other users
+! The response is fresh for 600 seconds.
+#Q What three properties does TLS provide?
+- Speed, compression and caching
+* Confidentiality, integrity and authentication
+- Routing, naming and addressing
+! Encrypted, tamper-evident and verified as the intended server.
+#Q Which technique gives a persistent two-way channel between browser and server?
+- Polling
+* WebSocket
+- A redirect
+! Either side can send at any time.
+#W Describe, step by step, what happens from the moment a user types https://shop.example/products into a browser and presses Enter until the page appears. Mention DNS, TCP, TLS and HTTP.
++ DNS resolution of the host name to an IP address, with caching
++ TCP connection established with the three-way handshake
++ TLS handshake: certificate verified and session keys agreed
++ HTTP request sent and response received with a status code and headers
++ The browser parses the HTML and requests further resources
++ Steps are in the correct order
+
+#PROJECT HTTP from first principles
+Write a small HTTP server using only raw TCP sockets from your language's standard library, with no web framework.
+@requirements
+It listens on a port, accepts connections and parses the request line and headers
+It serves at least two routes and returns 404 for anything else
+Responses have correct status lines and Content-Type and Content-Length headers
+It serves a file from disk and handles a POST body
+Malformed requests receive a 400 and do not crash the server
+It handles several connections (sequentially is acceptable; note the limitation)
+You captured one exchange with curl -v and annotated each line
+@deliverables
+The source code
+The annotated capture
+A note on what a real server does that yours does not (keep-alive, TLS, concurrency, limits)
+@rubric
+Requests are parsed correctly | 25
+Responses are valid HTTP | 25
+Robustness against bad input | 20
+The annotated capture shows understanding | 20
+Awareness of the limitations | 10
+
+#COURSE c307
+#LESSON Processes, threads and scheduling | 14
+### Processes
+A **process** is a running program. The operating system gives each one its own **address space** (its own view of memory), its own open files and at least one thread of execution. Processes are isolated: one cannot read or damage another's memory. That isolation is why one crashing application does not bring down the others.
+
+Each process is in one of a few states:
+
+```diagram
+              scheduled
+   ready  ---------------->  running  ------->  finished
+     ^   <----------------     |
+     |      time slice ends    | waits for I/O
+     |                         v
+     +---------------------  blocked
+         I/O completes
+```
+
+### Threads
+A **thread** is a path of execution inside a process. A process may have many. Threads in the same process **share its memory**, which makes communication between them cheap and coordination between them dangerous.
+
+| | Process | Thread |
+|---|---|---|
+| Memory | private | shared with sibling threads |
+| Creation and switching cost | higher | lower |
+| A crash affects | only itself | the whole process |
+
+### Scheduling
+There are usually far more runnable threads than CPU cores. The **scheduler** decides which run. With **preemptive** scheduling, a timer interrupts the running thread after a short **time slice** (milliseconds) and the scheduler picks another.
+
+Switching saves one thread's registers and loads another's. This **context switch** is not free: it costs time directly and empties the processor's caches.
+
+Scheduling policies balance competing goals:
+
+- **Round robin:** each in turn, for one time slice. Fair and responsive.
+- **Priority:** more important first, with the risk that low-priority work **starves**.
+- **Multilevel feedback queues:** threads that often wait for input are treated as interactive and favoured; threads that compute for long stretches are demoted. Most general-purpose systems use a variant.
+
+### Blocking
+When a thread asks to read from a disk or network, the data is not there yet. The thread **blocks**: the scheduler removes it from the CPU until the operation completes, and runs something else. Programs dominated by waiting are **I/O-bound**; those dominated by computing are **CPU-bound**. The distinction decides which concurrency approach will help.
+
+> In industry: "Should this be a process, a thread or an async task?" is a design question with real consequences for safety and speed. The answer depends on whether the work waits or computes, and on how much isolation you need.
+#Q What do threads within the same process share?
+- Nothing
+* The process's memory
+- Their CPU registers
+! Shared memory makes threads cheap to coordinate and easy to get wrong.
+#Q What is a context switch?
+- A change of programming language
+* The operating system saving one thread's state and restoring another's
+- Opening a new window
+! It lets many threads share few cores, at some cost.
+
+#LESSON Memory management | 13
+Every process behaves as though it has a large private memory all to itself. That is an illusion maintained by the operating system and the processor, called **virtual memory**.
+
+### Virtual addresses
+A program uses **virtual addresses**. The hardware translates each one to a **physical address** in RAM using **page tables** that the OS maintains. Memory is managed in fixed-size chunks called **pages**, typically 4 KB.
+
+```diagram
+   process A virtual pages          physical RAM          process B virtual pages
+        [ 0 ] -------------------->  frame 7
+        [ 1 ] -------------------->  frame 2  <--------------- [ 0 ]   (shared library)
+        [ 2 ]  (not in RAM)          frame 9  <--------------- [ 1 ]
+```
+
+What this buys:
+
+- **Isolation.** A process cannot name another process's memory at all.
+- **More memory than RAM.** Pages not in use can be moved to disk (**swap**) and brought back when touched. Touching a page that is not in RAM causes a **page fault**, which the OS handles invisibly. Heavy swapping, called **thrashing**, makes a system crawl.
+- **Sharing.** The code of a common library can be mapped into many processes while existing once in RAM.
+- **Lazy allocation.** Memory you request is not actually provided until you use it.
+
+The **TLB** (translation lookaside buffer) is a small hardware cache of recent translations that keeps this fast.
+
+### The layout of a process
+```diagram
+  high addresses
+  +------------------+
+  |      stack       |   function calls and local variables; grows down
+  |        |         |
+  |        v         |
+  |                  |
+  |        ^         |
+  |        |         |
+  |       heap       |   dynamically allocated objects; grows up
+  +------------------+
+  |   global data    |
+  +------------------+
+  |   program code   |   read-only
+  +------------------+
+  low addresses
+```
+
+### Stack and heap
+The **stack** is managed automatically: calling a function pushes a frame, returning pops it. It is fast and limited in size, which is why unbounded recursion overflows it.
+
+The **heap** holds objects whose lifetime is not tied to one function call. Someone must free them:
+
+- **Manually** (C, C++), risking leaks and use-after-free.
+- By a **garbage collector** (Java, Python, JavaScript, Go), which finds objects no longer reachable and reclaims them, at the cost of some CPU time and occasional pauses.
+- By **ownership rules checked at compile time** (Rust).
+
+### Leaks in garbage-collected languages
+A collector frees only what is *unreachable*. An object still referenced from a forgotten list, cache or event listener is never freed. That is still a memory leak.
+
+> Key idea: Memory problems appear as crashes, slowness or gradual growth. Knowing the stack, the heap and virtual memory tells you which kind you are looking at.
+#Q What does virtual memory give each process?
+- A faster processor
+* Its own private address space, translated to physical memory by the OS and hardware
+- Unlimited disk space
+! Isolation and flexibility both follow from the translation.
+#Q Can a program in a garbage-collected language leak memory?
+- No, never
+* Yes, if objects remain reachable although they are no longer needed
+- Only if it uses recursion
+! The collector frees only what cannot be reached.
+
+#LESSON Concurrency, races and locks | 15
+**Concurrency** is dealing with several things at once. **Parallelism** is doing several things at the same instant on several cores. A single core can be concurrent, by switching, without being parallel.
+
+### The race condition
+Two threads each run `count = count + 1`. That one line is three steps: read, add, write.
+
+```diagram
+  thread A: read count (5)
+  thread B: read count (5)
+  thread A: write 6
+  thread B: write 6          <- one increment has been lost
+```
+
+The result depends on the exact interleaving, which you do not control. That is a **race condition**. It may appear once in a million runs, never on your machine, and daily in production.
+
+A stretch of code that must not be interleaved is a **critical section**.
+
+### Locks
+A **mutex** (mutual exclusion lock) lets one thread at a time into a critical section.
+
+```py
+lock = threading.Lock()
+
+def increment():
+    global count
+    with lock:
+        count += 1
+```
+
+Every access to the shared data, reads included, must use the same lock.
+
+### Deadlock
+Thread A holds lock 1 and waits for lock 2. Thread B holds lock 2 and waits for lock 1. Neither can ever proceed.
+
+```diagram
+   thread A  --holds-->  lock 1  <--wants--  thread B
+   thread A  --wants-->  lock 2  <--holds--  thread B
+```
+
+Deadlock needs four conditions together: mutual exclusion, holding one resource while waiting for another, no forced release, and a **circular wait**. Break any one and it cannot happen. The practical method is to break the last: **always acquire locks in the same global order**.
+
+### Other hazards
+- **Starvation:** a thread never gets its turn.
+- **Livelock:** threads keep reacting to each other without making progress.
+- **Too much locking:** one big lock makes a program correct and no faster than a single thread.
+
+### Other tools
+- A **semaphore** allows up to N holders, for example to limit concurrent connections.
+- **Read-write locks** allow many readers or one writer.
+- **Atomic operations** perform a small update indivisibly without a lock.
+- **Condition variables** let a thread sleep until something becomes true.
+
+### Better: do not share
+The safest concurrent code shares no mutable state.
+
+- **Immutable data** can be read by any number of threads.
+- **Message passing:** each thread owns its data and communicates by sending messages through queues or channels. "Do not communicate by sharing memory; share memory by communicating."
+- **Confinement:** each piece of data belongs to exactly one thread.
+
+> Key idea: Shared mutable state is the root of concurrency bugs. Remove the sharing or remove the mutation wherever you can; lock what remains.
+#Q What makes `count = count + 1` unsafe when two threads run it?
+- Addition is slow
+* It is a read, a computation and a write, and the threads' steps can interleave
+- Integers cannot be shared
+! Both may read the same old value, and one update is lost.
+#Q What is the standard way to prevent deadlock when several locks are needed?
+- Use more threads
+* Always acquire the locks in the same order
+- Hold locks for longer
+! A consistent order makes a circular wait impossible.
+
+#LESSON Asynchronous programming | 14
+A web server handling ten thousand connections cannot afford ten thousand threads, each mostly waiting for the network. **Asynchronous** programming lets one thread manage many waiting operations.
+
+### The event loop
+JavaScript, and Python's `asyncio`, run on an **event loop**: a single thread that takes one task from a queue, runs it until it finishes or has to wait, then takes the next.
+
+```diagram
+        +-------------------------------------------+
+        |  take the next ready task from the queue  |<------+
+        +---------------------+---------------------+       |
+                              v                             |
+        +-------------------------------------------+       |
+        |  run it until it finishes or awaits I/O   |-------+
+        +-------------------------------------------+
+            I/O completions put tasks back in the queue
+```
+
+When code asks for something slow, it does not block. It registers what to do when the result arrives and returns control to the loop.
+
+### Callbacks, promises, async/await
+The same idea has had three notations.
+
+```js
+// 1. callback
+readFile("a.txt", (err, data) => { if (err) return fail(err); use(data); });
+
+// 2. promise: an object standing for a result that will exist later
+readFile("a.txt").then(use).catch(fail);
+
+// 3. async/await: promises written like ordinary sequential code
+async function main() {
+  try {
+    const data = await readFile("a.txt");
+    use(data);
+  } catch (err) {
+    fail(err);
+  }
+}
+```
+
+`await` pauses that function, not the thread. The event loop runs other tasks meanwhile.
+
+### Running things together
+```js
+const a = await fetchUser(1);              // one after another:
+const b = await fetchUser(2);              // total time is the sum
+
+const [x, y] = await Promise.all([fetchUser(1), fetchUser(2)]);   // together: time of the slower
+```
+
+Awaiting independent operations one by one is a very common performance mistake.
+
+### Never block the loop
+There is one thread. A long calculation, or a synchronous file read, freezes everything: every other request waits. CPU-heavy work belongs in a separate worker thread or process.
+
+### Errors
+An error in an async function **rejects** its promise. If nothing awaits or catches it, the failure can vanish silently. Always await or handle every promise.
+
+### It is still concurrent
+There is no parallelism, so two pieces of code never run at the same instant. But a function can be interrupted at every `await`, and other code may change shared state before it resumes.
+
+```js
+const balance = await getBalance(id);          // other tasks run during this await
+await setBalance(id, balance - 100);           // balance may already be out of date
+```
+
+### Choosing a model
+| Workload | Suitable model |
+|---|---|
+| Much waiting on network or disk | async, on an event loop |
+| Heavy computation | threads or processes across cores |
+| Both | an event loop plus a pool of workers |
+#Q What does `await` do to the event loop's single thread?
+- Blocks it until the result arrives
+* Suspends only the current function, letting the loop run other tasks
+- Starts a new thread
+! That is how one thread serves many waiting operations.
+#Q What is the advantage of Promise.all over awaiting each operation in turn?
+- It uses less memory
+* Independent operations run concurrently, so total time is that of the slowest
+- It prevents all errors
+! Sequential awaits add their durations together.
+
+#LESSON Linux fundamentals | 13
+Most servers, containers and cloud systems run **Linux**. A working engineer needs to be at home on it.
+
+### Everything is a file
+Devices, running processes and system settings all appear in the file system. `/proc` exposes live information about processes; `/dev` holds devices.
+
+```text
+/            root
+/home        users' files
+/etc         configuration
+/var/log     logs
+/usr/bin     installed programs
+/tmp         temporary files
+```
+
+### Users and permissions
+Each file has an owner, a group, and three sets of permissions: **r**ead, **w**rite and e**x**ecute, for the owner, the group and everyone else.
+
+```text
+-rwxr-xr--  1 ada  devs  4096  script.sh
+ |  |  |
+ |  |  others: read only
+ |  group: read and execute
+ owner: read, write and execute
+```
+
+`chmod` changes permissions; `chown` changes ownership. The **root** user can do anything. `sudo` runs a single command as root. Running services as an unprivileged user limits the damage if they are compromised.
+
+### Processes
+| Command | Purpose |
+|---|---|
+| `ps aux` | list processes |
+| `top` or `htop` | live view of CPU and memory use |
+| `kill PID` | ask a process to stop (signal SIGTERM) |
+| `kill -9 PID` | force it to stop (SIGKILL) |
+
+A **signal** is a notification sent to a process. Well-behaved services catch SIGTERM, finish their current work and exit cleanly. This **graceful shutdown** matters whenever software is deployed or scaled down.
+
+### Standard streams
+Every process has standard input, standard output and standard error. Pipes and redirection connect them, as you saw in Stage 1. Services should write logs to standard output and let the platform collect them.
+
+### Services
+Long-running background programs are **daemons**, usually managed by `systemd`: `systemctl status nginx`, `systemctl restart nginx`, and `journalctl -u nginx` to read their logs.
+
+### Finding out what is wrong
+| Question | Command |
+|---|---|
+| Is the disk full? | `df -h` |
+| What is using the space? | `du -sh *` |
+| How much memory is free? | `free -h` |
+| What is listening on which port? | `ss -tlnp` |
+| Can I reach that host? | `ping`, `curl -v` |
+| What does the log say? | `tail -f /var/log/...`, `journalctl` |
+| What is in this file? | `grep`, `less` |
+
+### Remote access and packages
+`ssh user@host` opens a secure shell on another machine, authenticated with a key pair. Software is installed with a **package manager**: `apt` on Debian and Ubuntu, `dnf` on Fedora.
+
+### Environment
+Programs receive configuration through **environment variables**. Storing configuration there, and not in the code, lets the same build run in testing and in production.
+
+> In industry: During an incident, the engineer who can connect to a server and calmly check disk, memory, processes, ports and logs is the one who finds the cause.
+#Q What do the permissions rwxr-xr-- give the file's group?
+- Read, write and execute
+* Read and execute
+- Read only
+! The middle three characters are the group's permissions.
+#Q What should a well-behaved service do on receiving SIGTERM?
+- Ignore it
+* Finish its current work and exit cleanly
+- Restart the machine
+! Graceful shutdown avoids dropping requests during deployments.
+
+#LAB js | Simulate a scheduler and detect deadlock
+Model two operating-system mechanisms as pure functions.
+
+**1. Round-robin scheduling.** `roundRobin(tasks, quantum)` takes an array of `{ id, time }` (work remaining, in ticks) and a time slice. Tasks start in the given order in a queue. Repeatedly take the front task and run it for `min(quantum, remaining)` ticks. If it still has work left, put it at the back of the queue. Return an array of `{ id, finish }` giving the tick at which each task finished, in the order they finished. Time starts at 0. Tasks with `time` 0 finish immediately at the current time when they reach the front.
+
+**2. Deadlock detection.** `hasDeadlock(waits)` takes an object in which each key is a thread and each value is the thread it is waiting for (or `null` if it is not waiting), for example `{ A: "B", B: "A" }`. Return `true` if there is a cycle of waiting, otherwise `false`. A thread waiting for an unknown thread is simply not part of a cycle.
+@starter
+function roundRobin(tasks, quantum) {
+  return [];
+}
+
+function hasDeadlock(waits) {
+  return false;
+}
+@solution
+function roundRobin(tasks, quantum) {
+  const queue = tasks.map((t) => ({ id: t.id, time: t.time }));
+  const done = [];
+  let now = 0;
+  while (queue.length > 0) {
+    const task = queue.shift();
+    const run = Math.min(quantum, task.time);
+    now += run;
+    task.time -= run;
+    if (task.time > 0) queue.push(task);
+    else done.push({ id: task.id, finish: now });
+  }
+  return done;
+}
+
+function hasDeadlock(waits) {
+  for (const start of Object.keys(waits)) {
+    const seen = new Set();
+    let t = start;
+    while (t !== null && t !== undefined && Object.prototype.hasOwnProperty.call(waits, t)) {
+      if (seen.has(t)) return true;
+      seen.add(t);
+      t = waits[t];
+    }
+  }
+  return false;
+}
+@tests
+roundRobin([{ id: "A", time: 3 }], 2) => [{"id": "A", "finish": 3}]
+roundRobin([{ id: "A", time: 4 }, { id: "B", time: 2 }], 2) => [{"id": "B", "finish": 4}, {"id": "A", "finish": 6}]
+roundRobin([{ id: "A", time: 5 }, { id: "B", time: 3 }, { id: "C", time: 1 }], 2) => [{"id": "C", "finish": 5}, {"id": "B", "finish": 8}, {"id": "A", "finish": 9}]
+roundRobin([], 3) => []
+roundRobin([{ id: "A", time: 2 }, { id: "B", time: 2 }], 5) => [{"id": "A", "finish": 2}, {"id": "B", "finish": 4}]
+roundRobin([{ id: "A", time: 0 }, { id: "B", time: 1 }], 1) => [{"id": "A", "finish": 0}, {"id": "B", "finish": 1}]
+((t) => { roundRobin(t, 1); return t[0].time; })([{ id: "A", time: 3 }]) => 3
+hasDeadlock({ A: "B", B: "A" }) => true
+hasDeadlock({ A: "B", B: "C", C: null }) => false
+hasDeadlock({ A: "B", B: "C", C: "A" }) => true
+hasDeadlock({ A: null, B: null }) => false
+hasDeadlock({}) => false
+hasDeadlock({ A: "A" }) => true
+hasDeadlock({ A: "B", B: "C", C: "B", D: null }) => true
+hasDeadlock({ A: "Z" }) => false
+@hints
+For the scheduler, copy the tasks first so the caller's array is not changed, then loop while the queue is not empty.
+Advance the clock by the amount actually run, which is the smaller of the quantum and the remaining time.
+For deadlock, follow the chain of "waiting for" from each thread. If you reach a thread you have already seen on this walk, there is a cycle.
+Stop the walk when you reach `null` or a thread that is not in the object.
+
+#EXAM 20
+#Q Why can one crashed process usually not corrupt another?
+- Processes run on different computers
+* Each process has its own address space, enforced by the OS and hardware
+- Crashes are prevented by the scheduler
+! Isolation through virtual memory.
+#Q A program spends most of its time waiting for database responses. How is it described?
+- CPU-bound
+* I/O-bound
+- Memory-bound
+! Its speed is limited by waiting, not computing.
+#Q What happens when a program touches a page that is not currently in RAM?
+- The program is terminated
+* A page fault occurs and the OS loads the page
+- The page is deleted
+! The OS resolves it transparently, at a cost in time.
+#Q Which region of a process's memory holds local variables of function calls?
+* The stack
+- The heap
+- The program code
+! Each call pushes a frame; returning pops it.
+#Q Which four conditions are required for deadlock?
+- Speed, memory, disk and network
+* Mutual exclusion, hold and wait, no preemption, circular wait
+- Read, write, execute, delete
+! Removing any one prevents deadlock.
+#Q What happens if a long calculation runs on a JavaScript event loop?
+- It runs on another core automatically
+* Everything else waits, because there is only one thread
+- The calculation is cancelled
+! CPU-heavy work must be moved to a worker.
+#Q Which command shows what is listening on network ports on Linux?
+- df -h
+* ss -tlnp
+- chmod
+! It lists listening sockets with their processes.
+#C js | Write `runAll(tasks)` where each task is a function returning a number. Return the total of all results. (This models running independent tasks and combining their results.)
+@starter
+function runAll(tasks) {
+  return 0;
+}
+@solution
+function runAll(tasks) {
+  return tasks.reduce((sum, task) => sum + task(), 0);
+}
+@tests
+runAll([() => 1, () => 2, () => 3]) => 6
+runAll([]) => 0
+runAll([() => -5, () => 5]) => 0
+#W Two threads transfer money between the same two accounts in opposite directions, each locking the source account and then the destination. Explain what can go wrong, why, and two different ways to prevent it.
++ Identifies deadlock
++ Explains the circular wait: each holds one lock and waits for the other
++ Proposes a global lock ordering (for example by account ID)
++ Proposes a second remedy (single lock, lock timeout with retry, database transaction, message passing)
++ Explains why the remedies work
+
+#PROJECT Real-time chat system
+Build a chat system in which several users in a room see each other's messages immediately.
+@requirements
+A server accepts many simultaneous connections (WebSocket or raw sockets)
+Users can join named rooms; a message is delivered to everyone in the room
+Message history for a room is stored and sent to a user who joins
+A user disconnecting is handled without affecting others
+Shared state (rooms, members) is protected against races, or confined to one event loop with the reasoning written down
+A load test with at least 100 simulated clients, with measured delivery times
+@deliverables
+Server and client source
+The load test and its results
+A concurrency note: what state is shared, and what makes access to it safe
+@rubric
+Messaging works correctly among many users | 30
+Connection lifecycle and errors are handled | 20
+Concurrency reasoning is sound | 25
+Load test and measurements | 15
+Code quality | 10
+
+#COURSE c308
+#LESSON A test strategy | 12
+Tests are an investment. A **test strategy** decides where to spend it.
+
+### Levels, revisited
+- **Unit tests** check one piece in isolation. Milliseconds each.
+- **Integration tests** check pieces working together, including a real database.
+- **Contract tests** check that a service and its consumers agree on the shape of requests and responses, without running both together.
+- **End-to-end tests** drive the whole system through its real interface.
+
+Keep the pyramid shape: many fast tests at the bottom, few slow ones at the top. A suite dominated by end-to-end tests is slow, fragile and tells you little about where a failure is.
+
+### What deserves the most testing
+Spend effort in proportion to **risk**: the cost of a failure multiplied by its likelihood.
+
+- Money, permissions and data loss: test exhaustively.
+- Complicated logic with many branches: test thoroughly.
+- Simple pass-through code: a light touch.
+
+### Beyond example tests
+- **Property-based testing:** state a rule that must hold for all inputs ("sorting twice equals sorting once", "decoding an encoded value returns the original") and let a tool generate hundreds of inputs, shrinking any failure to the smallest example.
+- **Mutation testing:** a tool makes small changes to your code (flipping `<` to `<=`). If the tests still pass, they were not really checking that line. It measures the quality of tests, which coverage cannot.
+- **Fuzzing:** throwing random or malformed input at a program to find crashes and security flaws.
+
+### Other kinds of testing
+**Performance** tests (is it fast enough under load?), **security** tests, **accessibility** tests, and **exploratory** testing by a person hunting for the unexpected.
+
+### Test data
+Tests need known data. Build it in each test with small helper functions (**factories**) instead of sharing one large fixture that every test depends on and nobody dares change.
+
+### Flaky tests
+A test that sometimes fails without a code change is worse than no test: people learn to ignore failures. Usual causes are timing assumptions, shared state between tests, dependence on the real clock, and dependence on the network. Find the cause and fix it; do not simply re-run.
+
+### Testability is designed in
+Code is easy to test when its dependencies are passed in, its logic is separated from input and output, and its functions are small and pure. Difficulty in writing a test is feedback about the design.
+
+> Key idea: The goal is not a coverage number. It is the confidence to change the code and release it.
+#Q How should testing effort be distributed?
+- Equally across all code
+* In proportion to risk: the cost and likelihood of failure
+- Only on the user interface
+! Critical and complex code deserves the most attention.
+#Q What does mutation testing reveal?
+- How fast the tests run
+* Whether the tests actually detect changes in the code's behaviour
+- How many lines the code has
+! Surviving mutants show lines the tests do not truly check.
+
+#LESSON Test-driven development | 13
+**Test-driven development** (TDD) reverses the usual order: write the test first, then the code.
+
+### Red, green, refactor
+```diagram
+        +-------------------------+
+        |  RED: write a small     |
+        |  test that fails        |
+        +------------+------------+
+                     v
+        +-------------------------+
+        |  GREEN: write just      |
+        |  enough code to pass    |
+        +------------+------------+
+                     v
+        +-------------------------+
+        |  REFACTOR: improve the  |
+        |  code; tests stay green |
+        +------------+------------+
+                     |
+                     +----> repeat
+```
+
+1. **Red.** Write one test for the next small piece of behaviour. Run it and **watch it fail**. This proves the test can fail and is testing something.
+2. **Green.** Write the simplest code that makes it pass. Do not write anything the test does not demand.
+3. **Refactor.** Remove duplication and improve names and structure, running the tests after each change.
+
+The cycles are short: a few minutes each.
+
+### A worked example
+Requirement: `fizzbuzz(n)`.
+
+```js
+test("returns the number as text", () => expect(fizzbuzz(1)).toBe("1"));
+// green: return String(n)
+
+test("returns Fizz for multiples of three", () => expect(fizzbuzz(3)).toBe("Fizz"));
+// green: add an if
+
+test("returns Buzz for multiples of five", () => expect(fizzbuzz(5)).toBe("Buzz"));
+test("returns FizzBuzz for multiples of both", () => expect(fizzbuzz(15)).toBe("FizzBuzz"));
+// green, then refactor the conditions
+```
+
+Each test adds one requirement; the code grows only to satisfy them.
+
+### What you gain
+- **You think about use before implementation.** Writing the test first designs the interface from the caller's side.
+- **Everything is tested**, because no code exists without a test that demanded it.
+- **No more than necessary gets built.**
+- **Steady progress.** You are never more than a few minutes from working code.
+- **Fearless refactoring**, since the safety net is always there.
+
+### Where it fits and where it does not
+TDD works best where the desired behaviour can be stated precisely: logic, algorithms, parsers, business rules. It fits less well with exploratory work, where you do not yet know what you want, and with visual design. Many engineers explore first with a throwaway version, then build the real thing test-first.
+
+### The bug-fix rule
+Even those who do not use TDD elsewhere follow this: when a bug is reported, first write a test that reproduces it and fails. Then fix it. The test proves the fix and prevents the bug returning.
+
+### Behaviour, not implementation
+Test what the code **does** through its public interface, not how it does it. Tests tied to internal details break every time you refactor, which defeats their purpose.
+
+> In industry: Teams differ on how strictly they practise TDD. Almost all agree on its outcome: code delivered with tests, written by the same person at the same time.
+#Q What is the first step of the TDD cycle?
+- Write the implementation
+* Write a test and see it fail
+- Refactor the code
+! A failing test proves the test is meaningful.
+#Q In the "green" step, how much code should you write?
+- As much as you expect to need later
+* Only enough to make the failing test pass
+- None
+! The tests, not speculation, drive what is built.
+
+#LESSON Continuous integration | 13
+On a team, each person's changes interact with everyone else's. If work is combined only occasionally, combining becomes a painful, bug-ridden event. **Continuous integration** (CI) means everyone merges small changes into the shared main line often, at least daily, and every change is verified automatically.
+
+### The pipeline
+A CI server watches the repository. On every push or pull request it runs a **pipeline**:
+
+```diagram
+  push --> checkout --> install --> lint --> build --> unit tests --> integration tests --> report
+                                       any failure stops the pipeline and blocks the merge
+```
+
+A typical definition, as a file in the repository:
+
+```text
+name: ci
+on: [push, pull_request]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: npm ci
+      - run: npm run lint
+      - run: npm test
+```
+
+The configuration is code: versioned, reviewed and identical for everyone.
+
+### Principles
+- **A single command builds and tests everything.** If it needs manual steps, it will not be done consistently.
+- **Fast.** Aim for minutes. A slow pipeline is avoided or ignored. Run the quickest checks first so that failures show up early, and run independent jobs in parallel.
+- **A broken main line is an emergency.** Fix it or revert immediately; everyone else is blocked.
+- **Reproducible.** The pipeline starts from a clean environment each time, so "works on my machine" is no longer an argument.
+- **Trusted.** Flaky tests must be fixed, or people will stop believing failures.
+
+### What CI commonly checks
+Formatting and linting, type checking, tests at several levels, security scanning of dependencies, and whether the application builds and packages.
+
+### Artifacts
+A successful pipeline produces a **build artifact**: a package or container image, labelled with a version. That exact artifact, not a fresh rebuild, is what gets deployed everywhere. **Build once, deploy many times.**
+
+### Dependencies
+Pin exact versions with a **lock file**, so today's build uses the same libraries as yesterday's. Update them deliberately, with the pipeline as the safety net.
+
+### Why it pays
+Problems are found within minutes of being introduced, when the cause is one small recent change and the author still remembers it. Integration stops being an event and becomes a non-event.
+
+> In industry: Virtually every professional team runs CI. A repository without it is treated as a risk to fix in the first week.
+#Q What is the core practice of continuous integration?
+- Releasing software once a year
+* Merging small changes frequently, with each verified automatically
+- Testing only before a release
+! Frequent, verified integration keeps problems small.
+#Q Why should the artifact built by CI be the one deployed to every environment?
+- It saves disk space
+* It guarantees that what was tested is exactly what runs in production
+- Rebuilding is impossible
+! Build once, deploy many times.
+
+#LESSON Continuous delivery and deployment | 13
+CI proves each change works. **Continuous delivery** (CD) keeps the software in a state where it can be released at any moment, through an automated process. **Continuous deployment** goes one step further: every change that passes the pipeline is released automatically.
+
+```diagram
+  commit --> CI --> artifact --> staging --> automated checks --> production
+                                                   ^
+                              continuous delivery: a person presses the button
+                              continuous deployment: no button
+```
+
+### Why release often?
+It seems safer to release rarely. The opposite is true. A release containing a month of changes has many things that could be the cause when it breaks. A release containing one small change is easy to understand and easy to undo. **Small, frequent releases are lower risk.**
+
+### Environments
+The same artifact moves through **environments**: development, **staging** (as similar to production as possible), then production. Only configuration differs between them, supplied through environment variables, never built into the artifact.
+
+### Releasing without downtime
+- **Rolling deployment:** replace servers a few at a time.
+- **Blue-green:** run the new version alongside the old, then switch all traffic. Switching back is instant.
+- **Canary release:** send a small share of traffic, say 1%, to the new version. Watch error rates and latency. Increase gradually, or roll back automatically if the numbers worsen.
+
+### Decoupling deploy from release
+A **feature flag** is a switch read at run time. Code for an unfinished feature can be deployed switched off, enabled for staff, then for 5% of users, then everyone. Deploying becomes a technical event; releasing becomes a business decision. Remove flags once a feature is fully released, or they accumulate.
+
+### Database changes
+The database is shared by the old and new versions during a rollout, so schema changes must be **backward compatible**. The pattern is **expand, then contract**:
+
+1. Add the new column. Old code ignores it.
+2. Deploy code that writes both and reads the new one.
+3. Copy the existing data across.
+4. Later, remove the old column.
+
+Never rename or drop a column in the same release as the code that stops using it.
+
+### Rollback
+Things will go wrong. Be able to return to the previous version in minutes, and rehearse it. Often **rolling forward** with a quick fix is right, but only if the problem is understood.
+
+### After deployment
+Deployment is not the end. Automated **health checks**, monitoring and alerts tell you whether the release is behaving. (Stage 4 covers observability.)
+
+### Measuring delivery
+The widely used DORA metrics: **deployment frequency**, **lead time** from commit to production, **change failure rate**, and **time to restore** service. Research across many organisations finds that teams that deploy more often also fail less.
+#Q What is the difference between continuous delivery and continuous deployment?
+- There is none
+* Delivery keeps software always releasable with a manual release step; deployment releases every passing change automatically
+- Deployment has no tests
+! The difference is whether a person decides to release.
+#Q What is a canary release?
+- Releasing on a specific day of the week
+* Sending a small share of traffic to the new version and watching it before widening
+- Testing only in staging
+! Problems affect few users and can be reversed quickly.
+
+#LESSON Containers and Docker | 14
+"It works on my machine" happens because machines differ: library versions, operating system, configuration. A **container** packages an application with everything it needs, so it runs identically everywhere.
+
+### Containers and virtual machines
+A **virtual machine** emulates a whole computer and runs a complete guest operating system. A **container** is an ordinary process, isolated by features of the Linux kernel:
+
+- **Namespaces** give it its own view of processes, network and file system.
+- **Control groups** (cgroups) limit how much CPU and memory it may use.
+
+```diagram
+   virtual machines                       containers
+  +------+ +------+ +------+           +------+ +------+ +------+
+  | app  | | app  | | app  |           | app  | | app  | | app  |
+  | libs | | libs | | libs |           | libs | | libs | | libs |
+  | OS   | | OS   | | OS   |           +------+ +------+ +------+
+  +------+ +------+ +------+           |   container runtime    |
+  |      hypervisor        |           |   host OS (one kernel) |
+  +------------------------+           +------------------------+
+```
+
+Containers share the host's kernel, so they start in a fraction of a second and are small. Their isolation is weaker than a virtual machine's.
+
+### Images
+An **image** is a read-only template: a file system plus instructions on what to run. A container is a running instance of an image. Images are built from a **Dockerfile**:
+
+```text
+FROM node:22-slim
+WORKDIR /app
+COPY package*.json ./
+RUN npm ci --omit=dev
+COPY . .
+USER node
+EXPOSE 3000
+CMD ["node", "server.js"]
+```
+
+Each instruction creates a **layer**, and layers are cached. That is why the dependency files are copied and installed *before* the rest of the source: changing your code then does not force the dependencies to be reinstalled.
+
+```text
+docker build -t myapp:1.4.0 .
+docker run -p 3000:3000 -e DATABASE_URL=... myapp:1.4.0
+```
+
+Images are stored in a **registry** and pulled wherever they are needed.
+
+### Good practice
+- **Small base images**: less to download, less to attack.
+- **Do not run as root.**
+- **One process per container.**
+- **No secrets in the image.** Supply them at run time.
+- **Pin versions** of base images; `latest` changes without warning.
+- **Containers are disposable.** Anything written inside is lost when the container goes. Persistent data belongs in a **volume** or an external database.
+- **Log to standard output.**
+
+### Several containers together
+An application is often several containers: web, database, cache. **Docker Compose** describes them in one file for development. In production, an **orchestrator** such as Kubernetes runs them across many machines (Stage 4).
+
+### Why containers changed delivery
+The artifact CI produces is now an image that contains its whole environment. The same image runs on a laptop, in CI, in staging and in production. Environment differences as a source of bugs largely disappear.
+
+> In industry: Containers are the standard unit of deployment. Reading and writing a Dockerfile is a baseline skill.
+#Q How does a container differ from a virtual machine?
+- A container includes a complete guest operating system
+* A container is an isolated process that shares the host's kernel
+- A container cannot run applications
+! Sharing the kernel makes containers light and quick to start.
+#Q Why copy and install dependencies before copying the rest of the source in a Dockerfile?
+- It is required by Docker
+* Layer caching then avoids reinstalling dependencies when only the code changes
+- It makes the image larger
+! Unchanged layers are reused from the cache.
+
+#LAB js | Test-driven: semantic versions and a pipeline planner
+Build two functions to a precise specification. Write them as you would with TDD: handle one rule at a time.
+
+**1. `compareVersions(a, b)`** compares two semantic version strings `MAJOR.MINOR.PATCH` and returns `-1` if `a` is lower, `1` if higher, `0` if equal. Compare the numbers numerically, not as text (`1.10.0` is higher than `1.9.0`). A missing part counts as 0, so `"1.2"` equals `"1.2.0"`. A leading `v` is allowed and ignored.
+
+**2. `nextVersion(version, change)`** returns the next version string for a change of kind `"major"`, `"minor"` or `"patch"`, following semantic versioning (bumping a part resets the parts to its right to 0). The result always has three parts and no leading `v`. An unknown kind throws an `Error`.
+
+**3. `planPipeline(steps)`** takes an array of `{ name, needs }` where `needs` lists the names of steps that must run first. Return an array of step names in an order that respects every dependency. Among steps that are ready at the same time, keep their original order. If the dependencies contain a cycle or refer to an unknown step, return `null`.
+@starter
+function compareVersions(a, b) {
+  return 0;
+}
+
+function nextVersion(version, change) {
+  return version;
+}
+
+function planPipeline(steps) {
+  return [];
+}
+@solution
+function parts(v) {
+  const p = v.replace(/^v/, "").split(".").map(Number);
+  while (p.length < 3) p.push(0);
+  return p;
+}
+
+function compareVersions(a, b) {
+  const x = parts(a), y = parts(b);
+  for (let i = 0; i < 3; i++) {
+    if (x[i] < y[i]) return -1;
+    if (x[i] > y[i]) return 1;
+  }
+  return 0;
+}
+
+function nextVersion(version, change) {
+  const p = parts(version);
+  if (change === "major") return (p[0] + 1) + ".0.0";
+  if (change === "minor") return p[0] + "." + (p[1] + 1) + ".0";
+  if (change === "patch") return p[0] + "." + p[1] + "." + (p[2] + 1);
+  throw new Error("unknown change: " + change);
+}
+
+function planPipeline(steps) {
+  const names = new Set(steps.map((s) => s.name));
+  for (const s of steps) for (const n of s.needs) if (!names.has(n)) return null;
+  const done = new Set();
+  const order = [];
+  while (order.length < steps.length) {
+    const ready = steps.filter((s) => !done.has(s.name) && s.needs.every((n) => done.has(n)));
+    if (ready.length === 0) return null;
+    for (const s of ready) { done.add(s.name); order.push(s.name); }
+  }
+  return order;
+}
+@tests
+compareVersions("1.0.0", "1.0.0") => 0
+compareVersions("1.0.0", "2.0.0") => -1
+compareVersions("1.10.0", "1.9.0") => 1
+compareVersions("1.2.3", "1.2.4") => -1
+compareVersions("1.2", "1.2.0") => 0
+compareVersions("v2.0.0", "1.99.99") => 1
+compareVersions("3", "3.0.1") => -1
+nextVersion("1.2.3", "patch") => "1.2.4"
+nextVersion("1.2.3", "minor") => "1.3.0"
+nextVersion("1.2.3", "major") => "2.0.0"
+nextVersion("v0.9", "minor") => "0.10.0"
+(() => { try { nextVersion("1.0.0", "huge"); return "no error"; } catch (e) { return "error"; } })() => "error"
+planPipeline([{ name: "test", needs: ["build"] }, { name: "build", needs: [] }, { name: "deploy", needs: ["test"] }]) => ["build", "test", "deploy"]
+planPipeline([{ name: "lint", needs: [] }, { name: "build", needs: [] }, { name: "test", needs: ["build", "lint"] }]) => ["lint", "build", "test"]
+planPipeline([]) => []
+planPipeline([{ name: "a", needs: ["b"] }, { name: "b", needs: ["a"] }]) => null
+planPipeline([{ name: "a", needs: ["missing"] }]) => null
+planPipeline([{ name: "a", needs: [] }, { name: "b", needs: ["a"] }, { name: "c", needs: ["a"] }, { name: "d", needs: ["b", "c"] }]) => ["a", "b", "c", "d"]
+@hints
+Write one helper that turns a version string into an array of three numbers, stripping a leading `v` and filling missing parts with 0. Both version functions can use it.
+Compare the three numbers in order and return at the first difference.
+For the pipeline, repeatedly find the steps that are not yet done and whose needs are all done. If none are ready and work remains, there is a cycle.
+Check for unknown step names before you start.
+
+#EXAM 20
+#Q What shape should a healthy test suite have?
+- Mostly end-to-end tests
+* Many unit tests, fewer integration tests, very few end-to-end tests
+- Equal numbers of each
+! The pyramid keeps the suite fast and failures easy to locate.
+#Q What does property-based testing do?
+- Tests only the properties of CSS
+* Checks that a stated rule holds across many automatically generated inputs
+- Measures coverage
+! It finds cases the author did not think to write.
+#Q What are the three steps of TDD in order?
+* Red, green, refactor
+- Refactor, red, green
+- Green, red, deploy
+! Failing test, passing code, improved design.
+#Q Why should tests check behaviour and not implementation details?
+- Behaviour tests are longer
+* Tests bound to internals break whenever the code is refactored
+- Implementation cannot be tested
+! Tests should allow the internals to change freely.
+#Q What should a team do when the main branch's build is broken?
+- Keep merging and fix it later
+* Fix or revert immediately, because everyone is blocked
+- Disable the failing tests
+! A broken main line stops integration for the whole team.
+#Q Which deployment strategy allows an instant switch back to the previous version?
+- Deleting the old servers first
+* Blue-green deployment
+- Deploying on Fridays
+! Both versions run; only the traffic switch changes.
+#Q During a rollout, why must a database schema change be backward compatible?
+- Databases cannot be changed
+* Old and new versions of the code run at the same time against the same database
+- To save storage
+! Expand first, contract later.
+#W Your team releases once a month and each release causes incidents. Propose changes to how the team tests, integrates and releases, and explain why each change reduces risk.
++ Recommends smaller, more frequent releases and explains why they are lower risk
++ Recommends automated tests run on every change (CI)
++ Recommends an automated deployment pipeline with the same artifact in each environment
++ Recommends a gradual rollout technique or feature flags, with fast rollback
++ Mentions monitoring after release or measuring delivery
+
+#PROJECT Containerised service with a pipeline
+Take a small web service (your own from an earlier project is ideal) and give it a complete delivery pipeline.
+@requirements
+The service has unit and integration tests, with at least one feature built test-first (the failing-test commit is visible in history)
+A Dockerfile produces a small image that does not run as root and contains no secrets
+Docker Compose runs the service with its database locally
+A CI pipeline runs lint, tests and the image build on every push
+The pipeline publishes a versioned image and deploys it to an environment (a free tier or a local simulation is fine)
+A database change is made with the expand-and-contract pattern
+A rollback is demonstrated
+@deliverables
+The repository with pipeline configuration
+A link to or log of a successful pipeline run
+A short runbook: how to deploy, how to roll back
+@rubric
+Tests are meaningful and run automatically | 25
+The image follows good practice | 20
+The pipeline builds once and deploys that artifact | 25
+Safe schema change and rollback are demonstrated | 20
+Runbook clarity | 10
+
+#COURSE c309
+#LESSON Designing a full-stack application | 13
+A **full-stack** application has a user interface, a server-side API and a database. Building one well is mostly about the boundaries between those parts.
+
+### Start with the user's journeys
+List the three or four most important things a user does, from start to finish: sign up, create a project, invite a colleague, mark a task done. Sketch the screens for each. Everything else is derived from these.
+
+### Then the data
+From the journeys, identify the entities and relationships and draw the schema. Decide the rules: who owns what, what must be unique, what can never be deleted.
+
+### Then the contract
+Write the API before either side of it: each endpoint, its request, its responses and its errors. The front end and back end can then be built in parallel, and tested against the contract.
+
+```diagram
+  +------------------+      HTTP / JSON       +------------------+      SQL      +----------+
+  |   front end      | <--------------------> |   back end API   | <-----------> | database |
+  |  (browser, app)  |      the contract      | (auth, rules)    |               |          |
+  +------------------+                        +------------------+               +----------+
+```
+
+### Where logic lives
+- **Business rules and authorization: on the server, always.** The client is under the user's control.
+- **Validation: on both.** On the client for quick feedback; on the server because the client cannot be trusted.
+- **Presentation logic: on the client.**
+
+### Front-end state
+A front end holds several kinds of state. Keep them distinct.
+
+- **Server state:** data that belongs to the server, of which the client has a copy that may be out of date. It needs loading, error and refresh handling.
+- **UI state:** which tab is open, what is typed in a box.
+- **URL state:** the address should identify what is on screen, so links and the back button work.
+
+Every request has three outcomes to design for: **loading**, **success** and **failure**. Screens that forget the first and last feel broken.
+
+### Rendering choices
+- **Server-rendered pages:** the server sends finished HTML. Simple, fast first load.
+- **Single-page application:** the browser loads a JavaScript application that calls the API. Richer interaction, more complexity.
+- **Hybrids** render the first view on the server and continue in the browser.
+
+Choose for the product: a content site and an interactive editor have different needs.
+
+### Build in vertical slices
+Deliver one journey end to end (screen, endpoint, database, tests, deployed) before starting the next. You find integration problems on day three, not in the final week.
+
+### Cross-cutting concerns to plan early
+Authentication, error handling, logging, configuration and deployment. They are painful to add at the end.
+
+> In industry: "Full-stack" rarely means equally expert at everything. It means being able to follow a feature through every layer and to find a problem wherever it is.
+#Q Where must business rules and authorization be enforced?
+- In the browser only
+* On the server
+- In the CSS
+! The client can be modified or bypassed by its user.
+#Q What three states should every screen that loads data handle?
+- Red, amber, green
+* Loading, success and failure
+- Create, update, delete
+! Networks are slow and fail; the interface must show both.
+
+#LESSON Real-time features | 12
+Some features need the server to push information the moment it exists: chat, notifications, live dashboards, collaborative documents.
+
+### Choosing the transport
+| Technique | Direction | Good for |
+|---|---|---|
+| Polling | client asks | low-frequency updates, simplest |
+| Server-sent events | server to client | notifications, live feeds |
+| WebSocket | both ways | chat, games, collaboration |
+
+Use the simplest that meets the need. Polling every thirty seconds is perfectly respectable for a notification count.
+
+### Rooms and fan-out
+A message sent to a chat room must reach every member. The server keeps a mapping from each room to the connections in it, and **fans out** each message.
+
+```diagram
+   ada's connection ---\
+   tim's connection ----+--> room "general"  <-- new message -->  delivered to all three
+   kay's connection ---/
+```
+
+### More than one server
+With several servers, the members of a room are connected to different ones. A message arriving at server A must reach users on server B. The standard solution is a **publish-subscribe** backbone, commonly Redis or a message broker: every server subscribes to it, and publishes to it.
+
+```diagram
+   server A  --publish-->  [ pub/sub ]  --deliver-->  server B, server C
+```
+
+### Reliability of delivery
+Connections drop constantly, especially on phones. Design for it.
+
+- **Give every message an ID and a sequence number** per room.
+- On reconnecting, the client says "the last one I have is 4172" and the server sends what was missed.
+- Clients may then receive a message twice, so they must **deduplicate** by ID.
+- Persist messages before acknowledging them, so a server crash loses nothing.
+
+### Presence and typing indicators
+Who is online is harder than it looks: a connection can vanish without saying goodbye. Use **heartbeats** (regular small messages) and consider a user offline when several are missed.
+
+### Ordering
+Two users send at the same instant. Everyone must see the same order. The simplest answer is for the server to assign the order when it receives each message, and for clients to display in that order.
+
+### Back-pressure
+A slow client cannot be allowed to make the server buffer without limit. Cap the queue per connection and disconnect or drop when it is exceeded.
+
+### Security
+Authenticate when the connection is established and **authorize every message**: may this user post to this room? Validate and limit the size and rate of incoming messages exactly as for HTTP.
+
+> Key idea: A real-time system is a distributed system. Assume connections fail, messages are repeated and servers disagree about who is online, and design the recovery first.
+#Q Why is a publish-subscribe backbone needed when a chat service runs on several servers?
+- To compress messages
+* So a message received by one server reaches users connected to the others
+- To store passwords
+! Each server only holds some of the connections.
+#Q A client reconnects after losing its connection. How does it recover missed messages?
+- It cannot
+* It tells the server the last sequence number it received and gets the rest
+- It reloads the whole application
+! Sequence numbers make the gap identifiable.
+
+#LESSON Building collaborative features | 12
+In a collaborative application, several people change the same thing at once: a shared board, a document, a spreadsheet. The core problem is **conflicting edits**.
+
+### The spectrum of approaches
+**1. Locking.** Only one person may edit a thing at a time. Simple and frustrating.
+
+**2. Last write wins.** Each save overwrites the previous. Simple, and silently loses work.
+
+**3. Optimistic concurrency.** Each record has a version. A save says "I am changing version 7". If the record is now at version 8, the save is rejected and the user (or the code) must merge. Nothing is lost silently.
+
+```text
+PUT /documents/42
+If-Match: "7"
+```
+
+The server answers `412 Precondition Failed` when the version has moved on. This is the right default for most applications: forms, records, settings.
+
+**4. Fine-grained merging.** Divide the thing into independently editable parts. Two people editing different cards on a board do not conflict at all. Much apparent conflict disappears when changes are sent as small **operations** ("set the title of card 12 to X") instead of whole documents.
+
+**5. Automatic merging of concurrent edits.** For live text editing, two families of algorithm let everyone type at once and converge on the same result:
+
+- **Operational transformation** adjusts each operation against the concurrent ones (insert at position 5 becomes insert at position 6 if someone else inserted before it). It needs a central server to order operations.
+- **CRDTs** (conflict-free replicated data types) are data structures designed so that changes can be applied in any order and always converge. They work without a central server and offline.
+
+Both are intricate. Use a proven library.
+
+### Optimistic user interfaces
+Waiting for the server before showing a change feels slow. An **optimistic update** applies the change on screen immediately, sends it, and **reverts** with a message if the server refuses. It demands care: keep the previous state so that it can be restored.
+
+### Offline
+If the application should work without a connection, changes are queued locally and sent on reconnecting. Every problem above then applies with long delays, and conflict handling becomes the heart of the design.
+
+### Showing other people
+Cursors, selections and "Ada is editing" make collaboration feel alive. They are transient, can be lost without harm and should be sent on a separate, lossy channel from the real data.
+
+### Auditing
+Record who changed what and when. Collaboration without history leads to disputes that cannot be settled and mistakes that cannot be undone.
+
+> In industry: Most products need only optimistic concurrency plus small operations. Full real-time merging is justified for editors and design tools, and is a serious engineering investment.
+#Q What does optimistic concurrency control do when two users edit the same record?
+- Silently keeps the last save
+* Rejects a save based on an outdated version, so the conflict is handled explicitly
+- Locks the record for a day
+! No work is lost without anyone noticing.
+#Q What property defines a CRDT?
+- It requires a central server
+* Replicas that apply the same changes in any order converge to the same state
+- It stores data only in SQL
+! Convergence is built into the data structure.
+
+#LESSON Production readiness | 12
+A feature that works on your laptop is perhaps half done. **Production readiness** is the rest.
+
+### Configuration and secrets
+Everything that varies between environments comes from **environment variables**. Secrets (database passwords, API keys) are never in the repository; they live in a secrets manager or the platform's secret store. Fail at start-up, loudly, if a required setting is missing.
+
+### Errors
+- Catch errors at the boundary and return a safe, generic message to the user. Never expose stack traces.
+- Log the full detail on the server with a **correlation ID**, and show the ID to the user so support can find it.
+- Distinguish expected failures (invalid input, not found) from bugs.
+
+### Logging
+Write **structured logs**: one JSON object per line with a timestamp, level, message and context.
+
+```text
+{"time":"2026-03-01T10:15:02Z","level":"error","msg":"payment failed","request_id":"9f3a","user_id":42,"reason":"card_declined"}
+```
+
+Structured logs can be searched and counted. Never log passwords, tokens or sensitive personal data.
+
+### Health
+Expose a **health endpoint** that reports whether the service can do its job, including reaching its database. The platform uses it to decide whether to send traffic or restart the instance.
+
+### Timeouts, retries and limits
+- Every network call needs a **timeout**. Without one, a slow dependency freezes your service.
+- **Retry** transient failures, with increasing delays and some randomness (**exponential backoff with jitter**), and only for operations that are safe to repeat.
+- **Rate-limit** incoming requests per user.
+- Limit request body sizes and query result sizes.
+
+### Data
+Automated **backups**, and a tested **restore**. A backup that has never been restored is a hope, not a backup. Run schema changes through versioned migrations.
+
+### Performance basics
+Index the columns you query. Avoid the N+1 query pattern. Paginate. Compress responses. Cache what is expensive and stable. Measure with realistic data volumes, not ten rows.
+
+### Security checklist
+HTTPS only; secure cookies; parameterised queries; output escaping; authorization on every endpoint; dependencies scanned and updated; security headers set; secrets out of the code.
+
+### Documentation
+A README that takes a new developer from clone to running in minutes. A runbook that says how to deploy, roll back, and what to check when it breaks.
+
+### Graceful shutdown
+On SIGTERM: stop accepting new requests, finish those in progress, close connections, exit. Deployments then drop nothing.
+
+> Key idea: Software is done when it can be run, observed, changed and recovered by someone other than its author.
+#Q Why must every network call have a timeout?
+- To make it faster
+* So a slow or unresponsive dependency cannot hang your service indefinitely
+- Timeouts are required by HTTP
+! Without one, threads or connections pile up waiting.
+#Q What makes a backup trustworthy?
+- Its size
+* Having successfully restored from it in a test
+- Keeping it on the same disk
+! An untested backup may be unusable when needed.
+
+#LESSON Working as an intermediate engineer | 11
+At this stage the difference between engineers is less about what they know and more about how they work.
+
+### Take a task from vague to done
+1. **Clarify.** Restate the problem, ask what success looks like, find the constraints.
+2. **Investigate.** Read the existing code. Find how similar things are already done.
+3. **Propose.** For anything non-trivial, write a short design note: the problem, the approach, alternatives, risks. Get feedback before coding.
+4. **Slice.** Break the work into small pull requests that each leave the system working.
+5. **Build** with tests.
+6. **Release** carefully and watch what happens.
+7. **Follow up.** Fix what you find; write down what you learned.
+
+### Estimate honestly
+Estimates are guesses. Improve them by breaking work down, comparing with similar past work, and giving a **range** with the reasons for the uncertainty. Say early when an estimate is wrong; a late surprise costs far more than an early warning.
+
+### Read code
+You will read much more code than you write. Follow one request from its entry point through each layer. Use the debugger and the version history: `git blame` and the linked pull request often explain *why* a strange line exists. Assume the previous author had a reason until you find otherwise.
+
+### Ask well
+Try for a sensible time, then ask. A good question states what you want to achieve, what you tried, what happened and your current guess. People answer that kind of question quickly.
+
+### Communicate
+- Write things down: decisions, designs, what you found.
+- Make your work visible: say what you are doing and when you are stuck.
+- In review, be specific, kind and clear about what is blocking.
+
+### Own your work
+Ownership means caring whether the thing works for its users, not only whether the ticket is closed. Test it properly, watch it after release, and fix it when it breaks, without waiting to be asked.
+
+### Keep learning deliberately
+Go deep in one area while widening your general knowledge. Build things slightly beyond your current ability. Read good code. Explain what you learn to others: teaching exposes the gaps.
+
+### Technical debt
+Every shortcut has a cost paid later, with interest. Some debt is a sensible choice to ship sooner. The professional habit is to **make it visible**: record it, say what it will cost, and plan to repay the debts that hurt most.
+
+> In industry: Engineers are promoted for the scope of problems they can be trusted with, from a well-defined task, to an ambiguous feature, to a whole system. Trust is earned through judgement and follow-through.
+#Q What should you do when you realise an estimate was too optimistic?
+- Work in silence and hope to catch up
+* Tell the team early, with the reason and a revised range
+- Cut the tests
+! Early warning lets others adjust plans.
+#Q What does a good request for help include?
+- Only "it doesn't work"
+* The goal, what was tried, what happened and a current guess
+- A demand for an immediate answer
+! Context lets someone help quickly.
+
+#LAB js | The core of a chat room
+Implement the logic of a chat room as a class with no network code.
+
+`class ChatRoom`:
+
+- `join(user)` adds a user and returns `true`. If the user is already present, change nothing and return `false`.
+- `leave(user)` removes a user. Returns `true` if they were present.
+- `post(user, text)` adds a message. It throws an `Error` if the user is not in the room, or if the text is empty after trimming, or longer than 200 characters after trimming. Each message is stored as `{ seq, user, text }`, where `seq` starts at 1 and increases by 1, and `text` is the trimmed text. It returns the new message.
+- `since(seq)` returns every message with a sequence number **greater than** `seq`, in order. `since(0)` returns all of them. This is what a reconnecting client calls.
+- `members()` returns the users currently in the room, sorted alphabetically.
+- `dedupe(messages)` is a **static** method: given an array of messages that may contain duplicates (same `seq`) in any order, return them without duplicates, sorted by `seq`.
+@starter
+class ChatRoom {
+  constructor() {
+    this.users = new Set();
+    this.messages = [];
+  }
+}
+@solution
+class ChatRoom {
+  constructor() {
+    this.users = new Set();
+    this.messages = [];
+  }
+
+  join(user) {
+    if (this.users.has(user)) return false;
+    this.users.add(user);
+    return true;
+  }
+
+  leave(user) {
+    return this.users.delete(user);
+  }
+
+  post(user, text) {
+    if (!this.users.has(user)) throw new Error("not a member");
+    const clean = String(text).trim();
+    if (clean.length === 0) throw new Error("empty message");
+    if (clean.length > 200) throw new Error("message too long");
+    const message = { seq: this.messages.length + 1, user, text: clean };
+    this.messages.push(message);
+    return message;
+  }
+
+  since(seq) {
+    return this.messages.filter((m) => m.seq > seq);
+  }
+
+  members() {
+    return Array.from(this.users).sort();
+  }
+
+  static dedupe(messages) {
+    const bySeq = new Map();
+    for (const m of messages) if (!bySeq.has(m.seq)) bySeq.set(m.seq, m);
+    return Array.from(bySeq.values()).sort((a, b) => a.seq - b.seq);
+  }
+}
+@tests
+(() => { const r = new ChatRoom(); return [r.join("ada"), r.join("ada"), r.members()]; })() => [true, false, ["ada"]]
+(() => { const r = new ChatRoom(); r.join("tim"); r.join("ada"); return r.members(); })() => ["ada", "tim"]
+(() => { const r = new ChatRoom(); r.join("ada"); return [r.leave("ada"), r.leave("ada"), r.members()]; })() => [true, false, []]
+(() => { const r = new ChatRoom(); r.join("ada"); return r.post("ada", "  hello  "); })() => {"seq": 1, "user": "ada", "text": "hello"}
+(() => { const r = new ChatRoom(); r.join("ada"); r.post("ada", "a"); r.post("ada", "b"); r.post("ada", "c"); return r.since(1).map((m) => m.text); })() => ["b", "c"]
+(() => { const r = new ChatRoom(); r.join("ada"); r.post("ada", "a"); return [r.since(0).length, r.since(1).length, r.since(99).length]; })() => [1, 0, 0]
+(() => { const r = new ChatRoom(); try { r.post("ada", "hi"); return "no error"; } catch (e) { return "error"; } })() => "error"
+(() => { const r = new ChatRoom(); r.join("ada"); try { r.post("ada", "   "); return "no error"; } catch (e) { return "error"; } })() => "error"
+(() => { const r = new ChatRoom(); r.join("ada"); try { r.post("ada", "x".repeat(201)); return "no error"; } catch (e) { return "error"; } })() => "error"
+(() => { const r = new ChatRoom(); r.join("ada"); return r.post("ada", "x".repeat(200)).text.length; })() => 200
+(() => { const r = new ChatRoom(); r.join("ada"); try { r.post("ada", ""); } catch (e) {} return r.post("ada", "ok").seq; })() => 1
+(() => { const r = new ChatRoom(); r.join("ada"); r.post("ada", "a"); r.leave("ada"); try { r.post("ada", "b"); return "no error"; } catch (e) { return "error"; } })() => "error"
+ChatRoom.dedupe([{ seq: 2, user: "a", text: "y" }, { seq: 1, user: "a", text: "x" }, { seq: 2, user: "a", text: "y" }]).map((m) => m.seq) => [1, 2]
+ChatRoom.dedupe([]) => []
+@hints
+A `Set` handles membership: `has`, `add` and `delete` (which returns whether the item was present).
+In `post`, do every check before changing anything, so a rejected message does not consume a sequence number.
+`since` is a filter on `seq`.
+For `dedupe`, a `Map` keyed by `seq` keeps one message per sequence number; then sort the values.
+
+#EXAM 20
+#Q Why write the API contract before building the front end and back end?
+- It is required by HTTP
+* Both sides can then be built in parallel and tested against an agreed interface
+- It removes the need for tests
+! The contract is the boundary both sides depend on.
+#Q Which technique is sufficient for a notification count that updates every half minute?
+* Polling
+- A CRDT
+- Operational transformation
+! Use the simplest transport that meets the need.
+#Q How should the order of chat messages be decided so that all users agree?
+- By each client's local clock
+* By the server assigning a sequence when it receives each message
+- Alphabetically
+! A single authority gives a single order.
+#Q What does an optimistic update in a user interface do?
+- Waits for the server before changing the screen
+* Shows the change immediately and reverts it if the server rejects it
+- Disables the button
+! The interface feels instant, at the cost of handling rejection.
+#Q What should a retry policy for failed network calls include?
+- Immediate, unlimited retries
+* Increasing delays with randomness, and retries only for operations safe to repeat
+- No timeout
+! Backoff with jitter avoids overwhelming a struggling service.
+#Q What belongs in a structured log line?
+- The user's password
+* A timestamp, level, message and context such as a request ID
+- The full source code
+! Structured context makes logs searchable; secrets must never be logged.
+#Q What is technical debt?
+- Money owed to a software vendor
+* The future cost created by taking a shortcut now
+- A list of features
+! Like financial debt, it accrues interest until repaid.
+#W Two users open the same customer record. Both change the phone number and save. Describe what happens under "last write wins", then design a better behaviour, including what the API returns and what the second user sees.
++ Explains that last write wins silently discards the first user's change
++ Proposes a version number or ETag sent with the update
++ States that the server rejects the stale update with a conflict or precondition status
++ Describes what the second user sees and how they can resolve it
++ Mentions an alternative such as merging non-overlapping fields
+
+#PROJECT Full-stack application
+Build and deploy a complete multi-user application of your own design. It must have a web front end, an API, a database and authentication. Suggested: a team task board, a shared recipe planner, or a booking system.
+@requirements
+At least four user journeys work end to end, with loading and error states in the interface
+A documented API with validation, pagination and consistent errors
+Authentication, and authorization that includes ownership checks and negative tests
+At least one real-time or collaborative feature, with handling for reconnection or conflicting edits
+Automated tests at unit and integration level, run by CI
+The application is containerised and deployed, with a health endpoint, structured logs and a backup you have restored
+Design note, architecture diagram and two decision records
+@deliverables
+A link to the running application or a recorded demonstration
+The repository
+The design documents and runbook
+A retrospective: what went well, what you would change
+@rubric
+Features and user experience | 25
+API, data model and architecture | 20
+Security and authorization | 15
+Real-time or collaborative feature and its failure handling | 15
+Tests, CI and deployment | 15
+Documentation and retrospective | 10

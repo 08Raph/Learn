@@ -1,0 +1,1572 @@
+#COURSE c601
+#LESSON Architecture as strategy | 14
+At principal level, architecture stops being about diagrams and becomes about **decisions that shape what an organisation can do for years**. The question changes from "how do we build this?" to "what should we build so that the business can do what it needs to, now and later?"
+
+### What an architect at this level is responsible for
+- **Direction:** a technical strategy that serves the business strategy.
+- **Coherence:** many teams' decisions adding up to a system and not a heap.
+- **Risk:** identifying what could sink the organisation technically, early.
+- **Leverage:** choices that make many teams faster, not one.
+
+You will write little production code. Your output is decisions, documents, and other people's improved judgement.
+
+### Start from the business
+Technology choices are means. Before any design, understand:
+
+- How does the organisation make money, and what constrains its growth?
+- What must be true technically in three years for the strategy to succeed?
+- Where is technology a competitive advantage, and where is it merely a cost?
+- What are the regulatory and contractual obligations?
+
+An architecture that is elegant and irrelevant to these is a failure.
+
+### Architectural drivers
+The small set of requirements that actually shape the structure:
+
+- **Key functional needs.**
+- **Quality attributes,** ranked. You cannot maximise all of them, so the ranking is the strategy.
+- **Constraints:** budget, skills, existing systems, law, deadlines.
+
+Most requirements do not affect structure. Find the five that do.
+
+### Wardley mapping and build-or-buy
+Components evolve from novel, to custom-built, to product, to commodity. Building what is already a commodity wastes scarce talent; outsourcing what differentiates you gives away the advantage.
+
+| Stage of the component | Sensible approach |
+|---|---|
+| Novel, uncertain | Explore in-house with small experiments |
+| Differentiating and custom | Build and invest heavily |
+| Available as a product | Buy |
+| Commodity | Rent as a utility |
+
+Where a component sits changes over time, so the decision must be revisited.
+
+### Optionality
+The future is uncertain, and the cost of a decision includes the options it closes. Good architecture **preserves options** where uncertainty is high: an interface in front of a vendor, a data model that permits a later split, an event log that allows new consumers.
+
+Options are not free. Every abstraction built for a future that never arrives is waste. The skill is judging where uncertainty is real.
+
+### Conway's law as a tool
+Systems mirror the organisation that builds them. The **inverse Conway manoeuvre** uses this deliberately: shape teams to match the architecture you want. An architecture that requires three teams to coordinate on every change will not survive, whatever the diagram says. Architecture and organisational design are one problem.
+
+**Team Topologies** names four team types: stream-aligned teams delivering value, platform teams providing self-service foundations, enabling teams spreading skills, and complicated-subsystem teams. Cognitive load is a design constraint: a team can own only as much as it can understand.
+
+### A technical strategy document
+1. **Diagnosis:** the present situation and its real problems, with evidence.
+2. **Guiding policy:** the approach chosen, and what is being given up.
+3. **Coherent actions:** the specific steps, owners and sequence.
+
+A list of aspirations ("we will be cloud-native and AI-first") is not a strategy. A strategy says what you will **not** do.
+
+### Judgement
+There is no formula. Principal engineers are valued for judgement formed from seeing many systems succeed and fail, and for the honesty to say "it depends, and here is on what".
+
+> Key idea: Architecture at this level is the set of decisions that are expensive to change and that determine what the organisation can do. Rank the quality attributes, say what you are giving up, and align the teams with the structure.
+#Q What makes a technical strategy more than a list of goals?
+- It is longer
+* It diagnoses the real situation, chooses an approach including what to give up, and sets out coherent actions
+- It names specific technologies only
+! Strategy involves choice and therefore exclusion.
+#Q What is the inverse Conway manoeuvre?
+- Rewriting a system from scratch
+* Deliberately structuring teams to produce the desired architecture
+- Merging all teams into one
+! Team boundaries become system boundaries, so design them together.
+
+#LESSON Architectures for very large systems | 14
+Systems serving hundreds of millions of users are not larger versions of small ones. New failure modes dominate, and architecture is about containing them.
+
+### Cell-based architecture
+Instead of one large deployment, run many independent, identical copies called **cells**, each serving a subset of customers.
+
+```diagram
+                    [ thin routing layer ]
+                   /         |          \
+            [ cell 1 ]   [ cell 2 ]   [ cell 3 ]
+            full stack    full stack    full stack
+            customers     customers     customers
+            A to H        I to P        Q to Z
+```
+
+- A fault, a bad deployment or a poisonous request is confined to one cell: the **blast radius** is one cell's share of customers.
+- Each cell has a known maximum size, so its behaviour is tested and predictable.
+- Growth means adding cells, not making one system ever larger.
+- Deployments roll out cell by cell.
+
+The costs are the routing layer, which must be extremely simple and reliable, and the difficulty of anything that spans cells.
+
+### Shuffle sharding
+Give each customer a random combination of resources. Two customers are unlikely to share **all** of them, so a customer whose traffic takes down its resources affects almost nobody completely.
+
+### Control plane and data plane
+- The **data plane** does the system's real work: serving requests.
+- The **control plane** configures it: deployments, scaling, routing changes.
+
+Keep them separate, and make the data plane able to continue **without** the control plane, using its last known configuration. This is **static stability**: the system keeps working in its current state when a dependency fails, and does not need to take any action to survive.
+
+Example: do not depend on launching new capacity during an outage. Run enough capacity beforehand that losing a zone needs no scaling.
+
+### Platforms and paved roads
+At scale, hundreds of teams cannot each solve deployment, observability and security. A **platform** team provides these as self-service products. A **paved road** is the supported, well-lit path: use it and you get security, monitoring and compliance without effort. Leaving it is allowed, at your own cost.
+
+A platform succeeds only if teams **choose** it because it is better. Treat it as a product with users.
+
+### Event-driven architecture at scale
+An **event backbone** decouples producers from consumers across the organisation. Governance becomes the problem: a schema registry, compatibility rules, ownership of each event type, and clear semantics for ordering and delivery.
+
+### Managing dependencies
+- Classify each dependency as hard (cannot serve without it) or soft (can degrade).
+- Avoid **circular dependencies** between services, especially at start-up, or a full outage cannot be recovered from: A needs B to start and B needs A.
+- Know the **dependency graph**, and test a cold start of everything.
+
+### Multi-tenancy
+One system serving many customers must isolate them: in security, in performance (the **noisy neighbour**), and in failure. Options run from fully shared with logical isolation, through pooled with quotas, to dedicated stacks for the largest customers.
+
+### Simplicity
+The most reliable systems at scale are built from **simple, well-understood parts** composed carefully. Complexity is the enemy of availability, since nobody can reason about what it will do under stress. A principal engineer's most valuable contribution is often removing something.
+
+### Evolution over design
+No large system was designed in its final form. Each was grown, and rebuilt in parts as scale exposed limits. Design for the next order of magnitude, not three orders ahead, and make sure the pieces can be replaced.
+
+> Key idea: At very large scale, the main architectural question is "when this fails, how much fails with it?". Cells, static stability and separation of planes are answers to that question.
+#Q What is the main benefit of a cell-based architecture?
+- Lower cost
+* Limiting the blast radius of any failure or bad deployment to one cell
+- Faster single requests
+! Faults are contained to a fraction of customers.
+#Q What does static stability mean?
+- The system never changes
+* The system keeps operating in its current state when a dependency fails, without needing to take any recovery action
+- The system is written in a statically typed language
+! It avoids depending on actions that may themselves fail during an outage.
+
+#LESSON Data architecture | 13
+Data outlives applications. Systems are rewritten; the data is migrated and kept. Data architecture is therefore among the least reversible parts of a design.
+
+### Systems of record
+For every important piece of data, exactly one system is the **source of truth**. Others may hold copies, clearly marked as derived. When copies disagree, the system of record wins. Many data problems are, underneath, an unanswered question about who owns a fact.
+
+### Operational and analytical planes
+- The **operational** plane runs the business: transactions, low latency, current state.
+- The **analytical** plane understands the business: history, aggregation, large scans.
+
+They need different storage and have different users. The architecture must move data between them reliably.
+
+### Pipelines
+- **Batch:** periodic, simple, high latency.
+- **Streaming:** continuous, low latency, more complex.
+- **Change data capture** turns a database's log into a stream of changes, avoiding dual writes.
+
+Pipelines are software and need the same discipline: version control, tests, monitoring and **idempotence**, so that a failed run can be repeated safely.
+
+### Data quality
+Bad data is worse than no data, because it is trusted. Build in:
+
+- **Schemas and contracts** between producers and consumers, with compatibility checks.
+- **Validation** at ingestion: types, ranges, uniqueness, referential integrity.
+- **Freshness and volume monitoring:** an alert when a daily feed is late or half its usual size.
+- **Lineage:** for any number in a report, the ability to trace which sources and transformations produced it.
+
+### Data mesh
+In a central model, one data team owns all analytical data and becomes a bottleneck far from the knowledge of what the data means. **Data mesh** applies product thinking and domain ownership:
+
+- **Domain ownership:** the team that produces data owns it as a product.
+- **Data as a product:** discoverable, documented, trustworthy, with stated quality levels.
+- **Self-service platform:** shared infrastructure, so that domains need not be experts in it.
+- **Federated governance:** global standards for interoperability and security, applied locally.
+
+It suits large organisations with many domains. For a small one it is overhead.
+
+### Governance
+- **Classification:** public, internal, confidential, restricted, personal.
+- **Access control** by classification and need, with audit.
+- **Retention and deletion** schedules, enforced by automation.
+- **Data residency:** some data must legally remain in a country or region. This constrains architecture profoundly and must be known before design.
+- **A data catalogue** recording what exists, what it means, and who owns it.
+
+### Master data
+Core entities (customer, product, employee) appear in many systems with conflicting identifiers and attributes. **Master data management** establishes authoritative records and identifiers. Without it, "how many customers do we have?" has several answers.
+
+### Schema evolution
+Data structures change continuously while old data and old code remain. Rules: add fields, do not remove or repurpose them; give defaults; version explicitly; test compatibility automatically; and plan the migration of stored data, which may take weeks at scale.
+
+### Analytics and machine learning
+Models are only as good as their data. An architecture for machine learning needs versioned data sets, reproducible features shared between training and serving (a **feature store**), and monitoring for drift.
+
+### Cost
+Data grows without limit unless something stops it. Storage is cheap per unit and expensive in aggregate, and every copy multiplies it. Tier old data to cheaper storage, set retention deliberately, and measure the cost of each data product.
+
+> Key idea: Decide who owns each fact, make data contracts explicit, and treat residency and retention as architectural constraints, not afterthoughts.
+#Q Why should each important piece of data have exactly one system of record?
+- To save disk space
+* So that there is an unambiguous source of truth when copies disagree
+- Because databases cannot replicate
+! Ownership resolves conflicts.
+#Q What is data lineage?
+- The age of a database
+* The ability to trace which sources and transformations produced a given piece of data
+- A type of index
+! It is essential for trust, debugging and compliance.
+
+#LESSON Global systems | 14
+Serving users across the world introduces physics, law and failure on a new scale.
+
+### Why go multi-region
+- **Latency:** a round trip across an ocean is 100 ms or more, and no engineering removes it. Serve users from nearby.
+- **Availability:** survive the loss of an entire region.
+- **Law:** data-residency rules require certain data to stay within a jurisdiction.
+
+Each motive leads to a different design. Be clear which you have.
+
+### Patterns
+**Active-passive.** One region serves; another is a standby receiving replicated data. Simple. Failover takes minutes, may lose the most recent writes if replication is asynchronous, and the standby is rarely tested unless you make a habit of failing over.
+
+**Active-active, partitioned.** Every region serves, and each user or tenant has a **home region** that owns their data. Writes go home. This avoids write conflicts and satisfies residency naturally. It is the most common workable design.
+
+**Active-active, multi-writer.** Any region accepts writes to the same data. Lowest latency, and it forces you to handle conflicts: by consensus across regions (slow writes), or by conflict resolution and CRDTs (eventual consistency).
+
+```diagram
+   users in Europe --> EU region (home for EU users' data) <--async replication--> US region
+   users in America --> US region (home for US users' data)
+```
+
+### The consistency decision
+For each kind of data, decide what a region may do when it cannot reach the others.
+
+- **Refuse** writes: consistent, less available. Right for balances and inventory.
+- **Accept** and reconcile later: available, temporarily inconsistent. Right for carts, likes, drafts.
+
+There is no global answer. A principal engineer makes this decision per data type, explicitly, with the business.
+
+### Routing
+- **DNS-based** routing directs users by geography or latency. Changes propagate slowly because of caching.
+- **Anycast** announces one address from many locations; the network delivers to the nearest.
+- **Global load balancers** route on health and capacity.
+
+During a regional failure, traffic shifts to other regions, which must have **spare capacity** already. A region running at 80% cannot absorb another's load.
+
+### Failover
+Regional failover is rare, complex and dangerous. Principles:
+
+- **Practise it regularly.** An untested failover does not work.
+- Prefer designs where failover is the **normal** path used every day, such as shifting traffic routinely.
+- Decide in advance who may declare it and on what evidence.
+- Beware **split brain**: both regions believing they are primary.
+- Plan the **fail-back**, which is often harder.
+
+### Data residency and sovereignty
+Laws may require that personal data of residents stay in the country, or restrict its transfer. Consequences:
+
+- Partition data by jurisdiction from the start. Retrofitting is very expensive.
+- Know which services process the data, including logs, backups, analytics and support tools.
+- Consider where encryption keys are held, and who can compel access.
+
+### Global does not mean identical
+Regions differ in network quality, devices, payment methods, languages, text direction, date and number formats, and regulation. Internationalisation and local adaptation are architectural concerns: time zones, character encoding and sorting rules all reach into the data model.
+
+### Cost
+Multi-region roughly multiplies infrastructure cost, adds data-transfer charges, and greatly increases operational complexity. Many systems that claim to need it would be better served by one region with multiple zones and a tested backup-and-restore plan. Justify it with a number: the cost of regional downtime, or a measured latency problem.
+
+### Dependencies
+Your availability is bounded by your dependencies'. A multi-region system that depends on a single-region identity provider is a single-region system.
+
+> Key idea: Decide per data type what happens when regions cannot talk. Give data a home region where you can, keep spare capacity for failover, and practise the failover until it is routine.
+#Q In an active-active design partitioned by home region, why are write conflicts avoided?
+- Writes are disabled
+* Each piece of data is written in only one region, its home
+- Regions never communicate
+! A single writer per item means no concurrent conflicting writes.
+#Q Why must regions run with spare capacity?
+- To reduce cost
+* So that surviving regions can absorb the traffic of a failed one
+- To make deployments slower
+! Without headroom, a failover overloads the remaining regions.
+
+#LESSON Governing and evolving architecture | 13
+An architecture is not a thing that is designed once. It is a set of properties that must be **kept true** while hundreds of people change the system every day.
+
+### Erosion
+Without attention, architecture decays: a shortcut here, a forbidden dependency there, each reasonable locally. After a few years the system no longer resembles its design and nobody can change it safely. Governance exists to prevent that, at the least possible cost in speed.
+
+### Light-touch governance
+Heavy governance, with every change approved by a review board, makes the organisation slow and teaches people to route round it. Prefer:
+
+- **Principles** over rules: a short list of guiding statements with reasons, such as "services own their data".
+- **Guardrails** over gates: automated checks that prevent the dangerous things and leave the rest free.
+- **Paved roads:** make the right way the easy way.
+- **Advice** over approval: an architecture advisory forum that teams must consult and need not obey, with decisions recorded as ADRs. Accountability stays with the team.
+
+Reserve mandatory review for the irreversible: data models crossing domains, public interfaces, security boundaries, major vendor commitments.
+
+### Fitness functions
+A **fitness function** is an automated, objective test that an architectural property holds.
+
+- "No module in `billing` imports from `shipping`." A dependency check in CI.
+- "p99 latency of checkout is under 300 ms." A performance test.
+- "No service has a critical vulnerability older than seven days." A scanner.
+- "Every service has an owner and a runbook." A catalogue check.
+
+They turn architecture from a document into something that fails the build when violated. **Evolutionary architecture** is the practice of guiding change with such functions.
+
+### Technical debt
+**Technical debt** is the future cost created by an expedient choice today. Like financial debt it can be sensible, and it accrues interest: every later change in that area costs more.
+
+Manage it as a portfolio:
+
+- **Make it visible:** a register of significant debts, each with its cost.
+- **Quantify the interest:** how much does it slow delivery, or how much risk does it carry?
+- **Prioritise** by interest paid, not by how ugly the code is. Bad code that nobody touches costs nothing.
+- **Pay continuously:** a standing fraction of capacity, not a rare large project.
+- **Explain it in business terms:** time to market, incident risk, hiring.
+
+### Large-scale migration
+Moving hundreds of services to a new platform, language version or datastore is among the hardest work at this level. Most stall at 80%, leaving two systems to maintain indefinitely.
+
+What works:
+
+- **Derisk** with the hardest cases first, to prove the approach.
+- **Automate:** tooling that does most of the migration for each team.
+- **Make the new way better,** so that teams want it.
+- **Track** progress publicly.
+- **Finish:** set a date, help the stragglers, and **switch off the old system**. A migration is done when the old thing is gone.
+
+### Standardisation
+Too little standardisation gives a zoo that nobody can support. Too much stifles teams and stops better tools from being adopted. A **technology radar** classifies options (adopt, trial, assess, hold) and makes the current position explicit and revisable.
+
+### Measuring architecture
+The **DORA** measures capture delivery performance: deployment frequency, lead time for changes, change failure rate, and time to restore service. Research has associated them with organisational performance, and architecture strongly influences all four. A team that cannot deploy independently has an architecture problem.
+
+### The role
+A principal engineer governs mainly through influence: writing clearly, asking the question nobody asked, teaching, and being right often enough to be trusted. Authority that has to be invoked has already partly failed.
+
+> Key idea: Encode architectural intent as automated checks, manage technical debt by the interest it charges, and finish migrations by turning the old system off.
+#Q What is an architectural fitness function?
+- A review meeting
+* An automated, objective check that an architectural property still holds
+- A measure of developer fitness
+! It makes architecture enforceable in the pipeline.
+#Q Which technical debt should be paid down first?
+- The oldest
+* The debt charging the most interest: slowing frequent work or carrying the greatest risk
+- The ugliest code
+! Code nobody changes costs little, however poor.
+
+#LAB js | Capacity planning calculator
+Implement the estimates a principal engineer makes before any design. Use 86,400 seconds in a day and 1 GB = 1,000,000,000 bytes.
+
+- `requestRate(dailyUsers, requestsPerUser, peakFactor)` returns `{ average, peak }` in requests per second. `average` is the daily total divided by 86,400; `peak` is the **unrounded** average multiplied by `peakFactor`. Round each to the nearest whole number.
+- `storageGB(recordsPerDay, bytesPerRecord, days, replicationFactor)` returns the total storage in GB, rounded to the nearest whole number.
+- `serversNeeded(peakRate, perServerRate, headroomPercent)` returns the number of servers needed when each may only be loaded to `(100 − headroomPercent)` percent of its capacity. Always round **up**, and return at least 1.
+- `combinedAvailability(regionAvailability, regions)` returns the availability, as a fraction, of a system that works if **any** of its independent regions is up, rounded to 6 decimal places.
+- `bandwidthMbps(requestsPerSecond, bytesPerResponse)` returns megabits per second (1 megabit = 1,000,000 bits), rounded to 1 decimal place.
+- `monthlyCost(servers, costPerServer, storageGB, costPerGB)` returns the total, rounded to 2 decimal places.
+@starter
+function requestRate(dailyUsers, requestsPerUser, peakFactor) {
+  return { average: 0, peak: 0 };
+}
+
+function storageGB(recordsPerDay, bytesPerRecord, days, replicationFactor) {
+  return 0;
+}
+
+function serversNeeded(peakRate, perServerRate, headroomPercent) {
+  return 1;
+}
+
+function combinedAvailability(regionAvailability, regions) {
+  return 0;
+}
+
+function bandwidthMbps(requestsPerSecond, bytesPerResponse) {
+  return 0;
+}
+
+function monthlyCost(servers, costPerServer, storageGB, costPerGB) {
+  return 0;
+}
+@solution
+function requestRate(dailyUsers, requestsPerUser, peakFactor) {
+  const average = dailyUsers * requestsPerUser / 86400;
+  return { average: Math.round(average), peak: Math.round(average * peakFactor) };
+}
+
+function storageGB(recordsPerDay, bytesPerRecord, days, replicationFactor) {
+  return Math.round(recordsPerDay * bytesPerRecord * days * replicationFactor / 1000000000);
+}
+
+function serversNeeded(peakRate, perServerRate, headroomPercent) {
+  const usable = perServerRate * (100 - headroomPercent) / 100;
+  return Math.max(1, Math.ceil(peakRate / usable));
+}
+
+function combinedAvailability(regionAvailability, regions) {
+  const allDown = Math.pow(1 - regionAvailability, regions);
+  return Math.round((1 - allDown) * 1000000) / 1000000;
+}
+
+function bandwidthMbps(requestsPerSecond, bytesPerResponse) {
+  return Math.round(requestsPerSecond * bytesPerResponse * 8 / 1000000 * 10) / 10;
+}
+
+function monthlyCost(servers, costPerServer, storageGB, costPerGB) {
+  return Math.round((servers * costPerServer + storageGB * costPerGB) * 100) / 100;
+}
+@tests
+requestRate(10000000, 20, 3) => {"average": 2315, "peak": 6944}
+requestRate(86400, 1, 5) => {"average": 1, "peak": 5}
+requestRate(0, 10, 3) => {"average": 0, "peak": 0}
+requestRate(1000000, 50, 4) => {"average": 579, "peak": 2315}
+storageGB(50000000, 1000, 365, 3) => 54750
+storageGB(1000000, 2000, 30, 1) => 60
+storageGB(0, 1000, 365, 3) => 0
+serversNeeded(6944, 500, 30) => 20
+serversNeeded(1000, 500, 0) => 2
+serversNeeded(1001, 500, 0) => 3
+serversNeeded(0, 500, 30) => 1
+serversNeeded(700, 1000, 30) => 1
+combinedAvailability(0.99, 1) => 0.99
+combinedAvailability(0.99, 2) => 0.9999
+combinedAvailability(0.9, 3) => 0.999
+combinedAvailability(0.5, 2) => 0.75
+bandwidthMbps(2000, 50000) => 800
+bandwidthMbps(100, 1500) => 1.2
+bandwidthMbps(0, 1000) => 0
+monthlyCost(20, 150, 54750, 0.02) => 4095
+monthlyCost(3, 99.99, 0, 0.02) => 299.97
+monthlyCost(0, 100, 1000, 0.023) => 23
+@hints
+Compute the average rate without rounding, derive the peak from that unrounded value, and round both at the end.
+For servers, the usable rate per server is `perServerRate * (100 - headroomPercent) / 100`. Use `Math.ceil`, then `Math.max(1, ...)`.
+Redundant regions fail together only if all are down: `1 - (1 - a) ** regions`.
+Bits per second are `requests * bytes * 8`; divide by 1,000,000 for megabits.
+
+#EXAM 25
+#Q Which should a principal engineer establish before proposing an architecture?
+- The preferred programming language
+* The business goals, the ranked quality attributes and the real constraints
+- The number of microservices
+! Architecture serves those drivers.
+#Q A component is available as a mature commodity service. What is usually the right choice?
+- Build a custom version
+* Rent it as a utility and spend engineering effort on what differentiates the business
+- Avoid it
+! Scarce talent belongs where it creates advantage.
+#Q Why separate the control plane from the data plane?
+- To use two programming languages
+* So that the system can keep serving requests when the configuration and management systems fail
+- To double the cost
+! The data plane continues on its last known configuration.
+#Q A regulation requires that residents' personal data stay within the country. When should this be addressed?
+- After launch
+* At the start of the design, since it determines how data is partitioned
+- Only if audited
+! Retrofitting residency is extremely costly.
+#Q What is the weakness of an active-passive regional design that is never exercised?
+- It costs nothing
+* The failover probably will not work when needed
+- It is too fast
+! Untested recovery paths fail.
+#Q In data mesh, who owns an analytical data set?
+- A central data team
+* The domain team that produces it, as a product
+- The database vendor
+! Ownership sits with those who understand the data.
+#Q A migration has moved 85% of services to a new platform and stalled. What is the cost of leaving it there?
+- None
+* Two platforms must be maintained and secured indefinitely, so the benefit is never fully realised
+- The new platform stops working
+! A migration is complete only when the old system is switched off.
+#W Your company runs a single-region system and a senior executive asks for it to be made "multi-region for reliability". Write the advice you would give. Include the questions you would ask first, the options with their costs and risks, the data-consistency decisions that would have to be made, and your recommendation with the evidence that would change it.
++ Asks for the actual requirement: the cost of regional downtime, the recovery objectives, latency and legal drivers
++ Presents options from multi-zone with tested backup, through active-passive, to active-active, with costs and complexity
++ Identifies the per-data-type consistency decision during a partition
++ Raises failover practice, spare capacity and dependencies as conditions of real resilience
++ Gives a justified recommendation and states what evidence would change it
+#W Describe how you would govern architecture across forty engineering teams without becoming a bottleneck. Address what decisions need central involvement, how principles are enforced, how technical debt is handled, and how you would know whether the approach was working.
++ Distinguishes irreversible, cross-cutting decisions from those left to teams
++ Uses principles, paved roads and automated fitness functions in place of approval gates
++ Uses an advice process with recorded decisions (ADRs)
++ Manages technical debt as a visible, prioritised portfolio with continuous investment
++ Names measures of success such as delivery metrics, incident trends and adoption of the paved road
+
+#PROJECT Architecture strategy for an organisation
+Produce a principal-level architecture strategy for a realistic organisation: a real one you know, or a detailed case you define.
+@requirements
+A diagnosis of the current situation with evidence, including the business context and constraints
+The ranked quality attributes, as measurable scenarios, with what is deliberately being traded away
+A target architecture at context and container level, including the data architecture and its ownership
+A capacity model with stated assumptions, covering request rate, storage, server count and cost
+An explicit treatment of failure: blast radius, regional strategy, and the per-data-type consistency decisions
+An organisational proposal: team structure aligned with the architecture
+A migration roadmap in stages, each delivering value, with the criteria for retiring the old system
+At least six architecture decision records and five fitness functions
+A risk register, and a section on what would cause you to change the strategy
+@deliverables
+The strategy document, of no more than 20 pages, written for both executives and engineers
+The capacity model as a spreadsheet or script
+The ADRs and fitness-function definitions
+A one-page executive summary
+A recorded ten-minute presentation
+@rubric
+Diagnosis and alignment with business goals | 20
+Quality of the target architecture and the reasoning about trade-offs | 25
+Realism of the capacity model, failure analysis and migration plan | 25
+Organisational design and governance | 15
+Communication to executive and technical audiences | 15
+
+#COURSE c602
+#LESSON Reliability at very large scale | 14
+At large scale, rare events are routine. Something with a one-in-a-billion chance per request happens many times a day. Reliability stops being about preventing failure and becomes about living with it.
+
+### Overload is the central problem
+Most large outages are not caused by a component simply dying. They are caused by **overload** and its feedback loops.
+
+When a service receives more work than it can do, queues grow, latency rises and clients time out. But the server may still complete the abandoned requests, wasting capacity on work nobody is waiting for. **Goodput**, the rate of useful completed work, collapses even as the server runs flat out.
+
+### Retry storms
+Clients respond to failure by retrying. If each layer of a call chain retries three times, the bottom layer sees load multiplied by 3 at each level: 27 times for three layers. A brief slowdown becomes a sustained outage.
+
+Defences:
+
+- **Retry budgets:** allow retries only up to a small fraction, such as 10%, of normal traffic.
+- Retry at **one** layer only.
+- **Exponential backoff with jitter.**
+- **Deadline propagation:** pass the remaining time budget down the call chain, so that servers drop work whose caller has already given up.
+
+### Metastable failures
+A **metastable failure** is a state in which the system stays broken **after the trigger is gone**. Some event (a load spike, a cache flush, a deployment) pushes it into a condition sustained by a feedback loop, such as retries generating the load that causes the failures that cause the retries.
+
+```diagram
+   stable  --(trigger: spike)-->  overloaded  --(sustaining loop: retries, cold cache)-->  stays down
+                                       ^                                                       |
+                                       +-------------------------------------------------------+
+   removing the trigger does not help; the load must be cut drastically to recover
+```
+
+Recovery needs intervention: shedding most of the load, then readmitting it gradually. Design to avoid these states: bound retries, keep caches from being a hard dependency, and test recovery from a cold start.
+
+### Load shedding and admission control
+A server must protect itself. When overloaded, **reject excess requests early and cheaply**, before doing any work on them.
+
+- Shed by **priority**: keep paying customers' checkouts; drop background refreshes.
+- Prefer **last in, first out** under overload: the newest request is the one whose client is most likely still waiting.
+- Signal clearly, so that well-behaved clients back off.
+
+### Limiting blast radius
+- **Cells and shuffle sharding** confine faults.
+- **Staged deployment:** one machine, one cell, one region, then everywhere, with automated checks and waiting time between stages.
+- **Configuration changes are deployments.** Many of the largest outages on record were caused by a configuration push applied globally at once. Roll configuration out as cautiously as code.
+- **Per-customer limits**, so that one customer cannot consume shared capacity.
+
+### Correlated failure
+Redundancy helps only against independent failures. Real failures correlate: the same software bug on every replica, a certificate that expires everywhere at once, a shared dependency, a "poison" request retried across every server in turn. Diversity and staggering are the countermeasures.
+
+### Grey failure
+Components often fail partially: slow, dropping some packets, returning errors for some requests. Health checks that ask "are you alive?" see nothing wrong. Detect by **observed outcomes** from the client's side, and compare each instance with its peers to eject outliers.
+
+### Dependencies on your own systems
+Make sure the tools needed to fix an outage do not depend on the thing that is down. Several major outages were prolonged because engineers could not reach the internal systems, or even the buildings, required to repair them.
+
+> Key idea: Large outages are usually feedback loops, not single faults. Bound retries, shed load early, propagate deadlines, and roll out every change, including configuration, in stages.
+#Q Why can retries turn a short slowdown into a long outage?
+- Retries are always slow
+* Each retry adds load to a system that is already struggling, and layered retries multiply it
+- Retries change the data
+! Amplified load sustains the overload.
+#Q What characterises a metastable failure?
+- It fixes itself as soon as the trigger ends
+* The system remains in the failed state after the trigger is removed, sustained by a feedback loop
+- It affects only one machine
+! Recovery requires breaking the loop, usually by shedding load.
+
+#LESSON Performance at very large scale | 14
+### Tail latency dominates
+At scale the **tail** of the latency distribution, not the average, determines what users experience.
+
+A page that needs 100 backend calls is slow if **any one** of them is slow. If each call is slower than one second only 1% of the time, the chance that at least one of 100 exceeds a second is
+
+```text
+1 − 0.99¹⁰⁰ ≈ 63%
+```
+
+Most users see the 99th-percentile behaviour of the backends. With fan-out, the backend's p99.9 becomes the user's median.
+
+### Where the tail comes from
+Shared resources, background work, garbage-collection pauses, queueing behind a large request, power and thermal management, maintenance activity. Many cannot be eliminated. They must be **tolerated**.
+
+### Tail-tolerant techniques
+- **Hedged requests:** send the request to one replica; if no reply arrives within, say, the 95th-percentile latency, send it to a second and take whichever answers first. A few percent of extra load cuts the tail dramatically.
+- **Tied requests:** send to two at once, each told about the other, and cancel the loser as soon as one starts work.
+- **Good-enough results:** return what has arrived by the deadline. A search that has heard from 98% of its shards returns those results.
+- **Request isolation:** separate queues for cheap and expensive requests, so that small ones are not stuck behind large ones.
+- **Micro-partitioning and selective replication** of hot data.
+
+### Queueing
+Latency grows sharply as utilisation approaches 100%. Running servers hot saves money and destroys tail latency. Capacity targets are set by the latency objective, not by average CPU.
+
+Variability matters as much as load: the more variable the service times, the longer the queues at the same utilisation. Reducing variance is a performance improvement.
+
+### Capacity planning
+1. **Measure** what one unit (a server, a cell) can sustain at the latency objective, by load test.
+2. **Forecast** demand: organic growth plus known events.
+3. Add **headroom** for forecast error, failure of a zone or region, and deployment.
+4. **Lead time:** hardware and quota take time to obtain. Plan ahead of it.
+5. **Validate** continuously with production load tests.
+
+Find the **scaling bottleneck** before it finds you: test at twice the expected peak and see what breaks first.
+
+### Efficiency is a feature
+At scale, a 1% efficiency gain can be worth more than an engineer's salary many times over. Practices:
+
+- **Continuous profiling** in production, aggregated across the fleet, shows where the processor time of the whole company goes.
+- **Cost attribution:** every team sees what its services cost.
+- **Unit economics:** cost per request, per user, per transaction, tracked over time.
+- **Right-sizing** and autoscaling.
+- **Regression detection:** performance tests in CI, and automatic detection of changes in production.
+
+Optimise where the money is. The fleet-wide profile usually shows a few libraries (serialisation, compression, memory allocation) consuming a startling share.
+
+### Performance budgets
+Assign each component of a request a share of the end-to-end latency objective. A team that exceeds its budget must fix it or negotiate. Without budgets, every team adds "only a few milliseconds".
+
+### Data locality and the network
+At scale the network is often the bottleneck. Keep computation near data, batch small messages, compress, and avoid chatty protocols across regions.
+
+### Caching, revisited
+A cache that the system **cannot function without** is a liability. If it is emptied (a restart, a deployment, a bad key) the full load lands on the backend, which may not be sized for it, producing a metastable failure. Either size the backend to survive a cold cache, or warm the cache before taking traffic and limit the miss rate.
+
+### Measuring honestly
+- Measure at the **client**, including queueing and retries.
+- Beware **coordinated omission** in load testers.
+- Look at distributions, not averages.
+- Keep high-resolution histograms; averaging percentiles is meaningless.
+
+> Key idea: With fan-out, the rare slow response becomes the common experience. Tolerate the tail with hedging and deadlines, plan capacity from the latency objective, and treat efficiency as a measured, owned quantity.
+#Q A request fans out to 50 backends. Each responds slowly 2% of the time, independently. Roughly how often is the overall request slow?
+- 2%
+* About 64%
+- 100%
+! 1 − 0.98⁵⁰ ≈ 0.64.
+#Q What is a hedged request?
+- A request with encryption
+* Sending a second copy of a request to another replica if the first has not answered within a threshold, and using the first response
+- A request that is never retried
+! It trades a little extra load for a much shorter tail.
+
+#LESSON Security as an organisational capability | 13
+At scale, security cannot be achieved by reviewing each change. It must be a property of the **systems and defaults** that every engineer uses.
+
+### Secure by default
+Make the secure way the easy way, and the insecure way hard or impossible.
+
+- Frameworks that escape output and parameterise queries automatically, so that injection requires deliberate effort.
+- Service templates that arrive with authentication, encryption, logging and patching already configured.
+- Libraries that make the unsafe operation awkward and visibly named.
+- Infrastructure defaults: private by default, encrypted by default, least privilege by default.
+
+Large organisations that have eliminated whole vulnerability classes did so this way: by changing the platform so that the bug cannot be written, not by training people to avoid it.
+
+### Scaling security work
+A security team is always a small fraction of engineering. It scales through:
+
+- **Paved roads** and secure components.
+- **Automation:** scanning, policy as code, automatic fixes.
+- **Security champions** embedded in product teams.
+- **Self-service** threat-modelling and review tools.
+- **Risk-based focus:** deep human review only for the highest-risk changes.
+
+### Vulnerability management
+- Know your **assets**: every service, dependency, image and machine. You cannot patch what you do not know exists.
+- **Prioritise** by real risk: is it reachable, is it exploited in the wild, what does it protect? Severity scores alone mislead.
+- Set **deadlines** by priority and measure compliance.
+- Make patching **routine and automatic**, so that an urgent patch is an ordinary deployment done faster.
+- Track the **age** of open vulnerabilities, not only their count.
+
+The ability to rebuild and redeploy the whole fleet quickly is a security capability.
+
+### Identity is the perimeter
+- **Single sign-on** with phishing-resistant multi-factor authentication for people.
+- **Workload identity** with short-lived credentials for services; no long-lived keys.
+- **Least privilege** with regular review; remove unused permissions automatically.
+- **Just-in-time** elevation for administrative access, approved and logged.
+- **Break-glass** procedures for emergencies, tightly monitored.
+
+### Insider risk
+Most insiders are not malicious, and mistakes and compromised accounts look the same as malice. Controls: multi-party approval for sensitive actions, no direct production access by default, audit of all access to sensitive data, and separation of duties.
+
+### Supply chain at scale
+- An internal, vetted **package mirror**.
+- **Reproducible, isolated builds** with signed **provenance** recording what was built from what.
+- **Verification at deployment** that artifacts came from the trusted pipeline.
+- A **bill of materials** for every deployed artifact, so that exposure to a new vulnerability is a query.
+
+### Detection and response at scale
+Central logging, detections as code, automated triage and response playbooks, regular exercises. Measure time to detect and time to contain.
+
+### Culture
+- **Blameless reporting.** People must feel safe reporting their own mistakes and near misses at once.
+- **Security is part of quality,** not a separate gate at the end.
+- **Leadership attention** and honest reporting of risk upward.
+- **Usable security.** Controls that obstruct work get bypassed. If people circumvent a control, treat it as a design defect in the control.
+
+### Risk and trade-offs
+Perfect security is unattainable and unaffordable. The principal engineer's task is to help the organisation decide which risks to reduce, by how much, at what cost, and to make sure that the residual risk is **knowingly accepted** by someone with the authority to accept it.
+
+### Regulation
+Requirements for breach notification, operational resilience and security practice are increasing in many sectors. Design the evidence trail in: it is far cheaper than reconstructing it for an audit.
+
+> Key idea: At scale, security comes from defaults and platforms that make whole classes of mistake impossible, backed by the ability to patch everything quickly and to notice when something is wrong.
+#Q What is the most scalable way to eliminate a class of vulnerability such as SQL injection across thousands of engineers?
+- Annual training
+* Providing frameworks and libraries in which the unsafe pattern cannot easily be written
+- Reviewing every line manually
+! Safe defaults remove the opportunity for the mistake.
+#Q Staff routinely bypass a security control because it blocks their work. How should this be treated?
+- As misconduct only
+* As a defect in the control's design, to be fixed so that the secure path is workable
+- As unimportant
+! Controls that are bypassed provide no protection.
+
+#LESSON Incidents and organisational learning | 13
+Complex systems fail. What distinguishes strong organisations is how they respond and what they learn.
+
+### Incident command
+A serious incident needs structure, borrowed from emergency services.
+
+- **Incident commander:** coordinates, decides, and does **not** debug.
+- **Operations lead:** directs the technical work.
+- **Communications lead:** keeps stakeholders and customers informed.
+- **Scribe:** records the timeline and decisions.
+
+One person holds each role at a time, and hand-overs are explicit. Clear roles prevent both chaos and the dangerous situation in which everyone assumes someone else is handling it.
+
+### Mitigate first
+Restore service before understanding the cause. The standard mitigations: **roll back** the most recent change, **fail over**, **shed load**, **disable** a feature. Diagnosis can wait until users are served.
+
+A useful discipline: ask "what changed?". Most incidents follow a change.
+
+### Severity and escalation
+Define severity levels by user impact, with a response expected for each. Make it **cheap and blameless to declare** an incident and to escalate. The cost of an unnecessary page is small; the cost of an hour's hesitation is large.
+
+### Communication
+Communicate early, regularly and honestly, including "we do not yet know". State the impact in users' terms, what is being done, and when the next update will come. Silence destroys trust faster than bad news.
+
+### Human factors
+- People under stress narrow their attention and anchor on the first hypothesis. State hypotheses aloud and invite challenge.
+- **Fatigue** degrades judgement. Rotate responders in long incidents.
+- **Hindsight bias** makes the cause look obvious afterwards. It was not obvious at the time, with the information then available.
+
+### Post-incident review
+A written review covering:
+
+- **Impact:** who was affected, how, for how long.
+- **Timeline.**
+- **Contributing factors,** plural. Complex failures have several, each necessary and none sufficient.
+- **What went well,** including luck. Note where luck was the only safeguard.
+- **Actions,** each with an owner and a date.
+
+### Blamelessness
+People act reasonably given what they know and the pressures on them. If an engineer ran a destructive command, ask why the system allowed it, why it looked reasonable, and why there was no safeguard. Punishing the individual guarantees that the next person will hide what happened.
+
+Blameless does not mean without accountability. The organisation is accountable for fixing the conditions.
+
+**"Human error" is a starting point for investigation, never a conclusion.**
+
+### Beyond root cause
+The idea of a single **root cause** is misleading for complex systems. Safety science describes accidents as emerging from the interaction of normal variations and latent conditions. Look at how the work is **actually** done, not how procedures say it is done, and at what usually makes things go **right**.
+
+### Learning across incidents
+- Look for **patterns** across reviews: the same class of contributing factor recurring.
+- **Track action items** to completion. An unfinished action list is the commonest failure of the whole process.
+- Share reviews widely, including outside the team.
+- Study **near misses**. They are free lessons.
+
+### On-call health
+Sustainable on-call is a reliability requirement. Measure the page load, limit it, fix noisy alerts, compensate people, and ensure that those who build a service share in operating it, so that the pain of poor design reaches those able to fix it.
+
+### Measuring
+Time to detect, time to mitigate, repeat incidents, and the completion rate of actions. Counting incidents alone encourages under-reporting.
+
+### Psychological safety
+Research on team effectiveness consistently finds that teams where people can speak up, admit mistakes and ask questions without fear perform better. It is a precondition for learning from failure, and leaders create or destroy it through how they react to bad news.
+
+> Key idea: Mitigate first, then learn. Treat every incident as information about the system, including the human and organisational parts of it, and finish the actions.
+#Q What is the incident commander's job?
+- To find the bug personally
+* To coordinate the response, make decisions and keep roles clear, without doing the debugging
+- To write the code fix
+! Coordination and debugging compete for attention.
+#Q Why is "human error" not accepted as the conclusion of an incident review?
+- Humans never make mistakes
+* It explains nothing about why the system made the error easy and its consequences severe, so nothing improves
+- It is impolite
+! The useful findings are the conditions that allowed the error.
+
+#LESSON Verifying resilience continuously | 13
+A system is resilient only if its resilience has been **tested recently**. Recovery mechanisms that are not exercised decay silently.
+
+### Chaos engineering
+The discipline of experimenting on a system to build confidence in its ability to withstand turbulent conditions.
+
+1. Define **steady state** by a measurable output, such as successful requests per second.
+2. **Hypothesise** that steady state will continue under some failure.
+3. **Inject** the failure: kill instances, add latency, drop packets, fill a disk, expire a certificate.
+4. **Observe.** If steady state held, confidence rises. If not, you found a weakness before it found you.
+
+Principles:
+
+- **Limit the blast radius.** Start small, in a test environment, then a small fraction of production.
+- **Be able to stop** the experiment instantly.
+- Run in **production** eventually, since only production has the real configuration, load and dependencies.
+- **Automate** and run continuously.
+
+Injecting **latency** finds more problems than killing processes. A dead dependency fails fast; a slow one exhausts threads and connection pools.
+
+### Game days
+A scheduled exercise in which a team responds to a simulated incident: a region lost, a database corrupted, a credential leaked. It tests the **people and process** as much as the technology: Does the alert fire? Does the runbook work? Does everyone know their role? Can they reach the tools?
+
+### Disaster recovery
+- **Restore backups regularly,** to a clean environment, and verify the data. A backup that has never been restored is a hope.
+- Measure actual **recovery time** and **recovery point** against the objectives.
+- Protect backups from the same threats as the primary: keep copies offline or immutable, since ransomware targets backups first.
+- Rehearse a **full rebuild** from nothing. Can you recreate the environment from code and backups, with no dependency on the thing you are rebuilding?
+
+### Testing in production
+Pre-production environments never match production. Safe techniques for learning from real traffic:
+
+- **Canary releases** with automated analysis.
+- **Shadow traffic:** copy real requests to the new version and discard its responses.
+- **Feature flags** and gradual percentage rollouts.
+- **Synthetic transactions** that continuously exercise critical user journeys.
+- **Production load tests,** raising traffic artificially to find the real limit.
+
+### Deterministic simulation
+For distributed systems, run the whole system in a simulator that controls time, scheduling, network and disk, with a seed. The simulator explores vast numbers of failure orderings quickly, and any failure can be **replayed exactly**. Several of the most reliable databases are built and tested this way.
+
+### Continuous verification
+Treat reliability and security properties like tests in CI.
+
+- Fitness functions for architecture.
+- Automated checks that every service has alerts, runbooks and an owner.
+- Continuous compliance: policy as code evaluated against live infrastructure.
+- Dependency and certificate expiry monitoring.
+- Regular automated failover of stateful systems.
+
+### Dependencies and limits
+Many outages come from an **unknown limit**: a quota, a maximum number of connections, a counter that overflows, a table that reaches its maximum size. Catalogue limits and alert well before they are reached.
+
+**Time bombs** deserve the same attention: certificates, licences, tokens and leap seconds. Anything with an expiry date needs an owner and an alarm.
+
+### Readiness for the unexpected
+You cannot enumerate every failure. Build general capabilities: fast rollback, load shedding, good observability, practised incident response and spare capacity. They help in situations nobody predicted.
+
+### Maturity
+Organisations progress from reactive (fix what breaks), through proactive (prevent known failures), to **adaptive**: learning from every signal and deliberately probing their own limits. The aim is not zero incidents. It is fast detection, small impact, quick recovery and continual learning.
+
+> Key idea: Untested resilience is assumed resilience. Break things on purpose, restore backups for real, and make the recovery path so routine that an actual disaster is a drill you have already run.
+#Q In a chaos experiment, what must be defined before any failure is injected?
+- The cost of the servers
+* The measurable steady state, and a hypothesis about how it will behave
+- The name of the engineer
+! Without them the result cannot be interpreted.
+#Q Why does injecting latency often reveal more than killing a process?
+- Latency is easier to measure
+* A slow dependency ties up threads and connections in its callers, exposing missing timeouts and cascading failure
+- Killed processes restart
+! Fast failure is handled far better than slowness.
+
+#LAB js | Tail latency and error-budget alerting
+Implement the calculations behind reliability decisions at scale.
+
+- `percentile(values, p)` returns the p-th percentile by the **nearest-rank** method: sort ascending and take the value at rank `ceil(p / 100 × n)` (ranks start at 1; treat a rank below 1 as 1). Return `null` for an empty list. The input must not be modified.
+- `tailAtScale(perCallFastProbability, fanout)` returns the probability that **at least one** of `fanout` independent backend calls is slow, given the probability that a single call is fast. Round to 4 decimal places.
+- `hoursToExhaustion(budgetRemainingFraction, burnRate, windowHours)` returns how many hours until the error budget runs out: `budgetRemainingFraction × windowHours / burnRate`, rounded to 1 decimal place. Return `null` if `burnRate` is 0 or less.
+- `shouldPage(shortWindowBurn, longWindowBurn, threshold)` implements multi-window alerting: page only if **both** burn rates are at or above the threshold.
+- `admit(queueLength, capacity, priority)` implements load shedding. Return `true` to accept the request. When the queue is below 50% of capacity accept everything. From 50% up to (but not including) 90%, accept only priority 1 and 2. At 90% or above, accept only priority 1. At or above capacity, accept nothing.
+- `amplification(retriesPerLayer, layers)` returns the worst-case load multiplier at the bottom of a call chain in which each of `layers` layers makes one attempt plus `retriesPerLayer` retries.
+@starter
+function percentile(values, p) {
+  return null;
+}
+
+function tailAtScale(perCallFastProbability, fanout) {
+  return 0;
+}
+
+function hoursToExhaustion(budgetRemainingFraction, burnRate, windowHours) {
+  return null;
+}
+
+function shouldPage(shortWindowBurn, longWindowBurn, threshold) {
+  return false;
+}
+
+function admit(queueLength, capacity, priority) {
+  return true;
+}
+
+function amplification(retriesPerLayer, layers) {
+  return 1;
+}
+@solution
+function percentile(values, p) {
+  if (values.length === 0) return null;
+  const sorted = values.slice().sort((a, b) => a - b);
+  const rank = Math.max(1, Math.ceil(p / 100 * sorted.length));
+  return sorted[rank - 1];
+}
+
+function tailAtScale(perCallFastProbability, fanout) {
+  return Math.round((1 - Math.pow(perCallFastProbability, fanout)) * 10000) / 10000;
+}
+
+function hoursToExhaustion(budgetRemainingFraction, burnRate, windowHours) {
+  if (burnRate <= 0) return null;
+  return Math.round(budgetRemainingFraction * windowHours / burnRate * 10) / 10;
+}
+
+function shouldPage(shortWindowBurn, longWindowBurn, threshold) {
+  return shortWindowBurn >= threshold && longWindowBurn >= threshold;
+}
+
+function admit(queueLength, capacity, priority) {
+  if (queueLength >= capacity) return false;
+  if (queueLength * 10 >= capacity * 9) return priority === 1;
+  if (queueLength * 2 >= capacity) return priority <= 2;
+  return true;
+}
+
+function amplification(retriesPerLayer, layers) {
+  return Math.pow(retriesPerLayer + 1, layers);
+}
+@tests
+percentile([15, 20, 35, 40, 50], 50) => 35
+percentile([15, 20, 35, 40, 50], 100) => 50
+percentile([15, 20, 35, 40, 50], 90) => 50
+percentile([15, 20, 35, 40, 50], 1) => 15
+percentile([15, 20, 35, 40, 50], 0) => 15
+percentile([50, 15, 40, 20, 35], 40) => 20
+percentile([1, 2, 3, 4, 5, 6, 7, 8, 9, 10], 95) => 10
+percentile([1, 2, 3, 4, 5, 6, 7, 8, 9, 10], 90) => 9
+percentile([7], 99) => 7
+percentile([], 50) => null
+(() => { const v = [3, 1, 2]; percentile(v, 50); return v; })() => [3, 1, 2]
+tailAtScale(0.99, 100) => 0.634
+tailAtScale(0.99, 1) => 0.01
+tailAtScale(0.98, 50) => 0.6358
+tailAtScale(1, 1000) => 0
+tailAtScale(0.999, 100) => 0.0952
+hoursToExhaustion(1, 14.4, 720) => 50
+hoursToExhaustion(0.5, 1, 720) => 360
+hoursToExhaustion(1, 6, 720) => 120
+hoursToExhaustion(0.25, 3, 720) => 60
+hoursToExhaustion(1, 0, 720) => null
+shouldPage(15, 15, 14.4) => true
+shouldPage(20, 2, 14.4) => false
+shouldPage(2, 20, 14.4) => false
+shouldPage(14.4, 14.4, 14.4) => true
+admit(10, 100, 3) => true
+admit(49, 100, 3) => true
+admit(50, 100, 3) => false
+admit(50, 100, 2) => true
+admit(89, 100, 2) => true
+admit(90, 100, 2) => false
+admit(90, 100, 1) => true
+admit(100, 100, 1) => false
+amplification(2, 3) => 27
+amplification(0, 5) => 1
+amplification(3, 2) => 16
+@hints
+Copy the array before sorting (`values.slice()`), and sort numerically with `(a, b) => a - b`.
+The nearest-rank index is `Math.ceil(p / 100 * n) - 1`, clamped so it is never below 0.
+"At least one slow" is one minus "all fast": `1 - fast ** fanout`.
+In `admit`, test the most restrictive condition first. Compare with integers (`queueLength * 10 >= capacity * 9`) to avoid floating-point surprises.
+
+#EXAM 25
+#Q A service is overloaded. Which response best protects goodput?
+- Accept every request and queue it
+* Reject excess requests early and cheaply, prioritising the most important work
+- Restart all servers
+! Doing work nobody will wait for wastes capacity.
+#Q What is deadline propagation?
+- Extending project deadlines
+* Passing the remaining time budget down a call chain so that servers abandon work the caller has given up on
+- Scheduling deployments
+! It avoids wasted work during overload.
+#Q Why should configuration changes be rolled out in stages like code?
+- Configuration is difficult to write
+* A bad configuration applied everywhere at once can cause a global outage
+- Stages are required by law
+! Several of the largest recorded outages were global configuration pushes.
+#Q Which technique reduces tail latency at the cost of a small increase in load?
+- Removing all timeouts
+* Hedged requests
+- Disabling replication
+! A second request is sent only when the first is slow.
+#Q Why is a cache that the system cannot run without dangerous?
+- Caches are insecure
+* If it is emptied, the full load reaches a backend that may be unable to handle it, causing sustained failure
+- Caches slow down reads
+! The backend must survive a cold cache, or the cache must be warmed first.
+#Q What should happen to action items from a post-incident review?
+- They are optional suggestions
+* Each has an owner and a date and is tracked to completion
+- They are deleted after a month
+! Unfinished actions are the commonest failure of the process.
+#Q How do you know that backups work?
+- The backup job reports success
+* They are regularly restored to a clean environment and the data verified
+- They are large
+! Only a restore proves a backup.
+#W An online retailer's site failed for three hours on its busiest day. The trigger was a brief database slowdown; the site did not recover when the database did. Explain the likely mechanism, why the system stayed down, how it should have been recovered, and the design changes that would prevent a recurrence.
++ Identifies a metastable failure sustained by a feedback loop such as retries, timeouts with wasted work, or a cold cache
++ Explains that removing the trigger does not break the loop, since the retry load itself keeps the system overloaded
++ Recovery: shed most of the load, then readmit traffic gradually
++ Prevention: retry budgets, backoff with jitter, deadline propagation, load shedding by priority
++ Prevention: capacity for a cold cache or warming, plus testing these conditions in advance
+#W You are asked to establish a resilience-verification programme for an organisation that has never done chaos engineering and is nervous about it. Propose a staged plan. Include the first experiments, the safety measures, how you would involve people and not only systems, and how you would report value to leadership.
++ Starts small and safe: non-production, then a limited part of production, with a stop mechanism
++ Each experiment has a steady-state measure and a hypothesis
++ Includes game days and backup-restore rehearsals to exercise people and process
++ Progresses toward automation and continuous verification
++ Reports value through weaknesses found and fixed before incidents, and improved detection and recovery times
+
+#PROJECT Reliability and security programme
+Design, and demonstrate on a working system, a programme for reliability, performance and security at scale.
+@requirements
+A working multi-service system under realistic synthetic load (an earlier project may be used)
+SLOs with error budgets and multi-window burn-rate alerts, implemented and shown firing
+An overload test demonstrating collapse without protection, then stability with load shedding, retry budgets and deadline propagation, with graphs of goodput
+A tail-latency study: the measured distribution, the effect of fan-out, and the measured improvement from hedging or another tail-tolerant technique
+A staged deployment pipeline with automated canary analysis and rollback, including for a configuration change
+At least four chaos experiments, each with steady state, hypothesis, result and follow-up, at least one injecting latency
+A full disaster-recovery rehearsal: rebuild from code and backups, with measured recovery time and recovery point
+A security baseline delivered as secure defaults and automated policy checks, with evidence of an entire vulnerability class being prevented
+A simulated incident run with defined roles, and a blameless post-incident review with tracked actions
+@deliverables
+The repository and the experiment scripts
+The graphs and the raw measurements
+The post-incident review and the disaster-recovery report
+A programme document for leadership: the state found, what was done, residual risk, and the next investments
+@rubric
+Overload protection demonstrated with evidence | 20
+Tail-latency analysis and improvement | 15
+Chaos experiments and disaster recovery, rigorously run | 25
+Security as defaults and automation | 15
+Incident exercise and quality of the review | 15
+The programme document's judgement and honesty | 10
+
+#COURSE c603
+#LESSON Leading without authority | 13
+Senior engineers reach a point where their impact no longer comes from the code they write. It comes from making many other people more effective. This is **technical leadership**, and it does not require being anyone's manager.
+
+### The senior individual-contributor path
+Many organisations have two ladders: management, and a technical path through senior, staff and principal engineer. On the technical path, scope grows from a feature, to a system, to many teams, to the organisation.
+
+What changes is not the difficulty of the code. It is that you are expected to **find** the right problems, not only solve the ones you are given, and to deliver results through others.
+
+### Common shapes of the role
+- **Tech lead:** guides one team's technical direction and delivery.
+- **Architect:** owns the direction and quality of a critical area.
+- **Solver:** moves from one hard, important problem to the next.
+- **Right hand:** extends a senior leader's reach across the organisation.
+
+### Influence
+You will need people who do not report to you to change what they do. Authority is unavailable, so you use **influence**, which rests on:
+
+- **Trust:** a history of being right, of delivering, and of admitting when you were wrong.
+- **Relationships,** built before you need them.
+- **Clarity:** people follow what they understand.
+- **Empathy:** knowing what the other team is measured on and worried about.
+- **Generosity:** giving credit, sharing context, helping others succeed.
+
+### How to move a decision
+1. **Understand** the other positions properly. Be able to state them to their holders' satisfaction.
+2. **Write it down.** A clear document travels further than a meeting and survives it.
+3. **Pre-wire.** Talk to key people individually before the meeting. A proposal should never surprise the room.
+4. **Start small.** A prototype or a pilot with one team is more persuasive than argument.
+5. **Make it easy to say yes:** do the work that lowers the cost for others.
+6. **Let it be theirs.** Ideas spread when others own them.
+
+### Choosing what to work on
+Your time is the scarcest resource. Ask:
+
+- Does this matter to the organisation's goals?
+- Am I the right person, or could someone else do it and grow from it?
+- What happens if nobody does it?
+
+Beware two traps. **Snacking:** easy, low-impact work that feels productive. **Preening:** visible, low-impact work that looks impressive. Seek work that is high in impact, even when it is unglamorous.
+
+**Glue work** (onboarding, unblocking, coordinating, noticing what is falling between teams) is essential and often unrecognised. Do it deliberately, make it visible, and make sure it is shared fairly, since it tends to fall unevenly.
+
+### Being a role model
+People copy what senior engineers do, not what they say. If you cut corners on testing, so will everyone. If you say "I don't know" and "I was wrong", you make it safe for others.
+
+### Managing up and sideways
+- Understand your manager's goals and pressures.
+- Bring **solutions and options,** not only problems.
+- **No surprises:** raise risks early.
+- Keep peers informed; alliances between senior engineers are how cross-team work gets done.
+
+### Disagree and commit
+Argue your position fully. Once a decision is made by those entitled to make it, support it wholeheartedly, and say so. Continuing to resist, or complying while signalling disapproval, destroys trust. If the matter is one of ethics or safety, that is different: escalate.
+
+> Key idea: At senior levels your output is other people's improved results. Influence is earned through trust, clear writing and generosity, and is spent on the problems that matter most.
+#Q On what does influence without authority mainly depend?
+- Job title
+* Trust built from a record of sound judgement, delivery and honesty, together with relationships and clear communication
+- Speaking most in meetings
+! People follow those they trust and understand.
+#Q What does "disagree and commit" mean?
+- Agreeing in public and resisting in private
+* Arguing your view fully, then genuinely supporting the decision once it is made
+- Never disagreeing
+! It allows debate without paralysis.
+
+#LESSON Technical vision and strategy | 13
+A team without direction makes locally sensible choices that do not add up. A senior leader's job is to supply the direction.
+
+### Vision and strategy
+- A **technical vision** describes a desirable future state, perhaps two to five years out: what the systems look like and what has become easy.
+- A **technical strategy** is how to get there from here, given real constraints.
+
+A vision without a strategy is a wish. A strategy without a vision is a to-do list.
+
+### Writing a vision
+It should be:
+
+- **Concrete** enough to guide decisions. "Any engineer can deploy to production safely in ten minutes" directs work; "world-class engineering" does not.
+- **Grounded** in the business and in today's real problems.
+- **Opinionated.** If it excludes nothing, it guides nothing.
+- **Short.** A few pages that people will read.
+
+### The kernel of a strategy
+From Richard Rumelt's *Good Strategy / Bad Strategy*:
+
+1. **Diagnosis.** What is actually going on? Name the critical challenge. This is the hardest part and the most often skipped.
+2. **Guiding policy.** The overall approach to that challenge, and what it rules out.
+3. **Coherent actions.** Coordinated steps that carry out the policy.
+
+**Bad strategy** is recognisable: fluff, a failure to face the real problem, goals mistaken for strategy, and long lists of unprioritised objectives.
+
+### Doing the diagnosis
+- Talk to many people: engineers, support, product, operations. Ask what slows them down.
+- Look at data: incident reviews, delivery metrics, where time goes.
+- Read the code and the on-call logs.
+- Find the **constraint**: the one thing that, if improved, improves the most.
+
+Write the diagnosis so that the people living with the problems recognise it as true.
+
+### Building agreement
+A strategy that people do not follow is a document. Involve those who must carry it out.
+
+- Share early, rough drafts.
+- Seek out the sharpest critics and incorporate what they are right about.
+- Explain the **why,** and the alternatives rejected.
+- Expect several rounds. Alignment takes far longer than writing.
+
+### Making trade-offs explicit
+Every strategy costs something. State it: "We will invest in the platform for two quarters. Feature delivery in these three areas will slow by about a third in that time. Here is why it is worth it." Hidden costs surface later as broken trust.
+
+### Roadmaps
+A roadmap translates strategy into sequence. Good practice:
+
+- **Outcomes** over outputs: "reduce checkout failures by half", not "rebuild the payment service".
+- Near-term items are specific; distant ones are deliberately vague.
+- Each step delivers value by itself, so that the work can stop at any point without waste.
+- Review and revise regularly.
+
+### Communicating
+Repeat the strategy far more than feels necessary. People need to hear a message many times, in different forms, before it guides their decisions. Tie everyday decisions back to it in public: "we are choosing this because of our strategy to...".
+
+### Knowing when to change
+Strategy rests on assumptions. Write them down, and watch for evidence that they are false. Persisting with a strategy whose premise has failed is as harmful as having none. Changing direction every quarter is also harmful. Distinguish noise from signal.
+
+### Saying no
+Strategy is mostly about what **not** to do. A senior engineer must be able to decline good ideas that do not fit, and to explain why in a way that keeps the proposer's goodwill.
+
+> Key idea: Diagnose the real problem, choose an approach that excludes things, and line up the actions. Then repeat it until people can make the right call without asking you.
+#Q According to the "kernel" of good strategy, what comes first?
+- A list of goals
+* A diagnosis of the critical challenge
+- A budget
+! Without an honest diagnosis the rest is unanchored.
+#Q Why should a roadmap be expressed in outcomes instead of outputs?
+- Outcomes are easier to estimate
+* It keeps attention on the result wanted and leaves room to find a better way of achieving it
+- Outputs cannot be measured
+! Building the planned thing is not the same as solving the problem.
+
+#LESSON Growing other engineers | 13
+The most lasting contribution a senior engineer makes is the people they develop. A team's capability matters more than any individual's output.
+
+### Mentoring, coaching and sponsoring
+- **Mentoring:** sharing your experience and advice.
+- **Coaching:** helping people find their own answers through questions.
+- **Sponsoring:** using your influence to create opportunities for someone: recommending them for a project, naming them in rooms they are not in.
+
+Sponsorship changes careers most and is given least. Notice who you sponsor, and whether it is only people who resemble you.
+
+### Teaching
+- **Explain why,** not only what. Reasons transfer to new situations; instructions do not.
+- **Let people struggle** productively. Rescuing too soon takes the learning away.
+- **Match the help to the person.** A beginner needs direction; an experienced engineer needs context and room.
+- **Make your thinking visible:** narrate how you debug, how you weigh options, what you are unsure about.
+
+### Delegation
+Delegating is how others grow and how you gain time. Delegate **outcomes,** not tasks: say what is needed and why, agree how you will stay informed, then leave the how to them.
+
+Give people work **slightly beyond** their current ability, with support. If you could do it better yourself, that is the point: they will not, the first time.
+
+Do not delegate and disappear, and do not delegate and hover. Agree check-points.
+
+### Feedback
+Feedback is information that helps someone improve. Withholding it is not kindness.
+
+A reliable structure: **situation, behaviour, impact**.
+
+> "In yesterday's design review (situation), you interrupted Priya three times while she was explaining her proposal (behaviour). She stopped contributing, and we lost her view of the migration risk (impact)."
+
+- Be **specific** and **timely**.
+- Describe **behaviour,** not character. "You interrupted" can be acted on; "you are arrogant" cannot.
+- Give **positive** feedback as specifically as critical feedback, and more often.
+- Give critical feedback **privately**.
+- **Ask** for feedback on yourself, and receive it without defending.
+
+**Radical candour** names the aim: care personally and challenge directly. Challenge without care is aggression. Care without challenge is "ruinous empathy", which lets people fail for want of an honest word.
+
+### Code review as teaching
+Review is the most frequent teaching moment. Ask questions, explain reasons, distinguish what must change from what is preference, praise good work, and never be sarcastic. Remember that the author can see how you treat their work, and so can everyone else.
+
+### Creating safety
+People learn only where it is safe to be wrong. Respond to mistakes with curiosity. Thank people for raising problems. Admit your own errors. Ask the quietest person what they think. Never humiliate anyone, in person or in writing.
+
+### Inclusion
+Diverse teams make better decisions, when everyone can contribute. Watch for whose ideas are heard, who gets interrupted, who is given the stretch work and who the housekeeping. Senior people set the norm by what they tolerate.
+
+### Hiring
+Hiring shapes the team for years. Define what the role requires, assess it with structured, consistent interviews and work-relevant exercises, and guard against bias: decide the criteria in advance, and evaluate each candidate against them, not against a general impression.
+
+### Letting go
+As people grow, hand over ownership, including of things you built and care about. Then let them do it differently from how you would.
+
+> Key idea: Your leverage is the growth of the people around you. Delegate real outcomes, give specific and honest feedback, sponsor people actively, and make it safe to be wrong.
+#Q What is the difference between mentoring and sponsoring?
+- They are the same
+* Mentoring gives advice; sponsoring uses your influence to create opportunities for someone
+- Sponsoring means paying for training
+! Sponsorship actively advances another person's career.
+#Q Which is the most useful piece of feedback?
+- "You need to communicate better."
+* "In Tuesday's review you answered the question before Sam finished asking it, and he stopped raising concerns."
+- "Good job."
+! It names a specific situation, behaviour and impact.
+
+#LESSON Managing teams and delivery | 14
+Whether or not you take a management role, at senior level you need to understand how teams are run, because you will work alongside managers and often share the work.
+
+### What a manager is for
+A manager is responsible for the team's **results** and the team's **people**: setting direction and priorities, hiring and developing, removing obstacles, and creating the conditions for good work. The measure is the output of the team, not the manager's own.
+
+Management is a different job from engineering, not a promotion within it. Good engineers are not automatically good managers, and it is reasonable to prefer the technical path.
+
+### One-to-ones
+A regular private conversation with each person is the manager's main tool. It is **the report's meeting**: their concerns, growth, obstacles and feedback. Status belongs elsewhere. Listen more than you speak, and follow up on what was said.
+
+### Motivation
+Research on motivation in knowledge work points to three things beyond fair pay:
+
+- **Autonomy:** control over how the work is done.
+- **Mastery:** getting better at something that matters.
+- **Purpose:** knowing why the work matters.
+
+Micromanagement destroys the first, repetitive work the second, and missing context the third.
+
+### How teams form
+Teams pass through stages, often described as forming, storming, norming and performing. Conflict in the second stage is normal, not a sign of failure. Changing a team's membership sends it back, which is one cost of constant reorganisation.
+
+Small teams work best: commonly five to nine people. Communication paths grow as n(n − 1)/2, so a team of twelve has 66.
+
+### Planning and estimation
+Estimates are forecasts under uncertainty, not promises.
+
+- Break work down; estimate small pieces.
+- Give **ranges,** with the confidence attached.
+- Use **past data**: how long did similar work really take?
+- Expect the **planning fallacy**: people consistently underestimate, even knowing that they do.
+- Separate the estimate (how long it will probably take) from the commitment (what you promise).
+
+**Brooks's law:** adding people to a late software project makes it later, because of the time needed to bring them up to speed and the extra communication.
+
+When a date is fixed, vary the **scope**. Trying to hold scope, date, cost and quality all fixed fails, and what silently gives way is quality.
+
+### Prioritisation
+There is always more to do than capacity. Techniques include weighing value against effort, and **cost of delay**: what does each week of waiting cost? Limit **work in progress**: starting many things finishes few. Protect time for maintenance, reliability and debt reduction, since otherwise it never happens.
+
+### Flow
+Measure and improve the flow of work: **lead time** from idea to production, deployment frequency, and where work waits. Most elapsed time in most organisations is waiting, not working. Remove hand-offs and queues before asking people to work harder.
+
+### Performance
+- Set clear expectations.
+- Give feedback continuously. A formal review should contain no surprises.
+- Recognise good work specifically and promptly.
+- Address underperformance early, privately and concretely: the gap, the expectation, the support offered and the time-scale. Avoiding the conversation is unfair to the person and to the team.
+
+### Meetings
+A meeting needs a purpose, the right people and an outcome. Decisions and owners are written down. Prefer written, asynchronous communication for information, and keep meetings for discussion and decision.
+
+### Remote and distributed teams
+Write things down, default to asynchronous communication, make decisions visible, be deliberate about time zones, and create occasions for the informal contact that offices provide by accident.
+
+### Sustainable pace
+Sustained overtime lowers output and quality and drives people away. Occasional pushes are survivable; a permanent crunch is a management failure. Burnout is caused by conditions (overload, lack of control, unfairness, values in conflict), not by weakness.
+
+> Key idea: A manager's output is the team's output. Give people autonomy, mastery and purpose, treat estimates as ranges, limit work in progress, and protect a sustainable pace.
+#Q What does Brooks's law state?
+- Small teams are always slow
+* Adding people to a late software project makes it later
+- Estimates are always accurate
+! New people need training and add communication overhead.
+#Q A project's deadline is fixed and it is running behind. What is the healthiest lever?
+- Quietly reduce testing
+* Reduce the scope deliberately, in agreement with stakeholders
+- Demand indefinite overtime
+! Scope is the variable that can give without hidden damage.
+
+#LESSON Communicating with executives and stakeholders | 13
+Technical excellence that cannot be communicated has little effect. At senior levels, writing and speaking clearly to people outside engineering is a core skill.
+
+### Know the audience
+Executives are short of time, responsible for many areas, and thinking about revenue, cost, risk and customers. They do not need to understand how the system works. They need to understand **what decision is required, what the options are, and what each will cost and yield**.
+
+Before any communication ask: what does this person care about, what do they already know, and what do I want them to do?
+
+### Lead with the conclusion
+Engineers tend to narrate: background, analysis, then conclusion. Reverse it. State the conclusion or the request first, then the support, then the detail for those who want it. This is the **pyramid principle**, and military writing calls it "bottom line up front".
+
+> "I recommend delaying the launch by two weeks. Load testing shows that the system fails at 60% of expected peak traffic. Launching now carries a high risk of an outage on the first day. The fix is understood and will take ten working days."
+
+If the reader stops after the first sentence, they still have the message.
+
+### Translate into business terms
+| Engineering statement | Business statement |
+|---|---|
+| "The database is at 90% capacity." | "Within about six weeks the site will slow down and then fail unless we spend £40,000 on capacity." |
+| "We have a lot of technical debt in billing." | "Changes to billing take three times as long as they did last year, and caused two of our last five incidents." |
+| "We need to refactor." | "This investment would cut the time to add a payment method from eight weeks to two." |
+
+Quantify wherever you can: money, time, risk, customers affected.
+
+### Presenting options
+Give two or three real options with their consequences, and **make a recommendation**. Presenting only one option is a demand. Presenting many without a recommendation hands your job to the reader.
+
+### Communicating risk
+- Avoid both false alarm and false comfort.
+- State **likelihood and impact** as concretely as you can.
+- Say what you **do not know**.
+- Offer what would reduce the uncertainty.
+
+"There is roughly a one-in-five chance that the migration slips into next quarter. The main cause would be the data-quality problems we find in the legacy system. We will know much more after the trial run on the 12th."
+
+### Bad news
+Deliver it **early,** directly, and with a plan. Bad news does not improve with age, and a leader who learns of a problem from someone else stops trusting you. State what happened, the impact, what is being done, and what you need.
+
+### Writing
+- One purpose per document.
+- A summary at the top that stands alone.
+- Short sentences, plain words, active voice.
+- Define or avoid jargon.
+- Use headings so that readers can skip.
+- Edit. Remove everything that does not serve the reader.
+
+Some organisations run decision meetings from a written narrative of a few pages, read silently at the start. Writing in full sentences exposes gaps in reasoning that bullet points hide.
+
+### Stakeholders
+Identify who is affected by, or can affect, your work, and what each needs. Agree expectations explicitly at the start. Keep them informed at a rhythm that suits them. Surprise is the enemy.
+
+### Negotiation
+Disagreements over priorities and resources are normal. Separate **positions** (what people say they want) from **interests** (why they want it), and look for options that serve both sides' interests. Know what you will do if no agreement is reached.
+
+### Listening
+Communication is two-way. Ask questions, restate what you heard, and attend to what is not being said. People who feel heard are much more willing to hear you.
+
+### Credibility
+It accumulates slowly and is lost quickly. Be accurate, including about uncertainty. Meet commitments or renegotiate them early. Never overstate. Say "I don't know, I will find out", and then find out.
+
+> Key idea: Start with the conclusion, speak in terms of money, time, risk and customers, offer options with a recommendation, and bring bad news early with a plan.
+#Q How should a message to a busy executive begin?
+- With the technical background
+* With the conclusion or the decision requested
+- With an apology
+! The most important information comes first.
+#Q A project will miss its date. When should stakeholders be told?
+- At the deadline
+* As soon as it is known, with the impact and a plan
+- After it has been fixed
+! Early warning preserves options and trust.
+
+#LESSON Culture, ethics and organisational change | 14
+### Engineering culture
+**Culture** is what people do when nobody is telling them what to do: the real norms, as opposed to the stated values. It is shaped by what leaders reward, tolerate and do themselves.
+
+Signs of a healthy engineering culture:
+
+- Problems are raised early and openly.
+- Mistakes lead to learning.
+- Quality is everyone's concern.
+- Decisions are explained.
+- People help across team boundaries.
+- Disagreement is frank and respectful.
+
+Sociologist Ron Westrum described three kinds of organisational culture by how information flows: **pathological** (messengers are punished, information is hoarded), **bureaucratic** (rules first, messengers ignored) and **generative** (messengers are trained, failure leads to inquiry). Research on software delivery has found the generative kind to be associated with better performance.
+
+### What you tolerate
+The standard is set by the worst behaviour that goes unchallenged. A brilliant engineer who belittles colleagues costs more than they contribute, by driving others to silence or to leave. Senior people have a duty to address it.
+
+### Changing an organisation
+Change is hard because existing behaviour is supported by habits, incentives and structures.
+
+- **Start with why,** concretely and often.
+- **Find allies** and early adopters; begin where there is energy.
+- **Show** results with a small success before asking for a large commitment.
+- **Change the system,** not only the message: tools, incentives, defaults. Exhortation alone fails.
+- **Make it easy:** remove friction from the new way.
+- **Expect resistance** and listen to it. Some of it will be right.
+- **Be patient and persistent.** Organisational change takes years.
+
+Most people are neither for nor against a change. They are waiting to see whether it is real.
+
+### Incentives
+"Show me the incentive and I will show you the outcome." If people are rewarded for shipping features and never for reliability, reliability will suffer whatever is said. Check what is measured and promoted, and beware **Goodhart's law**: a measure that becomes a target stops being a good measure. Lines of code, tickets closed and test coverage percentages are all easily gamed.
+
+### Professional ethics
+Engineers build systems that affect lives, and the public's welfare comes first. Professional codes, such as the ACM Code of Ethics and the IEEE-CS/ACM Software Engineering Code, set out duties including:
+
+- **Avoid harm** and consider who could be affected.
+- **Be honest** about capabilities, limitations and risks.
+- **Respect privacy** and confidentiality.
+- **Be fair** and do not discriminate.
+- **Maintain competence** and accept only work you are qualified for.
+- **Give credit** and respect intellectual property.
+- **Report** dangers.
+
+### Ethical dilemmas in practice
+- Asked to ship something you believe is unsafe.
+- Asked to build a feature that deceives users or exploits their vulnerabilities.
+- Discovering that a product misreports data to regulators or customers.
+- Pressure to hide a breach or a defect.
+- Building systems used for surveillance or to cause harm.
+
+Well-known engineering scandals, including falsified emissions tests and aircraft software that pilots were not told about, involved engineers who knew and did not, or could not, stop it.
+
+### Acting on a concern
+1. **Establish the facts.** Be sure you understand.
+2. **Raise it** with the people responsible, in writing, in terms of the risk.
+3. **Escalate** through the organisation if it is not addressed.
+4. **Refuse** to do what is clearly wrong.
+5. Know that **external reporting** and whistle-blower protections exist where serious harm or illegality continues, and seek advice.
+
+It is far easier to hold a line you have thought about in advance. Decide what you will not do before you are asked.
+
+### Wider responsibility
+- **Accessibility:** software that excludes disabled people excludes a large share of humanity.
+- **Sustainability:** computing consumes significant energy. Efficiency is an environmental matter.
+- **Societal effects:** attention, misinformation, automation of work, concentration of power.
+
+"I only built it" is not a defence. Those with the knowledge to foresee harm bear responsibility for raising it.
+
+### Your own career
+Keep learning, since the field changes constantly. Build breadth with one or two areas of depth. Find mentors and be one. Choose where you work with attention to what it does and how it treats people. Protect your health. A career is long.
+
+> Key idea: Culture is set by what leaders do and tolerate. Change comes from altering systems and incentives, not slogans. And an engineer's first duty is to the people their work affects.
+#Q What best defines an organisation's culture?
+- Its published values statement
+* What people actually do, shaped by what leaders reward, tolerate and model
+- Its office design
+! Behaviour, not slogans, is the culture.
+#Q An engineer is told to ship software they have good reason to believe is unsafe for users. What is the appropriate first response?
+- Comply silently
+* Establish the facts, then raise the concern clearly and in writing with those responsible, escalating if needed
+- Resign without saying why
+! Professional duty is to make the risk known through proper channels.
+
+#EXAM 30
+#Q What mainly distinguishes a staff or principal engineer's work from a senior engineer's?
+- Writing more code
+* Finding the right problems and achieving results through other people across a wider scope
+- Managing budgets
+! Scope and leverage increase.
+#Q Which is a sign of bad strategy?
+- A clear diagnosis
+* A long list of unprioritised goals with no account of the central challenge
+- A statement of what will not be done
+! Goals are not strategy.
+#Q What does delegating an outcome, as opposed to a task, involve?
+- Specifying every step
+* Stating what is needed and why, agreeing check-points, and leaving the method to the person
+- Doing it yourself later
+! It develops judgement and gives ownership.
+#Q Which feedback follows the situation-behaviour-impact pattern?
+- "Your attitude is poor."
+* "In this morning's stand-up you said the task was done when the tests were failing, and QA lost two hours."
+- "Try harder."
+! It is specific, about behaviour, and states the consequence.
+#Q A team grows from 5 to 10 people. What happens to the number of possible pairwise communication paths?
+- It doubles, from 10 to 20
+* It more than quadruples, from 10 to 45
+- It stays the same
+! n(n − 1)/2.
+#Q Which statement is most useful to a chief executive?
+- "Our p99 latency regressed after the ORM upgrade."
+* "Checkout is slow enough that we estimate we are losing about 3% of orders; a fix takes two weeks and I recommend we do it now."
+- "The system is suboptimal."
+! It states the impact, the cost and a recommendation.
+#Q What does Goodhart's law warn about?
+- Networks are unreliable
+* When a measure becomes a target, people optimise the measure and it stops reflecting what mattered
+- Software grows over time
+! Metrics used as targets get gamed.
+#W You have joined an organisation as a principal engineer and concluded that its deployment process, which takes two weeks and frequently fails, is the main constraint on the business. You have no authority over the teams involved. Describe, step by step, how you would bring about change. Include how you would diagnose, whom you would involve, how you would demonstrate the idea, what resistance you expect and how you would respond to it.
++ Diagnoses with evidence: data, conversations with those affected, the real causes
++ Builds relationships and allies, and understands other teams' incentives and concerns
++ Writes a clear proposal and pre-wires key people
++ Starts with a pilot that shows results before asking for wide commitment
++ Anticipates resistance, listens to it, and changes tools and incentives, not only the message
++ Shows patience and a plan to sustain the change
+#W Write a one-page memo to a non-technical executive recommending that the company spend three months reducing technical debt in its billing system, at the cost of delaying two planned features. Lead with the recommendation, quantify the case as far as a realistic scenario allows, present at least one alternative fairly, and state the risks of your own proposal.
++ Opens with the recommendation and the decision requested
++ Translates technical debt into business terms: delivery time, incidents, revenue risk, with plausible figures
++ Presents at least one genuine alternative and its consequences
++ States the cost and the risks of the recommendation honestly
++ Is concise, free of jargon, and proposes how success will be measured
+#W Describe an ethical dilemma that a software engineer could realistically face. Analyse it: who could be harmed, which professional duties apply, what options the engineer has, and what you would do and why. Explain what would make acting difficult, and how you would prepare for that.
++ Presents a realistic, specific dilemma
++ Identifies the people affected and the potential harm
++ Relates it to duties in a professional code: avoiding harm, honesty, privacy, reporting
++ Sets out the options, including raising, escalating and refusing
++ Reaches a reasoned position and acknowledges the personal and organisational pressures honestly
+
+#PROJECT Technical leadership portfolio
+Demonstrate technical leadership through a body of real or realistically simulated work.
+@requirements
+A technical strategy for a team or organisation: diagnosis with evidence, guiding policy with what it excludes, and coherent actions
+A technical vision of no more than three pages
+An account of influencing a decision without authority: the situation, the people, what you did, and the result, or a detailed plan for a case you define
+Evidence of developing another person: a mentoring plan, examples of specific feedback using situation-behaviour-impact, and a delegated outcome with how you supported it
+A project plan with estimates as ranges, the risks, and how scope would be cut if time ran short
+An executive memo of one page requesting a decision, and a ten-minute recorded presentation of it
+A written analysis of an ethical question in your field, with your position
+A reflective essay of at least 1,000 words on your own strengths and weaknesses as a leader, and a development plan
+@deliverables
+The strategy and vision documents
+The influence account, the mentoring evidence and the project plan
+The executive memo and the recording
+The ethics analysis
+The reflective essay and development plan
+@rubric
+Quality of diagnosis and strategy | 25
+Evidence of influence and of developing others | 20
+Planning realism and risk management | 15
+Executive communication | 15
+Ethical reasoning | 10
+Depth and honesty of the self-reflection | 15

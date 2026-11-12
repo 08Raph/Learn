@@ -1,0 +1,1620 @@
+#COURSE c105
+#LESSON A second language: JavaScript | 12
+You can already program. Variables, conditions, loops, functions, lists and dictionaries exist in almost every language. Learning a second language is mostly learning new spelling for ideas you know, and seeing which parts were Python and which parts were *programming*.
+
+**JavaScript** is the language that runs inside every web browser. It is also used on servers. It has nothing to do with Java beyond the name.
+
+```js
+let name = "Ada";
+const year = 1843;
+console.log("Hello, " + name);
+```
+
+What changed from Python:
+
+| Idea | Python | JavaScript |
+|---|---|---|
+| Create a variable | `x = 5` | `let x = 5;` |
+| A value that never changes | (by convention) | `const x = 5;` |
+| Print | `print(x)` | `console.log(x);` |
+| Blocks | indentation | curly brackets `{ }` |
+| End of statement | new line | semicolon `;` |
+| Comment | `# note` | `// note` |
+| True, false, nothing | `True False None` | `true false null` |
+
+### let and const
+Use `const` by default. It promises the name will not be re-assigned, which makes code easier to follow. Use `let` only when the value must change. Avoid the older `var`.
+
+### Types
+JavaScript has `number` (one type for whole and decimal numbers), `string`, `boolean`, plus `null` and `undefined`. A variable that was declared but never given a value is `undefined`.
+
+### Equality
+Always compare with `===` and `!==`. The two-character `==` converts types before comparing and produces surprises: `"5" == 5` is true.
+
+```js
+console.log(5 === 5);       // true
+console.log("5" === 5);     // false
+```
+
+> In industry: JavaScript is the only language browsers run natively, so every web developer needs it. TypeScript, which you meet in Stage 2, is JavaScript with types added.
+#TRY js | Create a constant `city` with the value "Toronto" and a variable `visits` with the value 3.
+@starter
+// create the constant and the variable
+
+@solution
+const city = "Toronto";
+let visits = 3;
+@tests
+city => "Toronto"
+visits => 3
+#Q Which keyword should you use by default for a variable that will not be re-assigned?
+- var
+- let
+* const
+! `const` states that the name will keep referring to the same value.
+#Q Which comparison should you normally use in JavaScript?
+- =
+- ==
+* ===
+! `===` compares without converting types.
+
+#LESSON Conditions, loops and functions in JavaScript | 14
+The ideas are the ones you know. Only the punctuation is new: conditions go in round brackets and blocks in curly brackets.
+
+```js
+const score = 72;
+if (score >= 90) {
+  console.log("A");
+} else if (score >= 70) {
+  console.log("C");
+} else {
+  console.log("F");
+}
+```
+
+Logical operators are symbols: `&&` is and, `||` is or, `!` is not.
+
+### Loops
+
+```js
+for (let i = 0; i < 5; i++) {     // start; keep going while; step
+  console.log(i);
+}
+
+for (const name of ["Ada", "Alan"]) {
+  console.log(name);
+}
+
+let n = 10;
+while (n > 0) {
+  n -= 3;
+}
+```
+
+The three-part `for` packs a counting loop into one line: where to start, the condition to continue, and what to do after each pass. `i++` means "add 1 to i".
+
+### Functions
+
+```js
+function area(width, height) {
+  return width * height;
+}
+```
+
+JavaScript also has a shorter form, the **arrow function**, which is very common:
+
+```js
+const area = (width, height) => width * height;
+const greet = (name) => {
+  const message = "Hello, " + name;
+  return message;
+};
+```
+
+With a single expression and no curly brackets, the value is returned automatically. With curly brackets you must write `return`.
+
+### Functions are values
+In JavaScript a function can be stored in a variable, put in a list, or handed to another function. That last idea is used everywhere:
+
+```js
+const numbers = [1, 2, 3];
+const doubled = numbers.map((n) => n * 2);      // [2, 4, 6]
+```
+
+`map` calls the function you give it once for each item and collects the results.
+
+> Key idea: Passing a function to another function is how JavaScript says "here is what to do later" or "here is what to do with each item".
+#TRY js | Write `isAdult(age)` that returns true when age is 18 or more.
+@starter
+function isAdult(age) {
+  return false;
+}
+@solution
+function isAdult(age) {
+  return age >= 18;
+}
+@tests
+isAdult(18) => true
+isAdult(17) => false
+isAdult(40) => true
+#Q What does `i++` do?
+- Compares i with itself
+* Adds 1 to i
+- Doubles i
+! It is shorthand for i = i + 1.
+#Q What does [1, 2, 3].map((n) => n + 1) produce?
+- 7
+* [2, 3, 4]
+- [1, 2, 3, 1]
+! `map` applies the function to each item and returns a new array.
+
+#LESSON Arrays and objects | 14
+JavaScript's **array** is Python's list. Its **object** is close to Python's dictionary.
+
+### Arrays
+
+```js
+const scores = [72, 85, 90];
+console.log(scores[0]);        // 72
+console.log(scores.length);    // 3
+scores.push(64);               // add to the end
+const last = scores.pop();     // remove from the end
+```
+
+Note that `const` stops you re-assigning the name `scores`. It does not stop you changing the contents of the array.
+
+Three array methods do most everyday work, and each takes a function:
+
+```js
+const nums = [1, 2, 3, 4, 5, 6];
+const evens = nums.filter((n) => n % 2 === 0);      // [2, 4, 6]
+const squares = nums.map((n) => n * n);             // [1, 4, 9, 16, 25, 36]
+const total = nums.reduce((sum, n) => sum + n, 0);  // 21
+```
+
+- `filter` keeps the items for which the function returns true.
+- `map` transforms each item.
+- `reduce` combines all items into one value, starting from the second argument.
+
+### Objects
+An object groups named values, called **properties**.
+
+```js
+const book = { title: "Dune", year: 1965 };
+console.log(book.title);          // Dune
+book.pages = 412;                 // add a property
+console.log(book["year"]);        // 1965  (the bracket form also works)
+```
+
+Asking for a property that does not exist gives `undefined`, not an error.
+
+### Arrays of objects
+This is the shape of most real data:
+
+```js
+const books = [
+  { title: "Dune", year: 1965 },
+  { title: "Emma", year: 1815 },
+];
+const old = books.filter((b) => b.year < 1900).map((b) => b.title);   // ["Emma"]
+```
+
+### JSON
+**JSON** (JavaScript Object Notation) is this same notation used as a text format for sending data between programs. `JSON.stringify(book)` turns an object into text; `JSON.parse(text)` turns text back into an object.
+
+> In industry: Almost every web service sends and receives JSON. Reading a JSON response and picking out the fields you need with `filter` and `map` is daily work.
+#TRY js | Write `expensive(items)` that returns the names of items costing more than 10. Each item looks like { name: "pen", price: 2 }.
+@starter
+function expensive(items) {
+  return [];
+}
+@solution
+function expensive(items) {
+  return items.filter((item) => item.price > 10).map((item) => item.name);
+}
+@tests
+expensive([{ name: "pen", price: 2 }, { name: "bag", price: 30 }]) => ["bag"]
+expensive([]) => []
+expensive([{ name: "a", price: 11 }, { name: "b", price: 10 }, { name: "c", price: 50 }]) => ["a", "c"]
+#Q What does [5, 8, 11].filter((n) => n > 6) return?
+- [5]
+* [8, 11]
+- true
+! `filter` keeps the items for which the function returns true.
+#Q What is book.author if book is { title: "Dune" }?
+- An error
+- null
+* undefined
+! A missing property gives `undefined`.
+
+#LESSON The page as a tree: the DOM | 12
+When a browser loads a web page it builds a model of it in memory called the **DOM** (Document Object Model). The DOM is a tree: the page contains a body, the body contains headings and paragraphs, and so on. JavaScript can read and change that tree, and the screen updates immediately.
+
+```diagram
+            document
+               |
+             <html>
+          +----+-----+
+       <head>      <body>
+          |      +----+----+
+       <title>  <h1>      <ul>
+                        +--+--+
+                      <li>   <li>
+```
+
+### Finding elements
+
+```js
+const title = document.querySelector("h1");            // the first match
+const items = document.querySelectorAll("li");         // every match
+const box = document.querySelector("#message");        // the element with id="message"
+```
+
+The text inside the brackets is a **CSS selector**, the same notation used for styling: a tag name, `#id`, or `.class`.
+
+### Changing them
+
+```js
+title.textContent = "Welcome back";      // change the text
+box.classList.add("warning");            // add a CSS class
+box.style.color = "red";                 // change one style directly
+```
+
+### Creating new elements
+
+```js
+const li = document.createElement("li");
+li.textContent = "Buy milk";
+document.querySelector("ul").appendChild(li);
+```
+
+Create the element, fill it in, then attach it to the tree. Until you attach it, it exists only in memory and is not visible.
+
+> Warning: Use `textContent` to insert text that came from a user. Its cousin `innerHTML` treats the text as page code, which lets an attacker inject their own script. This kind of attack is called cross-site scripting and you will study it in Stage 3 and Stage 4.
+
+> In industry: Large applications use libraries such as React that update the DOM for you. They are built on exactly these operations, and understanding the DOM is what lets you debug them.
+#Q What is the DOM?
+- A programming language
+* The browser's in-memory tree model of the page
+- A kind of web server
+! JavaScript reads and changes this tree, and the browser redraws the page.
+#Q Why prefer textContent over innerHTML for text typed by a user?
+- It is shorter to type
+* innerHTML would run any page code hidden in the text
+- textContent is faster to display
+! Treating untrusted text as HTML allows script injection.
+
+#LESSON Events: reacting to the user | 12
+A web page mostly waits. Code runs when something happens: a click, a key press, a form being submitted. Each such happening is an **event**, and the function you want run is an **event listener**.
+
+```js
+const button = document.querySelector("#save");
+button.addEventListener("click", () => {
+  console.log("Saved!");
+});
+```
+
+Read it as: "when this button is clicked, call this function". You are not calling the function yourself. You are handing it to the browser to call later. This style is called **event-driven programming**.
+
+### A complete example
+
+```html
+<p>Clicks: <span id="count">0</span></p>
+<button id="add">Add one</button>
+```
+
+```js
+let clicks = 0;
+const out = document.querySelector("#count");
+document.querySelector("#add").addEventListener("click", () => {
+  clicks += 1;
+  out.textContent = clicks;
+});
+```
+
+Notice the pattern that every interactive page follows:
+
+1. Keep the **state** (here, `clicks`) in variables.
+2. When an event happens, **update the state**.
+3. **Redraw** the part of the page that shows it.
+
+### Useful events
+`click`, `input` (text in a box changed), `submit` (a form was sent), `keydown` (a key was pressed).
+
+### The event object
+The listener receives an object describing what happened:
+
+```js
+input.addEventListener("input", (event) => {
+  console.log(event.target.value);       // the current text in the box
+});
+```
+
+`event.target` is the element the event happened on. For forms, call `event.preventDefault()` to stop the browser reloading the page.
+
+> Key idea: State, event, update, redraw. Every user interface you will ever build, in any technology, is some version of this loop.
+#Q What does addEventListener("click", fn) do?
+- Runs fn immediately
+* Asks the browser to call fn each time the element is clicked
+- Clicks the element
+! You register the function; the browser calls it when the event occurs.
+#Q In the state, event, update, redraw pattern, what is "state"?
+- The CSS of the page
+* The data the program remembers, such as a counter
+- The internet connection
+! State is the information that changes over time and decides what the page shows.
+
+#LAB js | To-do list logic
+Write the logic of a to-do list as plain functions, separate from any page. Each task is an object like `{ text: "Buy milk", done: false }`.
+
+- `addTask(tasks, text)` returns a **new** array with a new, not-done task added at the end. If `text` is empty or only spaces, return the list unchanged. Trim spaces from the text.
+- `toggleTask(tasks, index)` returns a new array where the task at `index` has its `done` value flipped. Other tasks are unchanged.
+- `remaining(tasks)` returns how many tasks are not done.
+
+Do not change the array you are given: build and return a new one. Keeping logic in pure functions like this is what makes it testable.
+@starter
+function addTask(tasks, text) {
+  return tasks;
+}
+
+function toggleTask(tasks, index) {
+  return tasks;
+}
+
+function remaining(tasks) {
+  return 0;
+}
+@solution
+function addTask(tasks, text) {
+  const clean = text.trim();
+  if (clean === "") return tasks;
+  return tasks.concat([{ text: clean, done: false }]);
+}
+
+function toggleTask(tasks, index) {
+  return tasks.map((task, i) => (i === index ? { text: task.text, done: !task.done } : task));
+}
+
+function remaining(tasks) {
+  return tasks.filter((task) => !task.done).length;
+}
+@tests
+addTask([], "Buy milk") => [{"text": "Buy milk", "done": false}]
+addTask([{ text: "a", done: true }], "  b  ") => [{"text": "a", "done": true}, {"text": "b", "done": false}]
+addTask([], "   ") => []
+addTask([{ text: "a", done: false }], "") => [{"text": "a", "done": false}]
+toggleTask([{ text: "a", done: false }, { text: "b", done: false }], 1) => [{"text": "a", "done": false}, {"text": "b", "done": true}]
+toggleTask([{ text: "a", done: true }], 0) => [{"text": "a", "done": false}]
+remaining([{ text: "a", done: true }, { text: "b", done: false }, { text: "c", done: false }]) => 2
+remaining([]) => 0
+((t) => { addTask(t, "x"); return t.length; })([]) => 0
+@hints
+`text.trim()` removes spaces from both ends. Check for the empty string after trimming.
+`tasks.concat([newTask])` returns a new array and leaves the original alone. `push` would change the original.
+`map` gives you each task and its index. Return a new object for the one you are toggling and the same object for the rest.
+`filter` then `.length` counts the tasks that match a condition.
+
+#EXAM 18
+#Q How do you write a comment in JavaScript?
+- # comment
+* // comment
+- -- comment
+! Two forward slashes start a comment.
+#Q What does "5" === 5 evaluate to?
+- true
+* false
+- An error
+! `===` does not convert types; a string is not a number.
+#Q What is printed?
+let total = 0;
+for (let i = 1; i <= 3; i++) {
+  total += i;
+}
+console.log(total);
+- 3
+* 6
+- 123
+! The loop adds 1, 2 and 3.
+#Q What does this arrow function return? const f = (n) => n * 2;  f(4)
+- undefined
+* 8
+- "n * 2"
+! A single-expression arrow function returns the value of the expression.
+#Q Which array method combines all items into a single value?
+- map
+- filter
+* reduce
+! `reduce` folds the array into one result.
+#Q What does document.querySelector("#menu") find?
+- Every element with the class menu
+* The element whose id is menu
+- The first menu tag
+! `#` selects by id.
+#Q Why does JSON matter?
+- It makes pages load faster
+* It is the common text format for exchanging data between programs
+- It is required to write loops
+! Web services send and receive data as JSON.
+#Q In event-driven programming, who calls your listener function?
+- You do, at the top of the script
+* The browser, when the event happens
+- The web server
+! You register the function and the environment calls it later.
+#C js | Write `countDone(tasks)` that returns how many tasks have `done` set to true. Each task is an object like { text: "a", done: true }.
+@starter
+function countDone(tasks) {
+  return 0;
+}
+@solution
+function countDone(tasks) {
+  return tasks.filter((t) => t.done).length;
+}
+@tests
+countDone([{ text: "a", done: true }, { text: "b", done: false }]) => 1
+countDone([]) => 0
+countDone([{ text: "a", done: true }, { text: "b", done: true }]) => 2
+#W Compare Python and JavaScript. Name three things that are the same idea with different spelling, and one real difference in how the languages behave.
++ Gives three correct pairs (for example print and console.log, indentation and curly brackets, list and array)
++ Identifies a genuine behavioural difference (for example == converting types, undefined for missing properties, one number type)
++ Uses correct syntax in the examples
++ Explains rather than only lists
+
+#PROJECT To-do application
+Build a to-do list that runs in the browser, using one HTML file with JavaScript. Use the functions from your assignment for the logic, and DOM code for the display.
+@requirements
+The user can type a task and add it to the list
+Each task can be marked done and not done
+The page shows how many tasks remain
+Empty tasks cannot be added
+Task text is inserted with textContent, not innerHTML
+The task list survives a page reload (use localStorage)
+@deliverables
+The HTML file with its JavaScript
+A short description of how the state, event, update, redraw loop appears in your code
+@rubric
+All features work | 40
+Logic is separated from DOM code | 25
+User text is handled safely | 15
+The description correctly identifies state, events and redraw | 20
+
+#COURSE c106
+#LESSON How the web works, and your first page | 12
+When you visit a website, your browser (the **client**) sends a request across the internet to another computer (the **server**). The server sends back files. The browser reads them and draws the page.
+
+```diagram
+   your browser   ---- "please send /index.html" ---->   web server
+    (client)      <---- the HTML file (then CSS, JS) ----
+```
+
+Three languages make up a page, each with one job:
+
+| Language | Job | Comparison |
+|---|---|---|
+| **HTML** | What is on the page: structure and content | The skeleton |
+| **CSS** | How it looks | Skin and clothes |
+| **JavaScript** | What it does | Muscles |
+
+**HTML** (HyperText Markup Language) is not a programming language. It has no loops or conditions. It *marks up* content with **tags** that say what each piece is.
+
+```html
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>My first page</title>
+  </head>
+  <body>
+    <h1>Hello</h1>
+    <p>This is a <strong>paragraph</strong>.</p>
+  </body>
+</html>
+```
+
+Most elements have an **opening tag** `<p>`, some content, and a **closing tag** `</p>`. Elements nest inside each other, which forms the tree you met as the DOM.
+
+- `<!doctype html>` tells the browser this is modern HTML.
+- `<head>` holds information *about* the page, not shown in the page itself. `<title>` is the text on the browser tab.
+- `<body>` holds everything the visitor sees.
+
+A tag can have **attributes** that give extra information, written as `name="value"`, such as `lang="en"` above.
+
+> In industry: Browsers are very forgiving of broken HTML and will display something anyway. That makes mistakes easy to miss, which is why teams run validators and linters on their pages.
+#Q What is the job of HTML?
+- Making the page look good
+* Describing the structure and content of the page
+- Storing data on the server
+! HTML says what things are; CSS says how they look; JavaScript says what they do.
+#Q Where does the text shown on the browser tab come from?
+- The first h1
+* The title element inside head
+- The file name
+! `<title>` sets the tab text and the name used in bookmarks and search results.
+
+#LESSON The elements you need most | 14
+A small set of elements builds almost any page.
+
+### Text
+`<h1>` to `<h6>` are headings, from most to least important. Use one `<h1>` per page and do not skip levels. `<p>` is a paragraph. `<strong>` marks importance and `<em>` marks emphasis.
+
+### Links and images
+
+```html
+<a href="https://example.com">Visit Example</a>
+<img src="cat.jpg" alt="A grey cat asleep on a windowsill">
+```
+
+`href` is where the link goes. `src` is the image file. `alt` is text that describes the image for people who cannot see it and for when the image fails to load. Always write it. `<img>` has no closing tag because it has no content.
+
+### Lists
+
+```html
+<ul>
+  <li>Milk</li>
+  <li>Eggs</li>
+</ul>
+```
+
+`<ul>` is an unordered (bulleted) list; `<ol>` is ordered (numbered). Each item is an `<li>`.
+
+### Forms
+
+```html
+<form>
+  <label for="email">Email</label>
+  <input id="email" type="email" required>
+  <button type="submit">Sign up</button>
+</form>
+```
+
+Every input needs a `<label>`. The label's `for` matches the input's `id`, which connects them: clicking the label focuses the box, and screen readers read the label aloud.
+
+### Semantic structure
+Rather than making everything a plain box, HTML has elements that say what part of the page something is:
+
+```html
+<header>…</header>
+<nav>…</nav>
+<main>
+  <article>…</article>
+</main>
+<footer>…</footer>
+```
+
+These are **semantic** elements: they carry meaning. Browsers, search engines and assistive technology use that meaning. When no semantic element fits, use `<div>` (a block) or `<span>` (a piece of text), which mean nothing by themselves.
+
+> Key idea: Choose an element for what the content *is*, never for how it looks by default. Looks are CSS's job.
+#Q Why should every img have an alt attribute?
+- It makes the image load faster
+* It describes the image for people who cannot see it
+- It sets the image size
+! Screen readers read the alt text, and it is shown if the image fails to load.
+#Q Which element is the right choice for the main navigation links of a site?
+- div
+* nav
+- span
+! `<nav>` is the semantic element for navigation.
+
+#LESSON Styling with CSS | 14
+**CSS** (Cascading Style Sheets) controls appearance. A stylesheet is a list of **rules**. Each rule has a **selector** that picks elements and **declarations** that style them.
+
+```css
+h1 {
+  color: navy;
+  font-size: 32px;
+}
+```
+
+Put CSS in a `<style>` element in the head, or better, in a separate file linked with `<link rel="stylesheet" href="style.css">`.
+
+### Selectors
+
+| Selector | Picks |
+|---|---|
+| `p` | every `<p>` element |
+| `.note` | every element with `class="note"` |
+| `#intro` | the one element with `id="intro"` |
+| `nav a` | every `<a>` inside a `<nav>` |
+| `a:hover` | a link while the pointer is over it |
+
+Classes are the workhorse. An element can have several: `class="card featured"`.
+
+### The cascade
+When two rules set the same property on an element, which wins? Roughly: the more **specific** selector wins (an id beats a class, a class beats a tag), and between equals, the **later** rule wins. This is the "cascading" in the name. Keeping selectors simple, mostly single classes, avoids fights.
+
+### The box model
+Every element is a rectangular box with four layers:
+
+```diagram
+  +------------------------------------+
+  |            margin                  |   space outside
+  |   +----------------------------+   |
+  |   |         border             |   |
+  |   |   +--------------------+   |   |
+  |   |   |      padding       |   |   |   space inside
+  |   |   |   +------------+   |   |   |
+  |   |   |   |  content   |   |   |   |
+  |   |   |   +------------+   |   |   |
+  |   |   +--------------------+   |   |
+  |   +----------------------------+   |
+  +------------------------------------+
+```
+
+```css
+.card {
+  padding: 16px;
+  border: 1px solid #ccc;
+  margin: 12px;
+  border-radius: 8px;
+}
+```
+
+Add `* { box-sizing: border-box; }` at the top of your stylesheet so that a width you set includes padding and border. Almost every professional stylesheet starts with it.
+
+### Units
+`px` is a fixed size. `rem` is relative to the user's chosen text size, so it respects their settings; prefer it for text. `%` is relative to the parent.
+#Q Which selector picks every element with class="note"?
+- note
+* .note
+- #note
+! A dot selects by class; a hash selects by id.
+#Q In the box model, what is padding?
+- Space outside the border
+* Space between the content and the border
+- The thickness of the border
+! Padding is inside the border; margin is outside it.
+
+#LESSON Layout with flexbox | 12
+By default, block elements stack vertically, one under another. To put things side by side and control the spacing, use **flexbox**.
+
+Set `display: flex` on a **container**, and its direct children become **flex items** laid out in a row.
+
+```css
+.toolbar {
+  display: flex;
+  gap: 12px;                       /* space between items */
+  justify-content: space-between;  /* spread along the row */
+  align-items: center;             /* line up across the row */
+}
+```
+
+Two properties do most of the work. Think of a row as having a **main axis** (left to right) and a **cross axis** (top to bottom):
+
+- `justify-content` positions items along the main axis: `flex-start`, `center`, `flex-end`, `space-between`.
+- `align-items` positions them on the cross axis: `stretch`, `center`, `flex-start`, `flex-end`.
+
+```diagram
+  justify-content: space-between
+  +------------------------------------------+
+  | [Logo]            [Home] [About] [Login] |   <- align-items: center
+  +------------------------------------------+
+```
+
+### Growing and wrapping
+`flex: 1` on an item tells it to grow and take the spare space. `flex-wrap: wrap` on the container lets items move to a new line when they do not fit.
+
+```css
+.cards { display: flex; flex-wrap: wrap; gap: 16px; }
+.card  { flex: 1 1 240px; }      /* grow, shrink, start at 240px wide */
+```
+
+That one rule makes cards sit three across on a wide screen, two on a tablet and one on a phone, with no further code.
+
+### Columns
+`flex-direction: column` stacks items vertically and swaps which axis is which.
+
+### Centring
+The old joke was that centring something in CSS was impossible. With flexbox it is three lines:
+
+```css
+.hero { display: flex; justify-content: center; align-items: center; }
+```
+
+> In industry: Flexbox handles one-dimensional layouts (a row or a column). For two-dimensional layouts such as a whole-page grid, CSS Grid is the companion tool. Real pages use both.
+#Q What does display: flex on a container do to its direct children?
+- Hides them
+* Lays them out as flex items, in a row by default
+- Makes them all the same colour
+! The children become flex items arranged along the main axis.
+#Q Which property spreads items along the main axis?
+* justify-content
+- align-items
+- flex-wrap
+! `justify-content` works along the main axis; `align-items` works across it.
+
+#LESSON Responsive and accessible pages | 12
+People will open your page on a phone, a tablet, a laptop and a huge monitor. Some will zoom in. Some cannot use a mouse. Some cannot see the screen. A professional page works for all of them.
+
+### Responsive design
+First, every page needs this line in its head, or phones will show a shrunken desktop page:
+
+```html
+<meta name="viewport" content="width=device-width, initial-scale=1">
+```
+
+Then design for the **small screen first** and add layout for larger ones with a **media query**:
+
+```css
+.layout { display: flex; flex-direction: column; }
+
+@media (min-width: 700px) {
+  .layout { flex-direction: row; }
+}
+```
+
+The rules inside `@media` apply only when the condition is true. Flexible units help too: `max-width: 100%` on images stops them overflowing, and a `max-width` on text keeps lines a readable length.
+
+### Accessibility
+Accessibility means people with disabilities can use what you build. Most of it comes from doing HTML properly:
+
+1. **Use semantic elements.** A real `<button>` works with the keyboard and screen readers automatically. A clickable `<div>` does neither.
+2. **Write alt text** for images that carry meaning.
+3. **Label every form control.**
+4. **Keep enough contrast** between text and background.
+5. **Make everything reachable by keyboard.** Press Tab through your page. Can you reach and operate everything? Can you see where you are?
+6. **Do not rely on colour alone** to carry meaning. Add text or an icon.
+
+> Key idea: Accessibility is not an extra feature. It is part of the page working correctly.
+
+### Testing your page
+Narrow the browser window and watch the layout. Use the device toolbar in your browser's developer tools. Tab through with the keyboard. Zoom to 200%.
+
+> In industry: Many countries have laws requiring accessible websites, and the Web Content Accessibility Guidelines (WCAG) are the standard teams are measured against.
+#Q What does a media query do?
+- Plays video on the page
+* Applies CSS rules only when a condition such as screen width is met
+- Loads a different HTML file
+! Media queries adapt the layout to the screen.
+#Q Why use a button element instead of a clickable div?
+- It looks better by default
+* A button already works with the keyboard and assistive technology
+- Divs cannot be clicked
+! Semantic elements bring built-in behaviour and meaning.
+
+#LAB html | A profile card page
+Write a complete HTML page containing a profile card. It must have all of the following.
+
+- A `<title>` in the head.
+- The viewport meta tag.
+- One `<h1>` with a person's name.
+- An image with a `src` and a non-empty `alt` (any image address will do; it does not need to load).
+- A paragraph of text.
+- An unordered list with at least three skills.
+- A link (`<a>`) with an `href`.
+- A `<style>` block that sets `display: flex` somewhere and gives an element with class `card` some `padding`.
+- The card itself must be an element with `class="card"`.
+
+Press Preview to see your page. Press Submit to check it against the requirements.
+@starter
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title></title>
+  <style>
+    /* your CSS here */
+  </style>
+</head>
+<body>
+  <!-- your card here -->
+</body>
+</html>
+@solution
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Ada Lovelace</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { font-family: system-ui, sans-serif; display: flex; justify-content: center; padding: 24px; }
+    .card { padding: 24px; border: 1px solid #ccc; border-radius: 12px; max-width: 360px; }
+  </style>
+</head>
+<body>
+  <main class="card">
+    <img src="ada.jpg" alt="Portrait of Ada Lovelace">
+    <h1>Ada Lovelace</h1>
+    <p>Mathematician and writer of the first published algorithm for a machine.</p>
+    <ul>
+      <li>Mathematics</li>
+      <li>Algorithms</li>
+      <li>Technical writing</li>
+    </ul>
+    <a href="https://example.com/ada">Read more</a>
+  </main>
+</body>
+</html>
+@checks
+The page has a non-empty title :: title ~ /\S/
+The viewport meta tag is present :: meta[name="viewport"]
+There is an h1 with text :: h1 ~ /\S/
+There is an image with a src :: img[src]
+The image has alt text :: img[alt]:not([alt=""])
+There is a paragraph with text :: p ~ /\S/
+There is an unordered list with three or more items :: ul li >= 3
+There is a link with an href :: a[href]
+An element has class card :: .card
+The CSS uses display: flex :: css ~ /display\s*:\s*flex/
+The card has padding :: css ~ /\.card\s*\{[^}]*padding/
+@hints
+The viewport tag is `<meta name="viewport" content="width=device-width, initial-scale=1">` and goes in the head.
+An image needs both `src` and `alt`, and the alt text must not be empty.
+The CSS check looks for a rule that starts `.card {` and contains `padding`.
+`display: flex` can go on the body or on the card.
+
+#EXAM 15
+#Q Which language controls how a web page looks?
+- HTML
+* CSS
+- SQL
+! CSS handles presentation.
+#Q Which tag makes the most important heading?
+* h1
+- h6
+- header
+! Headings run from h1 (most important) to h6.
+#Q What connects a label to its input?
+- They are on the same line
+* The label's for attribute matches the input's id
+- They have the same class
+! The `for`/`id` pair links them for clicks and for screen readers.
+#Q Two rules target the same element: `.note { color: red; }` and `p { color: blue; }`. Which colour is the paragraph with class note?
+* red
+- blue
+- purple
+! A class selector is more specific than a tag selector.
+#Q From the inside out, what is the order of the box model?
+- margin, border, padding, content
+* content, padding, border, margin
+- content, margin, padding, border
+! Padding surrounds content, then border, then margin.
+#Q Which flexbox property lines items up on the cross axis?
+- justify-content
+* align-items
+- flex-direction
+! `align-items` controls the cross axis.
+#Q What is the purpose of the viewport meta tag?
+- It sets the page title
+* It makes the page fit the width of the device, which matters on phones
+- It loads the stylesheet
+! Without it, phones render the page at desktop width and shrink it.
+#W Explain what "semantic HTML" means and give three reasons it matters. Include one example of a semantic element and a non-semantic alternative.
++ Defines semantic HTML as choosing elements by meaning rather than appearance
++ Gives a correct semantic example and a non-semantic alternative (for example nav versus div)
++ Mentions accessibility or assistive technology
++ Mentions search engines, browsers or maintainability
++ Gives three distinct reasons
+
+#PROJECT Personal website
+Build a small personal website of at least two pages that link to each other: a home page about you and a page for your projects (which you will fill as you progress through the university).
+@requirements
+At least two HTML pages linked with a shared navigation
+Semantic structure: header, nav, main and footer
+A separate CSS file used by both pages
+A flexbox layout that changes between phone width and desktop width
+Every image has alt text and every page has a title
+The page can be used with the keyboard alone
+@deliverables
+The HTML and CSS files
+A screenshot at phone width and one at desktop width
+One sentence on something you did for accessibility
+@rubric
+Structure uses semantic HTML correctly | 25
+Styling is consistent and readable | 25
+Layout is responsive | 25
+Accessibility basics are in place | 25
+
+#COURSE c107
+#LESSON The terminal | 12
+Before windows and mice, people controlled computers by typing commands. That method never went away, because for many jobs it is faster, more precise, and can be automated. The window you type into is the **terminal**. The program inside it that reads your commands is the **shell** (common shells are bash and zsh; Windows has PowerShell).
+
+A command has a name, optional **flags** that adjust its behaviour, and **arguments** that say what to act on:
+
+```text
+ls -l Documents
+^  ^  ^
+|  |  argument: which folder
+|  flag: long, detailed listing
+command: list files
+```
+
+### Where am I?
+The shell is always "in" one folder, called the **working directory**.
+
+| Command | Meaning |
+|---|---|
+| `pwd` | print working directory: show where I am |
+| `ls` | list what is here |
+| `cd Documents` | change directory: go into Documents |
+| `cd ..` | go up one level |
+| `cd` | go to your home folder |
+
+### Getting help
+`man ls` shows the manual page for a command. Most commands also accept `--help`.
+
+### Time-savers
+- **Tab** completes file and command names. Use it constantly; it also prevents typos.
+- **Up arrow** recalls previous commands.
+- **Ctrl+C** stops a running command.
+
+> Key idea: The terminal is not harder than clicking, only less familiar. Every command is a small program that does one thing.
+
+Learn's **Terminal Basics** track on the main page has a simulated terminal where you can practise all of this safely.
+
+> In industry: Servers generally have no screen or mouse at all. Engineers connect to them remotely and work entirely in a terminal, so this skill is required, not optional.
+#Q What does pwd show?
+- Your password
+* The folder you are currently in
+- A list of files
+! It prints the working directory.
+#Q In `ls -l Documents`, what is `-l`?
+- An argument
+* A flag that changes how the command behaves
+- A file name
+! Flags usually start with a dash and modify the command.
+
+#LESSON Files, folders and paths | 12
+A disk's files are organised as a tree of folders (also called **directories**). The top of the tree is the **root**, written `/` on Linux and macOS. On Windows each drive has its own root, such as `C:\`.
+
+```diagram
+  /
+  +-- home
+  |    +-- ada
+  |         +-- notes.txt
+  |         +-- projects
+  |              +-- site
+  |                   +-- index.html
+  +-- etc
+  +-- usr
+```
+
+A **path** is the route to a file. There are two kinds:
+
+- An **absolute path** starts from the root and works from anywhere: `/home/ada/projects/site/index.html`.
+- A **relative path** starts from where you are now. If you are in `/home/ada`, the same file is `projects/site/index.html`.
+
+Special names: `.` is the current folder, `..` is the parent folder, `~` is your home folder.
+
+### Working with files
+
+| Command | Meaning |
+|---|---|
+| `mkdir notes` | make a directory |
+| `touch todo.txt` | create an empty file |
+| `cp a.txt b.txt` | copy |
+| `mv a.txt docs/` | move (also used to rename) |
+| `rm a.txt` | remove a file |
+| `rm -r old` | remove a folder and everything in it |
+| `cat notes.txt` | print a file's contents |
+
+> Warning: `rm` does not use a recycle bin. What you delete is gone. Check where you are with `pwd` and what you are about to delete with `ls` before running it.
+
+### Extensions
+The part of a name after the last dot (`.txt`, `.py`, `.html`) is the **extension**. It is only a hint about what the file contains; renaming `photo.jpg` to `photo.txt` does not change the data.
+
+### Hidden files
+Names beginning with a dot, such as `.gitignore`, are hidden by default. `ls -a` shows them. They are usually configuration.
+
+> In industry: Bugs caused by wrong paths are extremely common: a program run from a different folder cannot find its files. Knowing the difference between absolute and relative paths fixes most of them.
+#Q You are in /home/ada. Which is a relative path to /home/ada/projects/site?
+- /projects/site
+* projects/site
+- ~/site
+! A relative path starts from the current folder and has no leading slash.
+#Q What does `..` mean in a path?
+- The home folder
+- The current folder
+* The parent folder
+! `..` goes up one level.
+
+#LESSON Combining commands | 10
+The real power of the shell is that small commands can be joined.
+
+### Redirection
+Normally a command prints to the screen. `>` sends its output to a file instead, and `>>` adds to the end of a file:
+
+```text
+ls > files.txt          # save the listing (replacing the file)
+echo "done" >> log.txt  # add a line to the end
+```
+
+### Pipes
+The pipe `|` feeds the output of one command into the input of the next:
+
+```text
+cat names.txt | sort | uniq | wc -l
+```
+
+Read it left to right: print the names, sort them, remove duplicates, count the lines. Four tiny tools, one answer: how many different names are in the file.
+
+| Tool | Does |
+|---|---|
+| `grep word file` | show lines containing word |
+| `sort` | sort lines |
+| `uniq` | drop repeated neighbouring lines |
+| `wc -l` | count lines |
+| `head -n 5` | first 5 lines |
+| `tail -n 5` | last 5 lines |
+
+Finding every line with "error" in a log and counting them:
+
+```text
+grep error server.log | wc -l
+```
+
+### Scripts
+Put commands in a file and you have a **script**: a program made of shell commands.
+
+```text
+#!/usr/bin/env bash
+mkdir -p backup
+cp *.txt backup/
+echo "Backed up"
+```
+
+`*.txt` is a **wildcard** meaning "every name ending in .txt". The first line tells the system which program should run the script.
+
+### Environment variables
+The shell keeps named settings such as `PATH` (the folders searched for commands) and `HOME`. `echo $HOME` prints one. Programs read them for configuration.
+
+> Key idea: Small programs that each do one thing, joined by text streams. This idea, the "Unix philosophy", shaped how good software is designed far beyond the terminal.
+
+> In industry: Deployment, builds and data clean-up are automated with scripts like these. A task you would do by hand twice is a task worth scripting.
+#Q What does the pipe symbol | do?
+- Saves output to a file
+* Sends one command's output into the next command's input
+- Runs two commands at the same time
+! Pipes chain commands so each works on the previous one's output.
+#Q What does `ls > files.txt` do?
+- Lists files and also the contents of files.txt
+* Writes the listing into files.txt instead of the screen
+- Compares the folder with files.txt
+! `>` redirects output to a file.
+
+#LESSON Git: saving the history of your work | 14
+Imagine files named `essay_final.doc`, `essay_final2.doc`, `essay_REALLY_final.doc`. **Version control** replaces that mess. It records snapshots of your project so you can see what changed, when and why, and go back to any earlier state. The standard tool is **Git**.
+
+### The three areas
+Git tracks your work in three places, and understanding them removes most confusion:
+
+```diagram
+  working folder   --- git add --->   staging area   --- git commit --->   repository
+  (files you edit)                    (what will go                        (permanent
+                                       into the next                        history of
+                                       snapshot)                            snapshots)
+```
+
+A **repository** (repo) is a project folder plus its full history. A **commit** is one snapshot, with a message explaining it.
+
+### The everyday cycle
+
+```text
+git init                       # start tracking this folder (once)
+git status                     # what has changed?
+git add index.html             # stage a file
+git commit -m "Add home page"  # save the snapshot
+git log --oneline              # view the history
+```
+
+`git status` is the command you will run most. It tells you exactly what state things are in and often suggests what to do next.
+
+### What makes a good commit
+- **Small and focused**: one logical change.
+- **A clear message** in the imperative: "Fix login error for empty password", not "stuff" or "changes".
+
+Future you, searching for when a bug appeared, will be grateful.
+
+### Seeing and undoing
+`git diff` shows what you changed since the last commit. `git restore file` throws away uncommitted changes to a file. Because every commit is kept, almost nothing committed is ever truly lost.
+
+### What not to commit
+A file named `.gitignore` lists things Git should leave out: generated files, downloaded packages, and above all **secrets** such as passwords and keys.
+
+> Warning: A secret committed to a repository stays in its history even after you delete the file. Treat any secret that was ever committed as leaked and replace it.
+#Q What is a commit?
+- A copy of one file
+* A saved snapshot of the project with a message
+- A message sent to another developer
+! Each commit records the state of the tracked files at one moment.
+#Q What does `git add` do?
+- Saves a snapshot permanently
+* Puts changes in the staging area, ready for the next commit
+- Uploads files to the internet
+! Staging chooses what the next commit will contain.
+
+#LESSON Remotes and GitHub | 10
+So far the history lives only on your computer. A **remote** is a copy of the repository somewhere else, usually on a hosting service such as **GitHub**, GitLab or Bitbucket. Remotes give you a backup and a way to work with other people.
+
+Git is the tool. GitHub is one website that hosts Git repositories and adds features around them.
+
+```diagram
+   your computer                        GitHub
+   +-----------+     git push ---->   +-----------+
+   |  local    |                      |  remote   |
+   |  repo     |    <---- git pull    |  repo     |
+   +-----------+                      +-----------+
+```
+
+### The commands
+
+| Command | Meaning |
+|---|---|
+| `git clone URL` | download a repository and its history |
+| `git remote add origin URL` | connect an existing local repo to a remote |
+| `git push` | send your new commits to the remote |
+| `git pull` | fetch others' commits and merge them into yours |
+
+`origin` is simply the conventional name for the main remote.
+
+### A typical day
+1. `git pull` to get the latest work.
+2. Edit, `git add`, `git commit`, perhaps several times.
+3. `git push` to share it.
+
+### README
+A file called `README.md` at the top of a repository is shown on its front page. It should say what the project is, how to run it and how to contribute. It is written in **Markdown**, a simple text format where `# Title` is a heading and `- item` is a list.
+
+### Publishing a website for free
+GitHub Pages will serve the HTML files in a repository as a live website. The Learn site you are using is hosted this way.
+
+### Your public record
+Your GitHub profile becomes a visible history of what you have built. The projects from this university belong there.
+
+> In industry: Nearly all professional software is developed with Git and a hosting service. In Stage 2 you will learn the team workflow built on top: branches, pull requests and code review.
+#Q What is the difference between Git and GitHub?
+- They are the same thing
+* Git is the version control tool; GitHub is a service that hosts Git repositories
+- GitHub is the newer version of Git
+! Git runs on your computer. GitHub hosts remote copies and adds collaboration features.
+#Q Which command sends your commits to the remote?
+- git pull
+* git push
+- git add
+! `push` uploads; `pull` downloads and merges.
+
+#EXAM 15
+#Q Which command changes to another folder?
+- ls
+* cd
+- pwd
+! `cd` means change directory.
+#Q Which path is absolute?
+* /home/ada/notes.txt
+- notes.txt
+- ../notes.txt
+! An absolute path begins at the root.
+#Q What does `rm -r old` do?
+- Renames the folder old
+* Deletes the folder old and everything inside it
+- Lists the folder old
+! `-r` makes `rm` recurse into the folder. There is no undo.
+#Q What does `grep error log.txt | wc -l` report?
+- The first line containing error
+* The number of lines containing error
+- The size of log.txt
+! `grep` selects the matching lines and `wc -l` counts them.
+#Q In Git, what is the staging area for?
+- Storing old versions
+* Choosing which changes go into the next commit
+- Holding files that are ignored
+! `git add` stages changes; `git commit` records what is staged.
+#Q Which is the best commit message?
+- update
+- fixed stuff
+* Fix crash when the task list is empty
+! It is specific, focused and says what the change does.
+#Q Why should passwords never be committed?
+- Git cannot store text
+* They remain in the history even after the file is deleted
+- They make the repository too large
+! History is permanent, so a committed secret must be considered exposed.
+#W Describe the steps, with commands, to start a new project folder, put it under Git, make a first commit and publish it to a new empty repository on GitHub.
++ Creates and enters a folder (mkdir, cd)
++ Initialises the repository (git init)
++ Stages and commits with a meaningful message
++ Adds the remote (git remote add origin URL)
++ Pushes the commits
++ Commands are in a workable order
+
+#PROJECT Basic command-line application
+Write a small command-line program and manage it properly with Git. Suggested: a notes tool where `notes add "text"` saves a note to a file and `notes list` prints all notes with numbers. Any language is fine.
+@requirements
+The program takes its instructions from command-line arguments or typed commands
+It reads from and writes to a file, so data survives between runs
+It prints a helpful message when used incorrectly
+The project is a Git repository with at least five meaningful commits
+The repository has a README explaining how to run the program
+A .gitignore is present
+@deliverables
+The repository (a link if it is on GitHub, otherwise the folder)
+The output of `git log --oneline`
+@rubric
+The program works and keeps its data | 35
+Commit history is small, focused and well described | 25
+The README lets someone else run it | 20
+Incorrect use is handled helpfully | 20
+
+#COURSE c108
+#LESSON Planning before you type | 12
+Small exercises tell you exactly what to write. Projects do not, and that is the hard part. Most beginners fail projects not because the code is difficult but because they start typing before they know what they are building.
+
+A plan for a small project fits on one page.
+
+### 1. One sentence
+"A calculator that reads an expression like `12 * 4` and prints the answer." If you cannot write the sentence, you do not understand the project yet.
+
+### 2. What it must do
+List the features as things a user can do. Mark each **must**, **should** or **could**. Build the musts first. Most abandoned projects died trying to build the coulds.
+
+### 3. Walk through one use
+Write down exactly what the user sees and types in one complete run. This small script uncovers questions you had not thought of: what happens on bad input? How does the user quit?
+
+### 4. Break it into functions
+Apply decomposition. For each function write its name, what goes in and what comes out. Do not write the bodies yet.
+
+```text
+read_expression()            -> text typed by the user
+parse(text)                  -> (number, operator, number) or None
+calculate(a, operator, b)    -> number
+main()                       -> the loop that ties them together
+```
+
+### 5. Order of work
+Build the smallest thing that runs end to end, even if it does almost nothing. Then grow it one feature at a time, running it after each step. A program that works at every stage is never far from working.
+
+> Key idea: Always have a working program. Add one small thing, run it, see it work, then add the next. Large untested leaps are where projects get lost.
+
+### 6. Decide what "done" means
+Write the checks you will run at the end. This becomes your test list.
+
+> In industry: Teams call the smallest end-to-end version a "walking skeleton" or a "minimum viable product". Shipping it early and improving it is the normal way software is built.
+#Q What should you build first in a project?
+- The most interesting feature
+* The smallest version that runs end to end
+- The user interface colours
+! A thin working version gives you something to test and grow.
+#Q Why label features must, should and could?
+- To make the plan longer
+* So the essential features get built first and the project gets finished
+- Because all features are equally important
+! Prioritising protects you from running out of time on extras.
+
+#LESSON Guided build: calculator and guessing game | 14
+Two console projects, built the way the last lesson described. Read the walkthrough, then build each yourself without copying.
+
+### Calculator
+**Sentence:** read an expression such as `12 * 4`, print the result, repeat until the user types `quit`.
+
+**Step 1: the skeleton.** A loop that reads a line and echoes it back, and stops on `quit`. Run it.
+
+**Step 2: parsing.** Split the line on spaces into three parts. If there are not exactly three, report an error. Convert the first and third to numbers; if that fails, report an error.
+
+```py
+def parse(text):
+    parts = text.split()
+    if len(parts) != 3:
+        return None
+    try:
+        return float(parts[0]), parts[1], float(parts[2])
+    except ValueError:
+        return None
+```
+
+`try` and `except` are how Python handles an error without stopping: attempt the conversion, and if it raises `ValueError`, run the `except` block instead.
+
+**Step 3: calculating.** A function that takes two numbers and an operator and returns the result. It has no `print` and no `input`, so it can be tested alone. Decide what it does for division by zero.
+
+**Step 4: join them** in the loop and try your test list: normal cases, negative numbers, decimals, division by zero, nonsense.
+
+### Number guessing game
+**Sentence:** the computer picks a number from 1 to 100; the player guesses until right, with "too high" or "too low" hints.
+
+The structure is a `while` loop that continues until the guess is correct, with a counter. The design decisions are the interesting part:
+
+- What if the player types letters? Use the same `try`/`except` idea and ask again without counting the attempt.
+- Should there be a maximum number of guesses?
+- With good play, how many guesses are needed at most? Always guessing the middle of the remaining range halves it each time, so seven guesses are enough for 100 numbers. You have just discovered **binary search**, which you will study formally in Stage 2.
+
+> In industry: Separating "work out the answer" from "talk to the user" is the first step toward every architecture pattern you will learn later. The talking part changes often; the logic should not have to.
+#Q Why should the calculate function contain no print or input?
+- It would run slower
+* So it can be tested on its own and reused with a different interface
+- Python does not allow it
+! Logic that only takes values and returns values is easy to test and reuse.
+#Q What does try / except do?
+- Repeats code until it works
+* Runs code and, if a named error occurs, runs the except block instead of crashing
+- Hides all errors permanently
+! It lets the program recover from an expected error.
+
+#LESSON Guided build: personal website | 10
+Your personal site is a project you will keep for the whole university, adding each finished project to it.
+
+### Plan
+**Sentence:** a two-page site that says who I am and lists what I have built.
+
+**Pages:** `index.html` (about me) and `projects.html` (a list of project cards). Both share one `style.css` and the same header and footer.
+
+### Build order
+1. **Content first, no CSS.** Write both pages in plain semantic HTML: header with site name and nav, main with the content, footer. Check it reads sensibly as a plain document. If the unstyled page makes sense, the structure is right.
+2. **Base styles.** Font, colours, a maximum width for text, spacing. Define your colours once as CSS variables so you can change them in one place:
+
+```css
+:root { --ink: #1c2333; --accent: #2437d6; --paper: #f7f8fc; }
+body  { color: var(--ink); background: var(--paper); font-family: system-ui, sans-serif; }
+a     { color: var(--accent); }
+```
+
+3. **Layout for a phone.** A single column. Make the navigation a flex row that wraps.
+4. **Layout for wider screens.** Add a media query so project cards sit side by side.
+5. **Check.** Keyboard only. Zoomed to 200%. A narrow window. Every image has alt text.
+
+### The project card
+Each project gets a small card: a title, one or two sentences on what it does and what you learned, and a link.
+
+```html
+<article class="card">
+  <h3>Number guessing game</h3>
+  <p>A console game in Python. I learned loops and input validation.</p>
+  <a href="https://github.com/you/guessing-game">View the code</a>
+</article>
+```
+
+### Publish it
+Put the folder in a Git repository, push it to GitHub and switch on GitHub Pages in the repository settings. Your site is then live at a public address.
+
+> In industry: "Content first, then presentation" is how professional teams work too. Designing how a page looks before knowing what it must say leads to layouts that break when the real content arrives.
+#Q Why write the pages in plain HTML before adding any CSS?
+- CSS cannot be added later
+* It confirms the structure and content make sense on their own
+- It makes the page load faster
+! Sound structure first; presentation second.
+#Q What is the benefit of defining colours as CSS variables?
+- The page uses less memory
+* A colour can be changed in one place and updates everywhere
+- Variables are required for flexbox
+! One definition, many uses.
+
+#LESSON Guided build: to-do app and command-line tool | 12
+Two projects that both store data, which raises a new question: where does the data live when the program is not running?
+
+### To-do application (browser)
+**State:** an array of task objects. Everything shown on the page is derived from it.
+
+**The loop:** an event changes the state, then one `render` function redraws the whole list from the state. Redrawing everything is simpler and less error-prone than trying to edit the page piece by piece.
+
+```js
+let tasks = load();
+
+function render() {
+  const list = document.querySelector("#list");
+  list.innerHTML = "";
+  tasks.forEach((task, index) => {
+    const li = document.createElement("li");
+    li.textContent = task.text;
+    if (task.done) li.classList.add("done");
+    li.addEventListener("click", () => { tasks = toggleTask(tasks, index); save(); render(); });
+    list.appendChild(li);
+  });
+}
+```
+
+**Saving:** browsers provide `localStorage`, a small key-value store that survives reloads. It only holds strings, so convert with JSON:
+
+```js
+const save = () => localStorage.setItem("tasks", JSON.stringify(tasks));
+const load = () => JSON.parse(localStorage.getItem("tasks") || "[]");
+```
+
+### Command-line notes tool
+The same idea outside the browser. The program starts, **reads** a file into memory, makes a change, **writes** the file back, and exits.
+
+```py
+import json, sys
+
+def load():
+    try:
+        with open("notes.json") as f:
+            return json.load(f)
+    except FileNotFoundError:
+        return []
+
+def save(notes):
+    with open("notes.json", "w") as f:
+        json.dump(notes, f)
+```
+
+`sys.argv` is the list of words typed on the command line, so `python notes.py add "Buy milk"` gives `["notes.py", "add", "Buy milk"]`. Check its length before using it and print a usage message if it is wrong.
+
+### The shared lesson
+Both programs have the same three layers: **storage** (load, save), **logic** (add, toggle, list) and **interface** (the page or the command line). Keep them apart and you can change one without touching the others.
+
+> In industry: This is the seed of "layered architecture", which you will study in Stage 3. Replace the file with a database and the page with a mobile app, and the logic layer should not need to change.
+#Q In the to-do app, what should the page display be derived from?
+- The HTML that was there before
+* The state: the array of tasks
+- The contents of localStorage only
+! State is the single source of truth; the page is redrawn from it.
+#Q Why is JSON.stringify needed when saving to localStorage?
+- To compress the data
+* localStorage stores only strings
+- To encrypt the data
+! Objects and arrays must be converted to text first.
+
+#LESSON Finishing and presenting your work | 10
+An unfinished project teaches less and shows nothing. Finishing is a skill of its own.
+
+### Test it like a stranger would
+You know how your program is supposed to be used, so you unconsciously use it correctly. Deliberately do the wrong things:
+
+- Empty input. Very long input. Letters where numbers belong.
+- The first and last item of every list.
+- Doing things in an unexpected order, or twice.
+
+Write the cases down with the expected result. Run them again after every change, because fixing one thing often breaks another. (An automated way to do this is coming in Stage 2.)
+
+### Read your own code
+Leave it for a day, then read it from top to bottom as if someone else wrote it.
+
+- Is any name unclear? Rename it.
+- Is any function doing two jobs? Split it.
+- Is the same code written twice? Make it a function.
+- Is there code that is no longer used? Delete it.
+
+Improving code's structure without changing what it does is called **refactoring**.
+
+### Write the README
+Four short sections are enough:
+
+1. **What it is**, in one or two sentences.
+2. **How to run it**, exact commands.
+3. **How to use it**, with an example.
+4. **What you learned**, and what you would do next.
+
+### Show it
+Put it on GitHub and add a card to your personal site. Explaining a project to someone, in writing or aloud, is the best test of whether you understand it.
+
+### Reflect
+After each project, write three lines: what went well, what was hard, what you will do differently. People who do this improve much faster than people who simply start the next project.
+
+> In industry: "Done" at work means tested, reviewed, documented and released, not "it ran once on my computer". Building that habit now is worth more than any single language feature.
+#Q Why is it hard to test your own program well?
+- Your computer is too fast
+* You tend to use it the way you intended, and miss the unexpected cases
+- Tests need special software
+! Deliberately trying wrong and unusual inputs finds what normal use misses.
+#Q What is refactoring?
+- Adding new features
+- Fixing bugs
+* Improving the structure of code without changing its behaviour
+! The program does the same thing; the code is clearer.
+
+#LAB js | Calculator engine
+Write the logic of a calculator as pure functions, with no input or output.
+
+- `parse(text)` takes text such as `"12 * 4"` and returns an array `[12, "*", 4]`. The three parts are separated by spaces. Extra spaces at the ends or between parts are allowed. If the text does not have exactly three parts, or either number is not a valid number, or the operator is not one of `+ - * /`, return `null`.
+- `calculate(a, op, b)` returns the result of the operation. Dividing by zero returns `null`.
+- `evaluate(text)` combines them: it returns the numeric result, or the string `"error"` if the text cannot be parsed or the result is `null`.
+@starter
+function parse(text) {
+  return null;
+}
+
+function calculate(a, op, b) {
+  return null;
+}
+
+function evaluate(text) {
+  return "error";
+}
+@solution
+function parse(text) {
+  const parts = text.trim().split(/\s+/);
+  if (parts.length !== 3) return null;
+  const a = Number(parts[0]), b = Number(parts[2]);
+  if (parts[0] === "" || Number.isNaN(a) || Number.isNaN(b)) return null;
+  if (!["+", "-", "*", "/"].includes(parts[1])) return null;
+  return [a, parts[1], b];
+}
+
+function calculate(a, op, b) {
+  if (op === "+") return a + b;
+  if (op === "-") return a - b;
+  if (op === "*") return a * b;
+  if (op === "/") return b === 0 ? null : a / b;
+  return null;
+}
+
+function evaluate(text) {
+  const p = parse(text);
+  if (p === null) return "error";
+  const r = calculate(p[0], p[1], p[2]);
+  return r === null ? "error" : r;
+}
+@tests
+parse("12 * 4") => [12, "*", 4]
+parse("  3   +  5 ") => [3, "+", 5]
+parse("1.5 - 2") => [1.5, "-", 2]
+parse("12 *") => null
+parse("a + 4") => null
+parse("3 ^ 4") => null
+parse("") => null
+calculate(6, "/", 3) => 2
+calculate(6, "/", 0) => null
+calculate(2, "-", 5) => -3
+evaluate("12 * 4") => 48
+evaluate("7 / 0") => "error"
+evaluate("hello") => "error"
+evaluate("10 - 2.5") => 7.5
+@hints
+`text.trim().split(/\s+/)` splits on any run of spaces, so extra spaces do not create empty parts.
+`Number("abc")` gives `NaN`. Test it with `Number.isNaN(value)`, because `NaN === NaN` is false.
+Check the operator against a list of the four allowed symbols.
+`evaluate` should not repeat any logic: call `parse`, then `calculate`, and turn `null` into `"error"`.
+
+#EXAM 15
+#Q What is the first thing a project plan should contain?
+- A list of colours
+* A one-sentence description of what is being built
+- The complete code
+! If you cannot say it in a sentence, the goal is not yet clear.
+#Q What is a "walking skeleton"?
+- A program with no functions
+* The smallest version of a program that works end to end
+- A diagram of the file system
+! It runs from start to finish, even if it does very little, and is then grown.
+#Q Which belongs in the logic layer of the to-do app?
+- document.querySelector
+- localStorage.setItem
+* A function that returns a new task list with one task toggled
+! Logic takes data and returns data, without touching the page or storage.
+#Q What does `except FileNotFoundError:` let a program do?
+- Create files faster
+* Carry on sensibly when the file does not exist yet
+- Delete missing files
+! It handles the expected case of a first run with no saved data.
+#Q Which test case is most likely to reveal a bug?
+- The example from the instructions
+* Empty input
+- A typical, valid input
+! Edge cases such as empty, zero and very large inputs find what typical cases miss.
+#Q When should you re-run your test cases?
+- Once, at the very end
+* After every change
+- Only when a user complains
+! A fix in one place often breaks another.
+#Q What should a README contain at minimum?
+- The author's biography
+* What the project is and how to run it
+- Every line of code explained
+! Someone else should be able to understand and run the project from it.
+#W You are asked to build a "contacts" program that stores names and phone numbers. Write a one-page plan: the one-sentence description, features marked must, should or could, the functions with their inputs and outputs, and the order you would build them in.
++ Has a clear one-sentence description
++ Lists features with sensible priorities
++ Separates storage, logic and interface
++ Names functions with inputs and outputs
++ Proposes building a minimal end-to-end version first
++ Mentions how it will be tested
+
+#PROJECT Stage 1 portfolio: five small applications
+Complete all five Stage 1 projects and present them together. If you finished them in their own courses, this project is about polishing and publishing.
+
+The five: calculator, number guessing game, personal website, to-do application, basic command-line application.
+@requirements
+All five applications are finished and work
+Each has a README with what it is and how to run it
+Each has been tested with a written list of cases including edge cases
+Logic is separated from input and output in the calculator and the to-do app
+All five are linked from the projects page of your personal website
+You have written a short reflection for each
+@deliverables
+Links to the five repositories or the five folders
+The address or screenshot of your projects page
+The five reflections (three lines each)
+@rubric
+The five applications work | 40
+Code is readable and organised into functions | 20
+Testing and edge cases are documented | 15
+READMEs and the portfolio page present the work clearly | 15
+Reflections show what was learned | 10

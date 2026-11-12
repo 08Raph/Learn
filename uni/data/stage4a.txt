@@ -1,0 +1,2434 @@
+#COURSE c401
+#LESSON Why distributed systems are hard | 14
+A **distributed system** is a set of computers that cooperate by passing messages and present themselves as one system. You build one when a single machine is not enough: not enough capacity, not enough reliability, or not close enough to your users.
+
+Leslie Lamport's description is still the best: a distributed system is one in which the failure of a computer you did not know existed can render your own computer unusable.
+
+### What changes when there are several machines
+On one machine, a function call either returns or the whole program has crashed. Across a network, a third outcome appears: **you do not know**.
+
+```diagram
+   client ---- request ---->  server         did the request arrive?
+   client      (silence)                     did the server crash before, during or after?
+                                             did only the reply get lost?
+```
+
+After a timeout, the client cannot tell these cases apart. This single uncertainty is the source of most of the difficulty.
+
+### The fallacies of distributed computing
+Assumptions that are false and that new designs keep making:
+
+1. The network is reliable.
+2. Latency is zero.
+3. Bandwidth is infinite.
+4. The network is secure.
+5. Topology does not change.
+6. There is one administrator.
+7. Transport cost is zero.
+8. The network is homogeneous.
+
+### Partial failure
+Some machines work while others have failed, and some messages arrive while others do not. A **network partition** splits the system into groups that cannot reach each other, each believing the other may be dead. Machines also fail in subtler ways: running slowly, pausing for seconds during garbage collection, or returning wrong answers.
+
+### No shared clock
+Each machine's clock drifts. Two timestamps from different machines cannot reliably say which event happened first. "The latest write wins" is therefore not well defined without more machinery, which the next lessons provide.
+
+### Failure models
+Designs state what they tolerate:
+
+- **Crash failure:** a node stops and stays stopped.
+- **Crash-recovery:** it stops and may return, having lost its memory.
+- **Omission:** messages are lost.
+- **Byzantine:** a node behaves arbitrarily, even maliciously. Tolerating this is far more expensive and is needed mainly where participants do not trust each other.
+
+### Timing models
+In a **synchronous** model, message delays have a known bound. In an **asynchronous** model, they have none. Real networks are in between: usually prompt, occasionally not. Since you cannot distinguish a slow node from a dead one, every failure detector based on timeouts will sometimes be wrong.
+
+> Key idea: In a distributed system, "I did not get a reply" does not mean "it did not happen". Every design must say what it does about that.
+#Q A client sends a request and receives no reply before its timeout. What can it conclude?
+- The request was not processed
+- The server has crashed
+* Nothing certain: the request may or may not have been processed
+! Lost request, crashed server and lost reply are indistinguishable.
+#Q Why can timestamps from different machines not be used to order events reliably?
+- Timestamps are too long
+* Clocks on different machines drift and are never perfectly synchronised
+- Machines use different time zones
+! Small clock differences can reverse the apparent order of events.
+
+#LESSON Time, ordering and logical clocks | 13
+If physical clocks cannot order events, what can? Lamport's insight: for most purposes you do not need the *time*, only the **order**, and only where one event could have influenced another.
+
+### Happened-before
+Event *a* **happened before** event *b* (written a → b) if:
+
+- they are on the same node and *a* came first, or
+- *a* is the sending of a message and *b* its receipt, or
+- there is a chain of such steps from *a* to *b*.
+
+If neither a → b nor b → a, the events are **concurrent**: neither could have affected the other, and no order between them is meaningful.
+
+### Lamport clocks
+Each node keeps a counter.
+
+1. Before each local event, increment it.
+2. Attach the counter to every message sent.
+3. On receiving a message, set the counter to `max(own, received) + 1`.
+
+```diagram
+   A:  1 ---- 2 ---------------------- 5
+               \                      /
+   B:  1 ------ 3 ---- 4 ------------
+```
+
+If a → b then the timestamp of *a* is less than that of *b*. The reverse does not hold: a smaller timestamp does not prove that one event came first. Lamport clocks give a consistent total order (break ties by node ID), which is enough for many algorithms.
+
+### Vector clocks
+To tell whether two events are ordered or **concurrent**, each node keeps a **vector**: one counter per node.
+
+1. Increment your own entry on each event.
+2. Send the whole vector with each message.
+3. On receipt, take the element-wise maximum, then increment your own entry.
+
+Compare two vectors V and W:
+
+- V **precedes** W if every entry of V is less than or equal to the matching entry of W, and at least one is strictly less.
+- If neither precedes the other, the events are **concurrent**.
+
+```text
+[2, 1, 0]  precedes   [2, 3, 0]
+[2, 1, 0]  and  [1, 2, 0]   are concurrent: a conflict to resolve
+```
+
+Databases in the Dynamo family use this to detect when two replicas accepted conflicting writes, so that the conflict can be resolved deliberately and not lost silently.
+
+### Physical time still matters
+For timeouts, expiry and human-readable logs you need real clocks, synchronised with NTP to within milliseconds. Some systems go further: Google's Spanner uses GPS and atomic clocks to bound clock error and waits out the uncertainty, which lets it order transactions globally.
+
+> Key idea: Ordering in a distributed system comes from causality, tracked by logical clocks, not from wall-clock time.
+#Q What does it mean for two events to be concurrent?
+- They happened at exactly the same time
+* Neither happened before the other, so neither could have influenced the other
+- They occurred on the same machine
+! Concurrency is defined by causality, not by clock time.
+#Q What can vector clocks determine that Lamport clocks cannot?
+- The physical time of an event
+* Whether two events are causally ordered or concurrent
+- Which node is the leader
+! Comparing vectors element by element reveals concurrency.
+
+#LESSON Replication and consistency | 15
+**Replication** keeps copies of the same data on several machines, for availability (survive a failure), for scale (spread reads) and for latency (keep data near users). The difficulty is keeping the copies in agreement while they change.
+
+### Three architectures
+**Single leader.** All writes go to one node, the **leader**, which sends a stream of changes to **followers**. Reads may go to any node. Simple and common. If the leader fails, a follower is promoted (**failover**), which is where things go wrong: two nodes may both believe they are leader (**split brain**).
+
+**Multi-leader.** Several nodes accept writes, typically one per region. Writes are fast everywhere but can conflict.
+
+**Leaderless.** Any replica accepts writes. With N replicas, a write waits for W acknowledgements and a read queries R replicas. If **W + R > N**, the read and write sets must overlap, so a read sees at least one copy of the latest write. This is a **quorum**.
+
+```text
+N = 3, W = 2, R = 2:   2 + 2 > 3   reads overlap writes
+N = 3, W = 1, R = 1:   1 + 1 < 3   fast, may read stale data
+```
+
+### Synchronous and asynchronous replication
+With **synchronous** replication the leader waits for followers before confirming a write: no data is lost on failover, but a slow follower slows everything. With **asynchronous** replication the leader confirms at once: fast, but a crash can lose recent writes, and followers lag.
+
+### Replication lag and its anomalies
+- You write, then read from a lagging follower, and your own change is missing. Remedy: **read-your-writes**, for example by reading from the leader for a while after writing.
+- Successive reads hit different followers and time appears to go backwards. Remedy: **monotonic reads**, by always using the same replica.
+
+### Consistency models
+A consistency model is a promise about what reads may return.
+
+- **Linearizability** (strong consistency): the system behaves as if there were one copy, and every operation took effect at a single instant. Easiest to reason about, most costly.
+- **Causal consistency:** operations that are causally related appear in order; concurrent ones may not.
+- **Eventual consistency:** if writes stop, all replicas eventually agree. Nothing is promised in the meantime.
+
+### The CAP theorem
+When a network **partition** occurs, a system must choose: refuse some requests to stay **consistent**, or answer all requests and risk inconsistency to stay **available**. It cannot do both. Partitions are not optional, so CAP is really a statement about behaviour during failure.
+
+The broader **PACELC** formulation adds: even when there is no partition (Else), you trade **latency** against **consistency**.
+
+### Conflict resolution
+When concurrent writes conflict: **last write wins** (simple, loses data), keep both versions and let the application merge, or use **CRDTs** that merge automatically.
+
+> In industry: Choosing the consistency you need per piece of data is a central design skill. A bank balance and a "likes" count have different requirements, and paying for the stronger guarantee everywhere is wasteful.
+#Q With N = 5 replicas, which setting guarantees that a read sees the latest acknowledged write?
+- W = 2, R = 2
+* W = 3, R = 3
+- W = 1, R = 4
+! W + R must exceed N: 3 + 3 = 6 > 5.
+#Q During a network partition, what does the CAP theorem say a system must give up one of?
+- Speed or storage
+* Consistency or availability
+- Reads or writes
+! It either refuses some requests or risks returning inconsistent data.
+
+#LESSON Consensus | 14
+**Consensus** is getting several nodes to agree on a value, permanently, even though some may crash and messages may be delayed. It underlies leader election, distributed locks, configuration stores and replicated databases.
+
+A correct consensus protocol guarantees:
+
+- **Agreement:** no two nodes decide differently.
+- **Validity:** the decided value was proposed by some node.
+- **Termination:** every non-faulty node eventually decides.
+
+### An impossibility result
+The **FLP theorem** (Fischer, Lynch and Paterson, 1985) proves that in a fully asynchronous system, no deterministic protocol can guarantee consensus if even one node may crash. Real protocols get round this by assuming the network is *usually* timely: they always stay **safe** (never disagree) and make **progress** whenever the network behaves.
+
+### Majorities
+The key tool is the **quorum**: a majority of nodes. Any two majorities share at least one node, so two conflicting decisions cannot both be approved. A cluster of 2f + 1 nodes tolerates f failures: 3 nodes tolerate 1, 5 tolerate 2. This is why clusters have odd sizes.
+
+### Raft
+**Paxos** was the first practical protocol and is notoriously hard to understand. **Raft** was designed to be understandable and is the one to learn. It keeps a **replicated log**: every node applies the same commands in the same order, so every node reaches the same state.
+
+**Leader election.** Time is divided into numbered **terms**. Each node is a follower, candidate or leader. A follower that hears nothing from a leader for a randomised timeout becomes a candidate, increments the term and asks for votes. A node votes once per term. A candidate with a majority becomes leader. Randomised timeouts make ties rare.
+
+```diagram
+   follower --(timeout)--> candidate --(majority of votes)--> leader
+       ^                       |                                |
+       +--(sees higher term)---+--------(sees higher term)------+
+```
+
+**Log replication.** Clients send commands to the leader. The leader appends each to its log and sends it to the followers. Once a **majority** have stored it, the entry is **committed**: it is applied and will never be lost. The leader then tells the followers to apply it.
+
+**Safety.** A candidate can win only if its log is at least as up to date as a majority's, so a new leader always holds every committed entry. A leader that has been cut off will find a higher term when it reconnects and step down.
+
+### What consensus costs
+Every write needs a round trip to a majority, so it is slower than a single-node write, and the system stops accepting writes if a majority is unreachable. That is the consistency choice of CAP, made deliberately.
+
+### Use it, do not write it
+Consensus is easy to get subtly wrong. Use a proven implementation: etcd, ZooKeeper or Consul for coordination; databases built on Raft or Paxos for data.
+
+> In industry: Kubernetes stores its entire cluster state in etcd, which uses Raft. When people say a system "needs a quorum", this is what they mean.
+#Q How many node failures can a five-node consensus cluster tolerate?
+- 1
+* 2
+- 3
+! A majority (3) must remain: 2f + 1 = 5 gives f = 2.
+#Q In Raft, when is a log entry considered committed?
+- When the leader writes it to its own log
+* When it has been stored on a majority of nodes
+- When every node has applied it
+! A majority guarantees any future leader will have it.
+
+#LESSON Message queues and event sourcing | 14
+### Message queues
+A **message queue** sits between services. Producers add messages; consumers take them. The two need not run at the same speed or even at the same time.
+
+Two broad designs:
+
+- **Queues** (RabbitMQ, SQS): a message is delivered to one consumer and removed once acknowledged. Good for distributing work.
+- **Logs** (Kafka, Pulsar): messages are appended to an ordered, durable log and **stay** there. Each consumer keeps its own position (**offset**), so many independent consumers can read the same messages, and a new consumer can replay history.
+
+```diagram
+   log partition:   [0][1][2][3][4][5][6][7]
+                                  ^        ^
+                     consumer A at 4      consumer B at 7
+```
+
+A log is split into **partitions** for scale. Order is guaranteed within a partition, not across them, so messages that must be ordered relative to each other (everything about one account) are given the same **partition key**.
+
+### Delivery guarantees
+- **At most once:** may be lost, never repeated.
+- **At least once:** never lost, may be repeated. This is the practical default.
+- **Exactly once:** not achievable in general for delivery. What is achievable is **exactly-once effect**: at-least-once delivery plus **idempotent** processing.
+
+To make a consumer idempotent, record the IDs of processed messages and skip repeats, or make the operation itself repeat-safe ("set balance to 50", not "subtract 10").
+
+A message that keeps failing is moved to a **dead-letter queue** for inspection so that it does not block everything behind it.
+
+### The dual-write problem
+A service must update its database **and** publish an event. If it does one and crashes, the two disagree. The **outbox pattern** solves it: write the event into an outbox table in the *same database transaction* as the data change, and have a separate process publish from that table.
+
+### Event sourcing
+Instead of storing only the current state, store every **event** that changed it, in order. The current state is derived by replaying the events.
+
+```text
+AccountOpened(id=7)
+Deposited(amount=100)
+Withdrew(amount=30)          state: balance = 70
+```
+
+Benefits: a complete audit trail, the ability to reconstruct any past state, and the freedom to build new views of the data by replaying history. Costs: events are permanent, so changing their shape is hard; replaying long histories needs **snapshots**; and querying needs separate read models.
+
+### CQRS
+**Command Query Responsibility Segregation** separates the model that handles changes from the models that answer questions. Events flow from the write side to one or more read-optimised views, which are eventually consistent with it.
+
+These are powerful and heavy. Use them where audit, history or many different views of the same data justify the complexity.
+
+> Key idea: Plan for duplicates. At-least-once delivery with idempotent consumers is the foundation of reliable messaging.
+#Q Why is "exactly-once delivery" usually described as impossible, and what is used instead?
+- Networks are too slow; nothing is used instead
+* A sender cannot know whether a message was processed, so systems use at-least-once delivery with idempotent processing
+- Queues delete messages too early
+! Idempotence makes a repeated message harmless.
+#Q What does the outbox pattern guarantee?
+- Faster queries
+* That a database change and its event are recorded together, so neither exists without the other
+- That messages are never duplicated
+! The event is written in the same transaction as the data.
+
+#LAB js | Vector clocks, quorums and an idempotent consumer
+Implement four small pieces of distributed-systems logic.
+
+- `compareClocks(a, b)` compares two vector clocks given as objects mapping node name to counter (a missing node counts as 0). Return `"before"` if `a` precedes `b`, `"after"` if `b` precedes `a`, `"equal"` if they are identical, and `"concurrent"` otherwise.
+- `mergeClocks(a, b)` returns a new clock with, for each node in either clock, the larger counter.
+- `quorumOk(n, w, r)` returns true when a read is guaranteed to overlap the latest write, that is when `w + r > n`, and both `w` and `r` are between 1 and `n` inclusive.
+- `class Ledger` processes payment messages idempotently. `apply(message)` takes `{ id, account, amount }`. If a message with that `id` was already applied, it returns `false` and changes nothing. Otherwise it adds `amount` to the account's balance and returns `true`. `balance(account)` returns the balance, or 0.
+@starter
+function compareClocks(a, b) {
+  return "concurrent";
+}
+
+function mergeClocks(a, b) {
+  return {};
+}
+
+function quorumOk(n, w, r) {
+  return false;
+}
+
+class Ledger {
+}
+@solution
+function compareClocks(a, b) {
+  let less = false, more = false;
+  const nodes = new Set(Object.keys(a).concat(Object.keys(b)));
+  for (const n of nodes) {
+    const x = a[n] || 0, y = b[n] || 0;
+    if (x < y) less = true;
+    if (x > y) more = true;
+  }
+  if (less && more) return "concurrent";
+  if (less) return "before";
+  if (more) return "after";
+  return "equal";
+}
+
+function mergeClocks(a, b) {
+  const out = {};
+  for (const n of Object.keys(a).concat(Object.keys(b))) out[n] = Math.max(a[n] || 0, b[n] || 0);
+  return out;
+}
+
+function quorumOk(n, w, r) {
+  return w >= 1 && r >= 1 && w <= n && r <= n && w + r > n;
+}
+
+class Ledger {
+  constructor() { this.seen = new Set(); this.balances = {}; }
+  apply(message) {
+    if (this.seen.has(message.id)) return false;
+    this.seen.add(message.id);
+    this.balances[message.account] = (this.balances[message.account] || 0) + message.amount;
+    return true;
+  }
+  balance(account) { return this.balances[account] || 0; }
+}
+@tests
+compareClocks({ A: 2, B: 1 }, { A: 2, B: 3 }) => "before"
+compareClocks({ A: 2, B: 3 }, { A: 2, B: 1 }) => "after"
+compareClocks({ A: 2, B: 1 }, { A: 1, B: 2 }) => "concurrent"
+compareClocks({ A: 1 }, { A: 1 }) => "equal"
+compareClocks({ A: 1 }, { A: 1, B: 1 }) => "before"
+compareClocks({}, {}) => "equal"
+compareClocks({ A: 1 }, { B: 1 }) => "concurrent"
+mergeClocks({ A: 2, B: 1 }, { A: 1, B: 3, C: 1 }) => {"A": 2, "B": 3, "C": 1}
+mergeClocks({}, { A: 4 }) => {"A": 4}
+quorumOk(3, 2, 2) => true
+quorumOk(3, 1, 1) => false
+quorumOk(5, 3, 3) => true
+quorumOk(5, 1, 5) => true
+quorumOk(3, 4, 1) => false
+quorumOk(3, 0, 4) => false
+(() => { const l = new Ledger(); return [l.apply({ id: "m1", account: "ada", amount: 50 }), l.apply({ id: "m1", account: "ada", amount: 50 }), l.balance("ada")]; })() => [true, false, 50]
+(() => { const l = new Ledger(); l.apply({ id: "m1", account: "ada", amount: 50 }); l.apply({ id: "m2", account: "ada", amount: -20 }); l.apply({ id: "m3", account: "tim", amount: 5 }); return [l.balance("ada"), l.balance("tim"), l.balance("zoe")]; })() => [30, 5, 0]
+@hints
+For `compareClocks`, walk every node that appears in either clock, treating a missing entry as 0. Track two flags: "some entry of a is smaller" and "some entry of a is larger".
+Both flags true means concurrent; neither means equal.
+`mergeClocks` is the element-wise maximum over the union of nodes.
+The ledger needs a set of message IDs already applied, checked before any balance changes.
+
+#EXAM 22
+#Q Which statement about distributed systems is true?
+- The network can be assumed reliable
+* Partial failure is normal: some components fail while others continue
+- All nodes share one clock
+! Designing for partial failure is the central challenge.
+#Q Vector clock [3, 1] compared with [2, 2] is:
+- before
+- after
+* concurrent
+! The first entry is larger and the second smaller, so neither precedes the other.
+#Q In single-leader replication with asynchronous followers, what may happen if the leader crashes?
+- Nothing is ever lost
+* Recently acknowledged writes that had not reached a follower may be lost
+- All followers crash as well
+! The leader confirmed before replication completed.
+#Q Which consistency model makes a replicated system behave as if there were a single copy?
+- Eventual consistency
+* Linearizability
+- Causal consistency
+! Every operation appears to take effect at one instant.
+#Q Why do consensus clusters usually have an odd number of nodes?
+- Odd numbers are faster
+* An extra even node adds no additional fault tolerance, since a majority is still needed
+- Even clusters cannot elect a leader at all
+! Four nodes tolerate one failure, the same as three.
+#Q A consumer may receive the same message twice. What property must its processing have?
+- Atomicity
+* Idempotence
+- Linearizability
+! Applying the same message again must have no further effect.
+#Q In event sourcing, how is the current state obtained?
+- It is the only thing stored
+* By replaying the stored events, possibly from a snapshot
+- By asking each client
+! Events are the source of truth; state is derived.
+#W A shopping-cart service is replicated in three regions and must stay available for writes during a network partition. Explain which consistency you would choose, what conflicts can arise, how you would detect them and how you would resolve them. State the cost of your choice.
++ Chooses availability with eventual (or causal) consistency and relates it to CAP
++ Describes concurrent conflicting writes to the same cart
++ Uses version vectors or a similar mechanism to detect concurrency
++ Proposes a resolution suited to carts (merge, CRDT, or application-level merge) and notes its weakness
++ States the cost: users may briefly see stale or merged data
+
+#PROJECT Distributed application
+Build a replicated key-value store that runs as at least three processes and tolerates the failure of one.
+@requirements
+Clients can put and get keys through any node
+Data is replicated; a write is acknowledged only after a majority has it, or the design states and justifies a different quorum
+Killing one node does not lose acknowledged writes or stop the service
+The killed node catches up when it restarts
+There is a test harness that injects failures (kill, delay, drop messages) and checks that acknowledged writes are never lost
+A design document states the consistency model and what happens in a partition
+@deliverables
+The source and the failure-injection tests
+The design document with message diagrams
+A report of what the failure tests found
+@rubric
+Replication is correct under normal operation | 25
+Behaviour under node failure and recovery | 30
+Failure-injection testing | 20
+The design document states guarantees precisely | 15
+Code quality | 10
+
+#COURSE c402
+#LESSON Estimating capacity | 13
+System design starts with numbers. Without them you cannot tell whether a design is ten times too big or a thousand times too small.
+
+### The quantities
+- **Users:** total, daily active, peak concurrent.
+- **Request rate:** queries per second (QPS), average and **peak**.
+- **Data:** size per item, items per day, retention period.
+- **Latency target:** stated as a percentile, for example 99% under 200 ms.
+- **Availability target:** for example 99.9%.
+
+### Back-of-the-envelope arithmetic
+A day has 86,400 seconds; round to 100,000 for quick sums.
+
+A service with 10 million daily users, each making 20 requests a day:
+
+```text
+10,000,000 × 20 = 200,000,000 requests a day
+200,000,000 / 100,000 ≈ 2,000 requests a second on average
+peak ≈ 3 to 5 times the average ≈ 6,000 to 10,000 a second
+```
+
+Storage, at 1 KB per record and 50 million new records a day for 5 years:
+
+```text
+50,000,000 × 1 KB = 50 GB a day
+50 GB × 365 × 5 ≈ 90 TB, before replication and indexes
+```
+
+Bandwidth is request rate times response size.
+
+### Numbers worth knowing
+| Operation | Rough time |
+|---|---|
+| Read from the processor's cache | about 1 nanosecond |
+| Read from main memory | about 100 nanoseconds |
+| Read 4 KB from a solid-state disk | about 100 microseconds |
+| Round trip within a data centre | about 0.5 millisecond |
+| Round trip across a continent | about 50 to 150 milliseconds |
+
+Memory is thousands of times faster than disk, and anything in the same data centre is hundreds of times closer than another continent. These ratios drive almost every design decision about caching and placement.
+
+One ordinary server can typically handle hundreds to a few thousand requests a second for a database-backed application, and tens of thousands for simple in-memory work. A single well-tuned relational database can serve thousands of queries a second.
+
+### Powers of two
+A thousand is about 2¹⁰, a million 2²⁰, a billion 2³⁰.
+
+### Read and write ratio
+Most systems read far more than they write, often 100 to 1. That ratio tells you where to spend effort: caches and read replicas for read-heavy systems; partitioning and queues for write-heavy ones.
+
+### State your assumptions
+An estimate is a chain of assumptions. Write each one down so that it can be challenged. The aim is the right order of magnitude, not precision.
+
+> Key idea: Do the arithmetic first. Many proposed designs are solving a problem ten thousand times larger than the one that exists.
+#Q A service receives 86 million requests a day. Roughly how many is that per second on average?
+- 100
+* 1,000
+- 10,000
+! 86,000,000 / 86,400 ≈ 1,000.
+#Q Why design for peak load and not average load?
+- The average is hard to compute
+* Traffic is uneven, and the system must work at its busiest moments
+- Peaks are cheaper to serve
+! Peak is often several times the average.
+
+#LESSON Scaling: load balancing and stateless services | 13
+### Two directions
+**Vertical scaling** means a bigger machine. It is simple and has a ceiling. **Horizontal scaling** means more machines. It has no fixed ceiling and requires the system to be designed for it.
+
+### Stateless services
+A server is **stateless** if it keeps nothing between requests that another server would need. Sessions, uploaded files and caches live in shared stores, not in the server's memory. Then:
+
+- any server can handle any request,
+- servers can be added or removed at will,
+- a failed server takes nothing with it.
+
+Making the application tier stateless is the single most important step toward horizontal scaling. The state moves into the data tier, which is where the real difficulty then lies.
+
+### Load balancers
+A **load balancer** spreads requests across servers and stops sending to those that fail its **health checks**.
+
+```diagram
+                         +--> server 1
+   clients --> [ LB ] ---+--> server 2
+                         +--> server 3   (failed health check: no traffic)
+```
+
+- **Layer 4** balancers route by IP address and port. Fast; they do not look inside the request.
+- **Layer 7** balancers understand HTTP, so they can route by path or host, terminate TLS and retry.
+
+Algorithms: **round robin**, **least connections**, weighted variants, and hashing a key so the same client reaches the same server.
+
+The load balancer must not itself be a single point of failure, so it is run in redundant pairs or provided as a managed service.
+
+### Consistent hashing
+To spread keys across N servers, `hash(key) mod N` is the obvious method. Its flaw: change N and almost every key moves to a different server, emptying every cache at once.
+
+**Consistent hashing** places servers and keys on a ring. Each key belongs to the next server clockwise. Adding or removing a server moves only the keys in one arc: about 1/N of them.
+
+```diagram
+              server A
+           .-----o-----.
+          /             \
+   key k o               o server B      k belongs to the next server clockwise: A
+          \             /
+           '-----o-----'
+              server C
+```
+
+Each server is given many positions (**virtual nodes**) so that load is spread evenly.
+
+### Autoscaling
+Add servers when load rises and remove them when it falls, driven by a metric such as CPU or queue length. New instances take time to start, so scale before saturation, and keep a floor of spare capacity.
+
+### Content delivery networks
+A **CDN** caches static files (images, scripts, video) on servers around the world, so each user is served from nearby. It removes load from your servers and cuts latency dramatically.
+
+> Key idea: Keep servers stateless and you can scale the application tier by simply adding more of them.
+#Q What makes a service stateless?
+- It stores nothing anywhere
+* It keeps no per-client state in the server itself, so any instance can handle any request
+- It never uses a database
+! State lives in shared stores, not in server memory.
+#Q What problem does consistent hashing solve?
+- Slow hash functions
+* Nearly all keys being remapped when a server is added or removed
+- Uneven request sizes
+! Only about 1/N of the keys move.
+
+#LESSON Scaling data: replication, partitioning and caching | 14
+The application tier scales by adding servers. Data is harder, because data has to be somewhere specific and stay correct.
+
+### First, the cheap wins
+Before distributing anything: add indexes, fix slow queries, add a cache, and give the database a bigger machine. A single database goes much further than most people expect.
+
+### Read replicas
+Send writes to the leader and reads to replicas. This multiplies read capacity. It does not help write capacity, and replicas lag, so reads that must be current go to the leader.
+
+### Partitioning (sharding)
+When one machine cannot hold the data or handle the writes, split the data into **partitions** (**shards**), each on its own machine.
+
+```diagram
+   users A to H  --> shard 1
+   users I to P  --> shard 2
+   users Q to Z  --> shard 3
+```
+
+- **Range partitioning** keeps keys in order, so range scans are efficient, but load can be very uneven.
+- **Hash partitioning** spreads load evenly and loses the ordering.
+
+The **partition key** is the most consequential choice. A good key spreads load evenly and lets common queries be answered from one shard. A bad one creates a **hot spot**: one shard with a celebrity account receiving most of the traffic.
+
+What sharding costs:
+
+- Queries across shards must contact all of them and combine results.
+- Joins and transactions across shards are hard or unavailable.
+- **Rebalancing** when shards fill up is delicate.
+- Operations multiply.
+
+Shard only when you must. It cannot easily be undone.
+
+### Caching, in layers
+```diagram
+   browser cache --> CDN --> application cache (Redis) --> database
+```
+
+Each layer absorbs requests before they reach the next. A high **hit rate** at an outer layer is worth far more than tuning an inner one.
+
+Watch for **hot keys** (one entry so popular that one cache node is overloaded) and **stampedes** when a popular entry expires. Protect with staggered expiry and by letting one request rebuild while others wait or serve the old value.
+
+### Precompute
+If a result is expensive and requested often, compute it ahead of time. A social feed can be built at **read time** (query all followed accounts on each view) or at **write time** (push each new post into every follower's stored feed). The second makes reads trivial and writes expensive, which is the right trade when reads vastly outnumber writes, except for accounts with millions of followers, where a hybrid is used.
+
+### Asynchronous work
+Anything the user need not wait for (emails, thumbnails, analytics) goes onto a queue. The request returns quickly and workers process the backlog at their own pace.
+
+> Key idea: Scale reads with replicas and caches. Scale writes with partitioning and queues. Do the simple things first.
+#Q What do read replicas improve?
+- Write throughput
+* Read throughput
+- Storage capacity for writes
+! All writes still go through the leader.
+#Q What is a hot spot in a partitioned database?
+- A server that is physically overheating
+* One partition receiving a disproportionate share of the load because of the choice of key
+- A partition with no data
+! A poor partition key concentrates traffic.
+
+#LESSON Availability and fault tolerance | 14
+At scale, something is always broken. A thousand servers that each fail once in three years means roughly one failure a day. **Fault tolerance** is continuing to work correctly when parts fail.
+
+### Measuring availability
+| Availability | Downtime per year |
+|---|---|
+| 99% | about 3.7 days |
+| 99.9% | about 8.8 hours |
+| 99.99% | about 53 minutes |
+| 99.999% | about 5 minutes |
+
+Each extra nine costs far more than the last.
+
+### Combining components
+If a request needs components **in series**, all must work. Availabilities multiply:
+
+```text
+0.999 × 0.999 × 0.999 ≈ 0.997      three dependencies at 99.9% give 99.7%
+```
+
+Every dependency you add lowers your availability. If components are **redundant**, only one need work:
+
+```text
+1 − (0.01 × 0.01) = 0.9999        two independent 99% copies give 99.99%
+```
+
+That assumes failures are **independent**. Two copies in the same rack, on the same power supply, or running the same buggy release fail together.
+
+### Redundancy
+Remove every **single point of failure**: several instances of each service, replicated data, several **availability zones** (separate data centres within a region), and for the most critical systems several regions.
+
+### Detecting failure
+**Health checks** and **heartbeats** detect dead instances. Remember that a timeout cannot distinguish dead from slow, so removing an instance must be safe to do wrongly.
+
+### Containing failure
+Failures spread unless stopped. The standard defences:
+
+- **Timeouts** on every remote call.
+- **Retries** with exponential backoff and jitter, for idempotent operations only, and with a limit. Unlimited retries turn a brief slowdown into a **retry storm**.
+- **Circuit breakers:** after repeated failures calling a dependency, stop calling it for a while and fail fast. Then let one trial request through to test recovery.
+
+```diagram
+   closed --(failures exceed threshold)--> open --(after a wait)--> half-open
+      ^                                                                |
+      +-------------(trial request succeeds)---------------------------+
+```
+
+- **Bulkheads:** separate resources (thread pools, connection pools) per dependency, so one slow dependency cannot use them all. The name comes from the compartments that stop a ship sinking from one leak.
+- **Load shedding:** when overloaded, reject some requests quickly instead of slowing all of them into failure.
+- **Graceful degradation:** if recommendations are down, show the page without them.
+
+### Cascading failure
+A slow service makes its callers slow, which exhausts their threads, which makes *their* callers slow. The defences above exist to break this chain.
+
+### Test it
+**Chaos engineering** deliberately injects failures in production-like conditions to verify that the system behaves as designed. Recovery that is never exercised will not work when needed.
+
+### Recovery objectives
+- **RTO** (recovery time objective): how long may the service be down?
+- **RPO** (recovery point objective): how much recent data may be lost?
+
+These decide how much replication and backup you must pay for.
+#Q A request depends on three services in series, each 99.9% available. What is the approximate availability of the request?
+- 99.9%
+* 99.7%
+- 99.99%
+! 0.999 cubed is about 0.997.
+#Q What does a circuit breaker do?
+- Encrypts traffic between services
+* Stops calling a failing dependency for a period, so failures are fast and the dependency can recover
+- Restarts the database
+! It prevents a struggling service from being overwhelmed and callers from hanging.
+
+#LESSON Working a system design | 14
+System design problems are open-ended. A method keeps you from drowning.
+
+### A method
+1. **Requirements.** What must it do? Narrow the scope to the core features. What are the quality targets: scale, latency, availability, consistency?
+2. **Estimate.** Users, QPS, storage, read/write ratio.
+3. **Interface.** The API: operations, inputs and outputs.
+4. **Data model.** Entities, access patterns, and the storage that suits them.
+5. **High-level design.** Boxes and arrows: clients, load balancer, services, databases, caches, queues.
+6. **Deep dives.** Take the hardest parts one at a time.
+7. **Bottlenecks and failures.** What breaks first as load grows? What happens when each component fails?
+8. **Trade-offs.** State what you chose, what you gave up and why.
+
+### Example: a URL shortener
+**Requirements.** Create a short link for a long URL; redirect a short link. Reads vastly outnumber writes. Redirects must be fast and highly available. A redirect to a slightly stale mapping is harmless, since mappings do not change.
+
+**Estimate.** 100 million new links a month is about 40 a second. With a 100 to 1 read ratio, 4,000 redirects a second on average, perhaps 20,000 at peak. At 500 bytes a record and 5 years: 6 billion records, about 3 TB.
+
+**Interface.** `POST /links {url}` returns a code. `GET /{code}` returns a redirect.
+
+**The key decision: generating codes.** With 62 characters, 7 characters give 62⁷ ≈ 3.5 trillion codes.
+
+- *Hash the URL and truncate:* collisions must be handled.
+- *A counter, encoded in base 62:* no collisions, but one counter is a bottleneck and codes are guessable. Give each server a block of numbers so they need not coordinate on every request.
+- *Random codes with a uniqueness check.*
+
+**Storage.** A key-value lookup by code. No joins, no transactions across records. A partitioned key-value store, or a relational database partitioned by code, both work.
+
+**Design.**
+
+```diagram
+   client --> CDN / edge cache --> load balancer --> stateless app servers
+                                                        |         |
+                                                     cache      key-value store
+                                                    (Redis)     (partitioned by code)
+```
+
+**Deep dives.** Cache the most popular codes: mappings never change, so the cache can never be wrong. Use a 302 redirect if you want to count clicks, a 301 if you want browsers to cache. Count clicks asynchronously through a queue so that analytics never slows a redirect.
+
+**Failures.** Cache down: fall back to the store. One shard down: its codes are unavailable unless replicated, so replicate. Abuse: rate-limit creation and check destinations against lists of malicious sites.
+
+### Habits of good design
+- Start simple; add complexity only where a number demands it.
+- Say the trade-off aloud every time.
+- Identify the one or two decisions that really matter.
+- Prefer boring, proven components.
+
+> In industry: This method is used in design reviews and interviews alike. What is being judged is not the final diagram but the reasoning and the awareness of trade-offs.
+#Q What should come first when designing a system?
+- Choosing a database
+* Clarifying requirements and estimating scale
+- Drawing microservices
+! The requirements and numbers determine everything that follows.
+#Q In the URL shortener, why is caching particularly safe?
+- Caches are always safe
+* A code's destination never changes, so a cached entry cannot become wrong
+- The data is small
+! Immutable data has no invalidation problem.
+
+#LAB js | An LRU cache and a consistent-hash ring
+Implement two building blocks of scalable systems.
+
+**1. `class LRUCache`**, created with `new LRUCache(capacity)`.
+- `get(key)` returns the value, or `undefined` if absent. Reading a key makes it the most recently used.
+- `set(key, value)` stores a value and makes the key the most recently used. If this pushes the cache over capacity, the **least recently used** key is removed.
+- `keys()` returns the keys from least recently used to most recently used.
+
+**2. `class HashRing`**, created with `new HashRing()`. Use the supplied `hash(text)` function, which returns a number from 0 to 999.
+- `addServer(name)` places the server on the ring at position `hash(name)`.
+- `removeServer(name)` removes it.
+- `serverFor(key)` returns the server whose position is the smallest one **greater than or equal to** `hash(key)`. If there is none, wrap around to the server with the smallest position. Return `null` if the ring is empty.
+@starter
+function hash(text) {
+  let h = 0;
+  for (let i = 0; i < text.length; i++) h = (h * 31 + text.charCodeAt(i)) % 1000;
+  return h;
+}
+
+class LRUCache {
+  constructor(capacity) {
+    this.capacity = capacity;
+  }
+}
+
+class HashRing {
+}
+@solution
+function hash(text) {
+  let h = 0;
+  for (let i = 0; i < text.length; i++) h = (h * 31 + text.charCodeAt(i)) % 1000;
+  return h;
+}
+
+class LRUCache {
+  constructor(capacity) {
+    this.capacity = capacity;
+    this.map = new Map();
+  }
+  get(key) {
+    if (!this.map.has(key)) return undefined;
+    const value = this.map.get(key);
+    this.map.delete(key);
+    this.map.set(key, value);
+    return value;
+  }
+  set(key, value) {
+    if (this.map.has(key)) this.map.delete(key);
+    this.map.set(key, value);
+    if (this.map.size > this.capacity) this.map.delete(this.map.keys().next().value);
+  }
+  keys() {
+    return Array.from(this.map.keys());
+  }
+}
+
+class HashRing {
+  constructor() { this.servers = []; }
+  addServer(name) {
+    this.servers.push({ name, pos: hash(name) });
+    this.servers.sort((a, b) => a.pos - b.pos);
+  }
+  removeServer(name) {
+    this.servers = this.servers.filter((s) => s.name !== name);
+  }
+  serverFor(key) {
+    if (this.servers.length === 0) return null;
+    const h = hash(key);
+    for (const s of this.servers) if (s.pos >= h) return s.name;
+    return this.servers[0].name;
+  }
+}
+@tests
+(() => { const c = new LRUCache(2); c.set("a", 1); c.set("b", 2); return [c.get("a"), c.get("b"), c.get("z") === undefined]; })() => [1, 2, true]
+(() => { const c = new LRUCache(2); c.set("a", 1); c.set("b", 2); c.set("c", 3); return [c.get("a") === undefined, c.keys()]; })() => [true, ["b", "c"]]
+(() => { const c = new LRUCache(2); c.set("a", 1); c.set("b", 2); c.get("a"); c.set("c", 3); return c.keys(); })() => ["a", "c"]
+(() => { const c = new LRUCache(2); c.set("a", 1); c.set("b", 2); c.set("a", 9); c.set("c", 3); return [c.keys(), c.get("a")]; })() => [["a", "c"], 9]
+(() => { const c = new LRUCache(1); c.set("a", 1); c.set("b", 2); return c.keys(); })() => ["b"]
+(() => { const c = new LRUCache(3); return c.keys(); })() => []
+[hash("alpha"), hash("beta"), hash("gamma")] => [918, 272, 615]
+(() => { const r = new HashRing(); return r.serverFor("x"); })() => null
+(() => { const r = new HashRing(); r.addServer("alpha"); return [r.serverFor("x"), r.serverFor("anything")]; })() => ["alpha", "alpha"]
+(() => { const r = new HashRing(); r.addServer("alpha"); r.addServer("beta"); r.addServer("gamma"); return [hash("k1"), r.serverFor("k1")]; })() => [366, "gamma"]
+(() => { const r = new HashRing(); r.addServer("alpha"); r.addServer("beta"); r.addServer("gamma"); return [hash("user42"), r.serverFor("user42")]; })() => [689, "alpha"]
+(() => { const r = new HashRing(); r.addServer("beta"); r.addServer("gamma"); return [hash("user42"), r.serverFor("user42")]; })() => [689, "beta"]
+(() => { const r = new HashRing(); r.addServer("alpha"); r.addServer("beta"); r.addServer("gamma"); r.removeServer("gamma"); return r.serverFor("k1"); })() => "alpha"
+@hints
+A JavaScript `Map` remembers insertion order. Deleting a key and setting it again moves it to the end, which is exactly "most recently used".
+The least recently used key is then the first key in the map: `map.keys().next().value`.
+Keep the ring's servers sorted by position. `serverFor` returns the first server at or after the key's hash, or the first server overall if none is.
+Do not modify the supplied `hash` function.
+
+#EXAM 22
+#Q A system has 5 million daily users making 40 requests each per day. Approximately what is the average request rate?
+- 200 per second
+* 2,000 per second
+- 20,000 per second
+! 200 million a day divided by roughly 100,000 seconds.
+#Q Which is fastest?
+* Reading from main memory
+- Reading from a solid-state disk
+- A network round trip within a data centre
+! Memory access is on the order of 100 nanoseconds.
+#Q What must be true of application servers for simple horizontal scaling?
+- Each must have its own database
+* They must be stateless
+- They must run on the same physical machine
+! Any instance can then serve any request.
+#Q Which partitioning scheme spreads load most evenly but loses efficient range queries?
+- Range partitioning
+* Hash partitioning
+- No partitioning
+! Hashing scatters adjacent keys across shards.
+#Q Two independent replicas each have 99% availability. What is the availability of the pair if either can serve requests?
+- 98%
+- 99%
+* 99.99%
+! Both must fail together: 1 − 0.01 × 0.01.
+#Q Why add jitter to retry delays?
+- To make retries slower
+* To prevent many clients retrying at the same instant and overloading the recovering service
+- Jitter improves encryption
+! Randomness spreads the retries out.
+#Q What does RPO specify?
+- How fast pages should load
+* How much recent data loss is acceptable after a failure
+- How many servers are required
+! Recovery point objective.
+#W Design a service that stores and serves user profile pictures for 50 million users. Give rough estimates, the main components, how the data is stored and delivered, and how the design handles the failure of one component of your choice.
++ Gives reasonable estimates for storage and request rate with stated assumptions
++ Separates metadata (database) from image bytes (object storage)
++ Uses a CDN and caching for delivery
++ Keeps the application tier stateless behind a load balancer
++ Describes a failure and how redundancy or degradation handles it
++ States at least one trade-off
+
+#PROJECT Scalable API platform
+Take an API service and prove, with measurement, that it scales and survives failure.
+@requirements
+A written design with estimates and a target (requests per second, latency percentile, availability)
+The service is stateless and runs as several instances behind a load balancer
+A cache with a stated invalidation strategy
+Timeouts, bounded retries with backoff, and a circuit breaker on a dependency
+A load test that finds the system's limit and identifies the bottleneck
+A failure test: an instance and a dependency are killed under load, and the effect on users is measured
+A report comparing results with the target
+@deliverables
+The repository, load-test scripts and configuration
+The design document
+The report with graphs of throughput and latency
+@rubric
+Design reasoning and estimates | 20
+Correct stateless scaling and caching | 20
+Resilience mechanisms work as shown by the failure test | 25
+Load testing is rigorous and the bottleneck is correctly identified | 25
+Report clarity | 10
+
+#COURSE c403
+#LESSON Domain-driven design: language and boundaries | 13
+Large systems fail more often from misunderstanding the business than from technical faults. **Domain-driven design** (DDD), introduced by Eric Evans, is a way of building software whose structure mirrors the business it serves.
+
+### Ubiquitous language
+Developers and business experts agree on one precise vocabulary and use it everywhere: in conversation, documents and **code**. If the business says "policy", "claim" and "underwrite", the code has `Policy`, `Claim` and `underwrite()`, not `Record`, `Item` and `process()`.
+
+When the code uses different words from the business, every conversation needs translation, and translation is where errors enter.
+
+### Bounded contexts
+A large business has no single consistent model. "Customer" means one thing to sales (a lead with a pipeline stage), another to billing (an account with payment details) and another to support (a person with tickets). Forcing one `Customer` class to serve all three produces a bloated object that fits none of them.
+
+A **bounded context** is a boundary inside which one model and one language apply consistently.
+
+```diagram
+   +------------------+     +------------------+     +------------------+
+   |  Sales context   |     | Billing context  |     | Support context  |
+   |  Customer = lead |     | Customer =       |     | Customer =       |
+   |  with a stage    |     | paying account   |     | ticket requester |
+   +------------------+     +------------------+     +------------------+
+```
+
+Each context has its own model, its own code and ideally its own database. The same real-world person appears in each, linked by an identifier.
+
+### Context mapping
+Contexts must cooperate. A **context map** records how:
+
+- **Customer and supplier:** one context provides what another needs, and they plan together.
+- **Conformist:** the downstream context simply adopts the upstream model.
+- **Anti-corruption layer:** a translation layer that protects your model from another system's, especially a legacy one.
+- **Shared kernel:** a small model that two teams own jointly, with care.
+- **Published language:** a documented interchange format.
+
+### Strategic design
+Not all parts of a system deserve equal effort.
+
+- The **core domain** is what makes the business different. Put the best people and the most careful design here.
+- **Supporting subdomains** are necessary and specific to the business, but not differentiating.
+- **Generic subdomains** (authentication, email, payments) are solved problems. Buy them.
+
+### Why this matters for architecture
+Bounded contexts are the natural seams along which to divide a system into modules, and later, if needed, into services. Finding the boundaries is the hard and valuable part. Drawing them wrongly produces services that must constantly call each other.
+
+> Key idea: Get the boundaries and the language right. The technology is the easier part.
+#Q What is a ubiquitous language?
+- A programming language used by every team
+* A shared, precise vocabulary used by developers and business experts in conversation and in code
+- A translation service
+! Using the same words everywhere removes translation errors.
+#Q Why might "Customer" be modelled differently in sales and in billing?
+- Because of a mistake
+* Each bounded context needs its own model of the concept suited to its purpose
+- Databases require it
+! One model forced on every context fits none of them well.
+
+#LESSON Tactical design: entities, value objects and aggregates | 14
+Within a bounded context, DDD offers building blocks for the model.
+
+### Entities
+An **entity** has an identity that persists while its attributes change. A customer who changes name and address is still the same customer. Entities are compared by **ID**.
+
+### Value objects
+A **value object** has no identity; it is defined entirely by its values. Two `Money(10, "CAD")` objects are interchangeable. Value objects are **immutable**: you replace them, never modify them.
+
+```js
+class Money {
+  constructor(amount, currency) {
+    if (!Number.isInteger(amount)) throw new Error("amount must be whole cents");
+    this.amount = amount; this.currency = currency;
+    Object.freeze(this);
+  }
+  add(other) {
+    if (other.currency !== this.currency) throw new Error("currency mismatch");
+    return new Money(this.amount + other.amount, this.currency);
+  }
+  equals(other) { return this.amount === other.amount && this.currency === other.currency; }
+}
+```
+
+Use value objects generously: `Email`, `DateRange`, `Address`, `Quantity`. They put validation and behaviour in one place and remove the "primitive obsession" of passing bare strings and numbers around.
+
+### Aggregates
+An **aggregate** is a cluster of objects treated as one unit for changes, with one entity as its **root**. An `Order` with its `OrderLines` is the usual example.
+
+Rules:
+
+1. Outside code holds references only to the **root**, never to the internal objects.
+2. All changes go through the root, which enforces the aggregate's **invariants** ("the total equals the sum of the lines", "a shipped order cannot be changed").
+3. An aggregate is loaded and saved **as a whole, in one transaction**.
+4. One transaction changes **one aggregate**. Consistency between aggregates is **eventual**, achieved through events.
+5. Aggregates refer to each other by **ID**, not by object reference.
+
+```diagram
+   +--------------------------- Order (root) ---------------------------+
+   |  id, status, customerId                                            |
+   |    OrderLine(productId, qty, price)                                |
+   |    OrderLine(productId, qty, price)                                |
+   +--------------------------------------------------------------------+
+        refers to Customer and Product by ID only
+```
+
+Keep aggregates **small**. A large aggregate means large transactions and constant contention between users.
+
+### Domain events
+A **domain event** records something that happened which the business cares about: `OrderPlaced`, `PaymentReceived`. Aggregates emit them; other parts react. This is how one aggregate's change leads to changes in others without a shared transaction.
+
+### Repositories
+A **repository** presents an aggregate collection as if it were in memory: `orders.findById(id)`, `orders.save(order)`. There is one repository per aggregate, and the domain depends only on its interface.
+
+### Domain services
+Logic that belongs to the domain but not naturally to one entity (transferring money between two accounts) goes in a **domain service**.
+
+### Anaemic models
+A model whose objects hold only data, with all behaviour in separate "service" classes, is called **anaemic**. It is procedural code dressed as objects. Rules scattered across services are harder to find and to keep consistent than rules inside the objects they govern.
+
+> Key idea: An aggregate is a consistency boundary. Inside it, rules hold immediately; between aggregates, eventually.
+#Q How are two value objects compared?
+- By identity
+* By their values
+- By their memory address
+! A value object has no identity of its own.
+#Q What is the rule about transactions and aggregates?
+- One transaction should update as many aggregates as possible
+* One transaction should modify a single aggregate; other aggregates are updated eventually through events
+- Aggregates must never be saved
+! This keeps transactions small and boundaries clear.
+
+#LESSON Microservices | 14
+A **microservice architecture** builds a system as a set of small services that are developed, deployed and scaled independently, each owning its own data and communicating over the network.
+
+### What you are buying
+- **Independent deployment.** A team releases its service without coordinating with every other team. This is the main benefit.
+- **Team autonomy.** Small teams own services end to end.
+- **Independent scaling.** Scale only the part under load.
+- **Fault isolation**, if designed for.
+- **Technology freedom**, used sparingly.
+
+### What you are paying
+- **Distributed-systems complexity.** Every call can fail, time out or arrive twice. Everything from the distributed systems course applies.
+- **No cross-service transactions.** Consistency between services is eventual.
+- **Operational load.** Dozens of services to deploy, monitor and secure.
+- **Harder debugging.** One user action crosses many services.
+- **Latency.** Network calls replace function calls.
+- **Costly mistakes in boundaries.** Moving a responsibility between services is far harder than moving a function between modules.
+
+### Conway's law
+> Organisations design systems that mirror their own communication structure.
+
+Microservices are as much an organisational pattern as a technical one. They pay off when there are many teams that need to move independently. A small team gains the costs and little of the benefit.
+
+### Start with a monolith
+The widely repeated advice is to start with a well-structured **modular monolith**, with modules along bounded contexts and clear interfaces, and extract services only when a real need appears: a part that must scale separately, or teams that keep blocking each other. You then know where the boundaries really are.
+
+The worst outcome is the **distributed monolith**: services so entangled that they must be deployed together, with all the costs of both styles.
+
+### Each service owns its data
+```diagram
+   order service -----> orders database
+   payment service ---> payments database
+   catalogue service -> catalogue database
+        no service reads another service's tables
+```
+
+A shared database couples services invisibly: a schema change in one breaks the others. If a service needs another's data, it asks through the API or keeps its own copy updated from events.
+
+### Sizing a service
+Not by lines of code. A service should cover one bounded context, be owned by one team, and be changeable without changing others. If two services always change together, they are one service.
+
+### Supporting infrastructure
+- An **API gateway** as the single entry point: routing, authentication, rate limiting.
+- **Service discovery**, so services can find each other as instances come and go.
+- **Centralised logging, metrics and tracing.**
+- Automated deployment for every service.
+
+Without these, microservices are unmanageable.
+
+> In industry: Several well-known companies have published accounts of merging microservices back into larger services after finding the overhead exceeded the benefit. The architecture is a tool for a particular scale of organisation.
+#Q What is the main benefit of microservices?
+- They are always faster
+* Teams can deploy their services independently
+- They need less infrastructure
+! Independent deployability is what the costs are paid for.
+#Q Why should services not share a database?
+- Databases cannot be shared
+* Sharing creates hidden coupling: one service's schema change can break another
+- It uses too much disk space
+! Each service must be free to change its own data model.
+
+#LESSON Communication between services and sagas | 14
+### Synchronous calls
+A service calls another and waits: REST over HTTP, or **gRPC**, which uses a compact binary format with strictly typed contracts and is common for internal calls.
+
+Synchronous calls are simple but create **temporal coupling**: the caller's availability now depends on the callee's. A chain of five synchronous calls, each 99.9% available, gives about 99.5%. Apply timeouts, bounded retries and circuit breakers to every one.
+
+### Asynchronous messaging
+A service publishes an event and moves on. Consumers react later. The services are decoupled in time: if the consumer is down, the event waits. The price is eventual consistency and a flow that is harder to trace.
+
+A sound default: **synchronous for queries that need an answer now, asynchronous for propagating changes**.
+
+### Transactions across services
+Placing an order must reserve stock, take payment and create a shipment, in three services with three databases. A single ACID transaction is not available. (The classical **two-phase commit** protocol exists, but it blocks if the coordinator fails and requires every participant to support it, so it is generally avoided between services.)
+
+### Sagas
+A **saga** is a sequence of local transactions. Each service does its step and publishes an event. If a later step fails, the saga runs **compensating transactions** to undo the earlier ones.
+
+```diagram
+   create order --> reserve stock --> take payment --> ship
+                         |                 |
+                    (payment fails)        |
+   cancel order <-- release stock <--------+
+```
+
+A compensation is not a rollback. The earlier step really happened and was visible. The compensation is a new action that semantically reverses it: a refund, not the erasure of a charge. Some actions cannot be compensated (an email sent, a parcel shipped), so order the steps to put those last.
+
+Two ways to coordinate:
+
+- **Choreography:** each service listens for events and decides what to do. No central controller. Simple for short flows; hard to see the whole process when there are many steps.
+- **Orchestration:** one **orchestrator** tells each service what to do and tracks the state. The flow is explicit in one place.
+
+Sagas lack isolation: other requests can observe the intermediate states. The domain model should make those states explicit: an order that is `PENDING` until every step completes.
+
+### Compatibility
+Services are deployed independently, so at any moment old and new versions talk to each other. Changes to APIs and events must be **backward compatible**: add fields, never remove or repurpose them, and have consumers ignore fields they do not recognise. **Consumer-driven contract tests** verify that a provider still satisfies what its consumers actually rely on.
+
+### Tracing
+Each request receives a **trace ID** at the edge, passed along in headers through every service and written to every log line. A tracing system then reconstructs the whole path and shows where the time went.
+
+> Key idea: Between services there are no transactions, only messages and compensations. Model the in-between states explicitly.
+#Q What is a compensating transaction?
+- A database rollback
+* A new action that semantically undoes an earlier completed step, such as a refund
+- A retry of a failed call
+! The original step happened and was visible; it is reversed by another action.
+#Q What distinguishes orchestration from choreography in a saga?
+- Orchestration uses no messages
+* A central orchestrator directs the steps, whereas in choreography each service reacts to events on its own
+- Choreography is synchronous
+! Orchestration makes the flow explicit in one place.
+
+#LESSON Evolving and migrating systems | 12
+Most systems are not designed fresh. They are inherited, and they must keep running while they change.
+
+### Do not rewrite from scratch
+The "big rewrite" is tempting and usually fails. The old system embodies years of bug fixes and business rules that nobody remembers. The new system must match all of it while the old one keeps changing, and nothing is delivered until the end.
+
+### The strangler fig pattern
+Named after a vine that grows around a tree and gradually replaces it. Put a **routing layer** in front of the old system. Build new functionality, or re-implement old functionality, one piece at a time behind it, and redirect traffic piece by piece.
+
+```diagram
+                     +--> new service (orders)
+   clients --> router+
+                     +--> legacy system (everything else)
+
+   over time, more routes point at new services until the legacy system can be switched off
+```
+
+Each step is small, reversible and delivers value.
+
+### Extracting a service from a monolith
+1. **Find the seam:** a bounded context with few dependencies on the rest.
+2. **Modularise in place:** make the boundary clean inside the monolith first, with one interface.
+3. **Separate the data:** stop other modules reading its tables directly. This is usually the hardest step.
+4. **Extract:** move the module behind a network interface.
+5. **Redirect and remove** the old code.
+
+### Migrating data safely
+- **Expand and contract** for schema changes.
+- **Dual writing** with care: write to old and new, read from the old, compare.
+- **Backfill** historical data in batches.
+- **Shadow traffic:** send real requests to the new system as well, discard its answers, and compare them with the old system's.
+- Switch reads with a **feature flag**, a little at a time, with the ability to switch back.
+- Keep the old path until the new one has proved itself.
+
+### Branch by abstraction
+To replace a component used throughout a codebase: introduce an interface, make all callers use it, build the new implementation behind it, switch over, delete the old one. The main branch stays releasable throughout.
+
+### Deprecation
+Removing something others depend on needs a process: announce, measure who still uses it, help them move, set a date, then remove.
+
+### Fitness functions
+Automated checks that an architectural property still holds: "no module in `billing` imports from `sales`", "p99 latency below 200 ms", "no service calls another's database". They stop the architecture eroding one small exception at a time.
+
+### Reversibility
+Prefer decisions that can be undone. Spend the most care on the few that cannot: data models, public APIs, and anything involving customers' data.
+
+> In industry: A senior engineer's reputation is often built less on new systems than on migrating old ones without anyone noticing.
+#Q Why is the strangler fig pattern safer than a full rewrite?
+- It requires no testing
+* The system is replaced in small, reversible steps while it keeps running and delivering value
+- It is always faster
+! Risk is taken in small pieces, each of which can be undone.
+#Q What does shadow traffic allow you to do?
+- Hide errors from users
+* Compare a new system's responses with the old system's using real requests, without affecting users
+- Reduce network costs
+! The new system is exercised for real, but its answers are discarded.
+
+#LAB js | An order aggregate with events and a saga
+Model an order as a DDD aggregate, with a value object and a saga that compensates on failure.
+
+**`class Money`** — `new Money(cents)`. `cents` must be a non-negative whole number, otherwise throw. `add(other)` returns a new `Money`. `times(n)` returns a new `Money`. It has a read-only `cents` property.
+
+**`class Order`** — `new Order(id)`. It starts with status `"draft"`, no lines and no events.
+- `addLine(product, quantity, priceCents)` adds a line. Throw if the status is not `"draft"`, or if `quantity` is not a positive whole number. Adding a product already in the order increases that line's quantity.
+- `total()` returns a `Money`.
+- `place()` changes status to `"placed"` and records an event `{ type: "OrderPlaced", orderId, totalCents }`. Throw if the order is not a draft or has no lines.
+- `cancel()` changes status to `"cancelled"` and records `{ type: "OrderCancelled", orderId }`. Throw if already cancelled.
+- `events()` returns the recorded events, oldest first.
+
+**`runSaga(steps)`** — each step is `{ name, run, undo }` where `run` and `undo` are functions. Run the steps in order. If a step's `run` throws, call `undo` for each **previously completed** step in **reverse** order and return `{ ok: false, failed: name, undone: [names in the order undone] }`. If all succeed, return `{ ok: true, done: [names] }`.
+@starter
+class Money {
+}
+
+class Order {
+}
+
+function runSaga(steps) {
+  return { ok: true, done: [] };
+}
+@solution
+class Money {
+  constructor(cents) {
+    if (!Number.isInteger(cents) || cents < 0) throw new Error("cents must be a non-negative whole number");
+    Object.defineProperty(this, "cents", { value: cents, writable: false, enumerable: true });
+  }
+  add(other) { return new Money(this.cents + other.cents); }
+  times(n) { return new Money(this.cents * n); }
+}
+
+class Order {
+  constructor(id) {
+    this.id = id;
+    this.status = "draft";
+    this.lines = [];
+    this.recorded = [];
+  }
+  addLine(product, quantity, priceCents) {
+    if (this.status !== "draft") throw new Error("order is not a draft");
+    if (!Number.isInteger(quantity) || quantity <= 0) throw new Error("quantity must be a positive whole number");
+    const price = new Money(priceCents);
+    const line = this.lines.find((l) => l.product === product);
+    if (line) line.quantity += quantity;
+    else this.lines.push({ product, quantity, price });
+  }
+  total() {
+    return this.lines.reduce((sum, l) => sum.add(l.price.times(l.quantity)), new Money(0));
+  }
+  place() {
+    if (this.status !== "draft") throw new Error("order is not a draft");
+    if (this.lines.length === 0) throw new Error("order is empty");
+    this.status = "placed";
+    this.recorded.push({ type: "OrderPlaced", orderId: this.id, totalCents: this.total().cents });
+  }
+  cancel() {
+    if (this.status === "cancelled") throw new Error("already cancelled");
+    this.status = "cancelled";
+    this.recorded.push({ type: "OrderCancelled", orderId: this.id });
+  }
+  events() { return this.recorded.slice(); }
+}
+
+function runSaga(steps) {
+  const done = [];
+  for (const step of steps) {
+    try {
+      step.run();
+      done.push(step);
+    } catch (e) {
+      const undone = [];
+      for (let i = done.length - 1; i >= 0; i--) { done[i].undo(); undone.push(done[i].name); }
+      return { ok: false, failed: step.name, undone };
+    }
+  }
+  return { ok: true, done: done.map((s) => s.name) };
+}
+@tests
+new Money(250).add(new Money(100)).cents => 350
+new Money(250).times(3).cents => 750
+(() => { try { new Money(-1); return "no error"; } catch (e) { return "error"; } })() => "error"
+(() => { try { new Money(1.5); return "no error"; } catch (e) { return "error"; } })() => "error"
+(() => { const m = new Money(5); try { m.cents = 99; } catch (e) {} return m.cents; })() => 5
+(() => { const o = new Order("o1"); o.addLine("pen", 2, 150); o.addLine("ink", 1, 400); return o.total().cents; })() => 700
+(() => { const o = new Order("o1"); o.addLine("pen", 2, 150); o.addLine("pen", 3, 150); return [o.lines.length, o.total().cents]; })() => [1, 750]
+(() => { const o = new Order("o1"); return o.total().cents; })() => 0
+(() => { const o = new Order("o1"); o.addLine("pen", 2, 150); o.place(); return [o.status, o.events()]; })() => ["placed", [{"type": "OrderPlaced", "orderId": "o1", "totalCents": 300}]]
+(() => { const o = new Order("o1"); try { o.place(); return "no error"; } catch (e) { return "error"; } })() => "error"
+(() => { const o = new Order("o1"); o.addLine("pen", 1, 100); o.place(); try { o.addLine("ink", 1, 100); return "no error"; } catch (e) { return "error"; } })() => "error"
+(() => { const o = new Order("o1"); try { o.addLine("pen", 0, 100); return "no error"; } catch (e) { return "error"; } })() => "error"
+(() => { const o = new Order("o1"); o.addLine("pen", 1, 100); o.place(); o.cancel(); return o.events().map((e) => e.type); })() => ["OrderPlaced", "OrderCancelled"]
+(() => { const o = new Order("o1"); o.cancel(); try { o.cancel(); return "no error"; } catch (e) { return "error"; } })() => "error"
+(() => { const log = []; const s = (n, fail) => ({ name: n, run: () => { if (fail) throw new Error("x"); log.push("run " + n); }, undo: () => log.push("undo " + n) }); const r = runSaga([s("stock"), s("payment"), s("ship", true)]); return [r, log]; })() => [{"ok": false, "failed": "ship", "undone": ["payment", "stock"]}, ["run stock", "run payment", "undo payment", "undo stock"]]
+(() => { const s = (n) => ({ name: n, run: () => {}, undo: () => {} }); return runSaga([s("a"), s("b")]); })() => {"ok": true, "done": ["a", "b"]}
+(() => { const s = (n, fail) => ({ name: n, run: () => { if (fail) throw new Error("x"); }, undo: () => {} }); return runSaga([s("a", true), s("b")]); })() => {"ok": false, "failed": "a", "undone": []}
+runSaga([]) => {"ok": true, "done": []}
+@hints
+`Object.defineProperty(this, "cents", { value: cents, writable: false })` makes the property read-only.
+In `Order`, every method that changes state must check the status first. That is the aggregate protecting its invariants.
+`total()` is a `reduce` starting from `new Money(0)`, adding `price.times(quantity)` for each line.
+In `runSaga`, keep a list of completed steps. On failure, walk it backwards calling `undo`.
+
+#EXAM 22
+#Q Which belongs in the core domain?
+- Sending password-reset emails
+* The pricing rules that distinguish the business from its competitors
+- Logging
+! The core domain is what makes the business different.
+#Q What is an anti-corruption layer?
+- A firewall
+* A translation layer that protects your model from another system's model
+- A database backup
+! It prevents a foreign or legacy model leaking into yours.
+#Q Money, Email and DateRange are typically modelled as what?
+- Entities
+* Value objects
+- Aggregates
+! They have no identity and are defined by their values.
+#Q How should one aggregate refer to another?
+- By holding a direct object reference
+* By its identifier
+- By sharing its database table
+! References by ID keep aggregates independently loadable and consistent.
+#Q What does Conway's law state?
+- Software grows exponentially
+* A system's design tends to mirror the communication structure of the organisation that built it
+- Networks are unreliable
+! Team structure and architecture shape each other.
+#Q What is a distributed monolith?
+- A monolith running on a large server
+* Services so tightly coupled that they must be changed and deployed together
+- A database cluster
+! It has the costs of both architectures and the benefits of neither.
+#Q In a saga, where should steps that cannot be undone be placed?
+- First
+* Last
+- Anywhere
+! Once they happen there is no compensation, so earlier failures should already have been ruled out.
+#W A ten-person company with one product is considering splitting its application into fifteen microservices to "be ready for scale". Advise them. Explain the benefits they hope for, the costs they will incur, what you recommend instead, and what signals would later justify extracting a service.
++ Identifies independent deployment and team autonomy as the real benefits, and notes they matter little for one small team
++ Lists concrete costs: distributed failure handling, eventual consistency, operational overhead, harder debugging
++ Recommends a modular monolith with boundaries along bounded contexts
++ Names signals for extraction (a component with different scaling needs, teams blocking each other, different release cadence)
++ Mentions the risk of a distributed monolith or wrong boundaries
+
+#PROJECT Microservices ecosystem
+Build a small system of at least three services around a business process that spans them (for example ordering: orders, inventory, payments).
+@requirements
+A context map and the ubiquitous language for each context
+Each service owns its own data store; no service reads another's
+At least one aggregate with invariants enforced by its root, and value objects for money and quantities
+Services communicate asynchronously through events; publication uses the outbox pattern or the limitation is stated
+The cross-service process is a saga with compensations, and a test shows a failure being compensated
+Consumers are idempotent, shown by a test that delivers a message twice
+A trace ID follows a request through all services' logs
+An API gateway or single entry point
+@deliverables
+The repository with all services and a one-command start-up
+The context map and event catalogue
+A test report covering the compensation and duplicate-delivery cases
+A written argument for or against having built this as microservices
+@rubric
+Domain modelling (contexts, aggregates, language) | 25
+Service autonomy and data ownership | 20
+Saga, compensation and idempotence are demonstrated | 25
+Observability across services | 10
+The critical evaluation is honest and well argued | 20
+
+#COURSE c404
+#LESSON Measure first: profiling | 13
+> "Premature optimization is the root of all evil." (Donald Knuth)
+
+The full quotation is more balanced: forget small efficiencies about 97% of the time, but do not pass up the critical 3%. The skill is finding that 3%. Programmers' intuition about where time goes is reliably wrong, so **measure**.
+
+### A method
+1. **Define the goal.** "Checkout p99 under 300 ms at 500 requests a second." Without a target you cannot know when to stop.
+2. **Measure** under realistic conditions.
+3. **Find the bottleneck.** Only the slowest stage limits the whole.
+4. **Change one thing.**
+5. **Measure again.** Keep the change only if it helped.
+6. Repeat until the goal is met, then stop.
+
+### Kinds of measurement
+- A **benchmark** times a specific operation.
+- A **profiler** shows where a running program spends its time or memory.
+- **Tracing** shows where the time of one request went across components.
+- A **load test** shows how the system behaves as demand rises.
+
+### Profilers
+A **sampling profiler** interrupts the program many times a second and records the call stack. Functions that appear in many samples are where time is spent. The overhead is low, so it can be used in production.
+
+A **flame graph** displays the samples: each box is a function, its width the share of time spent in it and everything it called, with callers below and callees above. Look for wide boxes.
+
+```diagram
+   +------------------------------------------------------------+
+   | handleRequest                                              |
+   +---------------------------+--------------------------------+
+   | parseInput                | renderReport                   |
+   +------+                    +---------------------+----------+
+   |      |                    | formatDate (wide!)  | sum      |
+```
+
+### Latency: use percentiles
+An average hides the experience of the unluckiest users. Report **percentiles**: p50 (the median), p95, p99. If p99 is 2 seconds, one request in a hundred takes at least that long, and a user who loads a page made of 100 requests will very likely hit one.
+
+### Benchmarking pitfalls
+- **Warm-up:** runtimes compile hot code as they go; early measurements are unrepresentative.
+- **Noise:** other processes, frequency scaling. Run many times and report spread.
+- **Dead-code elimination:** the compiler may remove work whose result is unused.
+- **Unrealistic data:** ten items behave differently from ten million.
+- **Coordinated omission:** a load tester that waits for each response before sending the next under-reports latency during slow periods.
+
+### Amdahl's law
+If a part takes fraction *p* of the time and you speed it up by a factor *s*, the overall speed-up is
+
+```text
+1 / ((1 − p) + p / s)
+```
+
+Speeding up something that takes 5% of the time, even infinitely, gains at most 5%. Work on what dominates.
+
+### The usual culprits
+In most applications the time goes to I/O, not computation: unindexed queries, N+1 queries, sequential network calls that could be concurrent, missing caches, oversized payloads. Check these before tuning code.
+
+> Key idea: Do not guess. A profiler will show you a different answer from the one you expected, almost every time.
+#Q Why report p99 latency in addition to the average?
+- The average is harder to calculate
+* The average hides slow requests that a meaningful share of users experience
+- p99 is always smaller
+! Tail latency describes the worst realistic experience.
+#Q A function accounts for 10% of run time. What is the largest overall speed-up from optimising it?
+- 10 times
+* About 11%
+- 50%
+! By Amdahl's law, 1 / 0.9 ≈ 1.11.
+
+#LESSON Algorithmic and data-structure optimisation | 12
+The largest gains come from doing less work, not from doing the same work faster. Changing an algorithm from O(n²) to O(n log n) is worth more than any amount of low-level tuning.
+
+### Recognise the patterns
+**Nested loops over the same data.** Often replaceable with a hash lookup.
+
+```js
+// O(n²): for each order, search all customers
+for (const o of orders) o.customer = customers.find((c) => c.id === o.customerId);
+
+// O(n): build an index once
+const byId = new Map(customers.map((c) => [c.id, c]));
+for (const o of orders) o.customer = byId.get(o.customerId);
+```
+
+**Repeated work.** Compute once, reuse. Hoist calculations that do not change out of loops. **Memoize** pure functions with expensive, repeated inputs.
+
+**Membership tests on a list.** `list.includes(x)` in a loop is O(n²). Use a `Set`.
+
+**Sorting to find one thing.** The minimum needs one pass, not a sort. The top k of n needs a heap: O(n log k).
+
+**Building strings or arrays by repeated concatenation** copies everything each time. Collect pieces and join once.
+
+**Doing work eagerly.** Compute lazily, on demand, and stop early when the answer is known.
+
+### Batch
+Per-item overhead dominates when items are handled one by one. 1,000 single-row inserts cost 1,000 round trips; one batched insert costs one. The same applies to network calls, file writes and messages.
+
+### Choose the structure for the access pattern
+| You need | Structure |
+|---|---|
+| Lookup by key | hash map |
+| Ordered traversal or range queries | balanced tree or sorted array |
+| Repeatedly remove the smallest | heap |
+| Membership | set, or a Bloom filter when approximate is acceptable |
+| Add and remove at both ends | deque |
+| Prefix search | trie |
+
+### Space for time
+Caches, indexes, precomputed tables and denormalised data all spend memory to save time. The reverse trade, compressing data to save memory at CPU cost, is right when memory or bandwidth is the limit.
+
+### Approximate answers
+Sometimes exactness is not needed. A **Bloom filter** answers "definitely not present" or "probably present" in a few bits per item. **HyperLogLog** estimates the number of distinct items in a few kilobytes. Sampling estimates an average without reading everything.
+
+### Do not do it at all
+The fastest code is code that does not run. Is this feature used? Can the result be computed once at build time? Can the client request less? Can the work be done later, off the request path?
+
+### Constant factors matter eventually
+Once the algorithm is right, constants count: an O(n) pass with a tight loop over an array can be many times faster than one chasing pointers through objects. That is the subject of the next lesson.
+#Q What is the most effective general way to speed up a program?
+- Rewriting it in assembly
+* Reducing the amount of work, usually with a better algorithm or data structure
+- Buying faster hardware
+! Lower complexity beats constant-factor tuning.
+#Q Why is inserting 1,000 rows in one batch faster than 1,000 separate inserts?
+- The database prefers large numbers
+* The per-operation overhead, such as network round trips and transaction commits, is paid once
+- Batches skip validation
+! Fixed costs dominate small operations.
+
+#LESSON The memory hierarchy and cache-friendly code | 13
+Processors have become far faster than memory. A modern CPU executes several instructions per nanosecond, while fetching from main memory takes about a hundred. To hide this gap, hardware uses a **hierarchy of caches**.
+
+```diagram
+   CPU registers        instant
+   L1 cache             about 1 ns        tens of KB
+   L2 cache             about 4 ns        hundreds of KB to a few MB
+   L3 cache             about 15 ns       tens of MB, shared between cores
+   main memory          about 100 ns      GB
+   solid-state disk     about 100,000 ns  hundreds of GB
+```
+
+Each level is larger and slower than the one above. A **cache miss**, needing data that is not in cache, can cost as much as a hundred simple instructions.
+
+### Locality
+Caches work because programs show **locality**.
+
+- **Temporal locality:** data used recently is likely to be used again.
+- **Spatial locality:** data near recently used data is likely to be used next. Memory is loaded in **cache lines** of typically 64 bytes, so reading one element brings its neighbours along.
+
+The hardware **prefetcher** also notices sequential access and loads ahead.
+
+### What this means for code
+**Arrays beat linked structures.** An array's elements are adjacent; traversing it is sequential and nearly every access is a hit. A linked list's nodes are scattered; every step may miss. In practice an array can be many times faster to traverse than a list of the same length, even though both are O(n).
+
+**Traversal order matters.** In a two-dimensional array stored row by row:
+
+```c
+for (i = 0; i < n; i++) for (j = 0; j < n; j++) sum += a[i][j];   // row order: fast
+for (j = 0; j < n; j++) for (i = 0; i < n; i++) sum += a[i][j];   // column order: many misses
+```
+
+Same result, same Big O, often a several-fold difference in speed.
+
+**Layout matters.** An "array of structures" interleaves every field. If a loop reads one field, the others waste cache space. A "structure of arrays" keeps each field contiguous. Game engines and analytical databases (**columnar storage**) rely on this.
+
+**Small is fast.** Data that fits in cache is processed much faster than data that does not. Compact representations pay twice.
+
+### Branch prediction
+Processors guess which way a branch will go and run ahead. A wrong guess costs around fifteen cycles. Unpredictable branches in hot loops are slow; sorted or patterned data makes them predictable.
+
+### False sharing
+Two threads updating different variables that happen to share a cache line force the line to bounce between cores, slowing both dramatically. Padding the variables apart fixes it.
+
+### In managed languages
+You have less control, but the principles hold: prefer arrays of primitives to arrays of objects, avoid needless allocation in hot paths, and keep data together that is used together.
+
+> Key idea: Big O counts operations as if each cost the same. On real hardware a memory access costs anywhere from one nanosecond to a hundred, depending on where the data is.
+#Q Why is traversing an array usually faster than traversing a linked list of the same length?
+- Arrays have a lower Big O
+* Array elements are contiguous, so most accesses hit the cache, while list nodes are scattered
+- Linked lists use more instructions per node
+! Spatial locality and prefetching favour contiguous data.
+#Q What is false sharing?
+- Two threads reading the same variable
+* Threads modifying different variables on the same cache line, causing it to bounce between cores
+- A security flaw
+! The variables are logically independent but physically coupled.
+
+#LESSON Memory management and garbage collection | 13
+### Allocation
+The **stack** is allocated by moving a pointer and freed automatically on return: nearly free. The **heap** needs an **allocator** that finds a free block of a suitable size and tracks it. Allocation is fast but not free, and many small allocations add up.
+
+**Fragmentation:** after many allocations and frees, free memory is scattered in small pieces, and a large request may fail though the total free space is ample.
+
+### Manual management
+In C and C++, the programmer decides when to free. The failure modes:
+
+- **Leak:** never freed.
+- **Use after free:** reading or writing memory that has been returned.
+- **Double free.**
+- **Buffer overflow:** writing beyond an allocation.
+
+The last three are **memory-safety** bugs. They corrupt data, crash programs and are a leading source of security vulnerabilities.
+
+### Reference counting
+Each object counts the references to it and is freed when the count reaches zero. Used by Python's main implementation and by Swift.
+
+- Memory is reclaimed promptly and predictably.
+- Updating counts costs time on every assignment.
+- **Cycles** (A refers to B, B refers to A) never reach zero and leak, unless a separate cycle detector or **weak references** are used.
+
+### Tracing garbage collection
+A tracing collector starts from the **roots** (globals, stack variables) and follows references to find everything **reachable**. Everything else is garbage. Cycles are handled naturally.
+
+**Mark and sweep** marks reachable objects, then frees the rest. **Copying** collectors move live objects together, which eliminates fragmentation and makes allocation a pointer bump.
+
+### Generational collection
+The **generational hypothesis**: most objects die young. Collectors therefore divide the heap.
+
+```diagram
+   young generation (small, collected often, fast)   -->  survivors are promoted
+   old generation   (large, collected rarely)
+```
+
+A young collection examines only a small area that is mostly garbage, so it is quick.
+
+### The cost
+- **Pauses.** Some phases stop the program ("stop the world"). Modern collectors do most work concurrently and keep pauses to milliseconds or less, at the cost of some throughput.
+- **Memory overhead.** Collectors need headroom, often tens of percent or more.
+- **Throughput.** CPU time spent collecting.
+
+Collectors are tuned for throughput, low pause time or small footprint. You cannot have all three.
+
+### Writing collector-friendly code
+- Allocate less in hot paths; reuse buffers.
+- Avoid creating vast numbers of small, short-lived objects where an array of primitives would do.
+- Do not keep references you no longer need, especially in caches, collections and listeners.
+- Bound every cache.
+
+### Finding leaks
+A **heap snapshot** shows what is in memory and what holds it. Take two snapshots some time apart and compare: what grew, and what **retains** it? The retaining path leads to the forgotten reference.
+
+### Ownership as a third way
+Rust enforces at compile time that every value has one owner and is freed when the owner goes out of scope. No collector, no manual free, no memory-safety bugs in safe code. The next course covers it.
+
+> Key idea: Automatic memory management removes memory-safety bugs, not memory problems. Unbounded growth and collection pauses remain your responsibility.
+#Q What can reference counting not reclaim without extra help?
+- Short-lived objects
+* Objects that reference each other in a cycle
+- Large objects
+! Their counts never fall to zero.
+#Q What observation makes generational garbage collection effective?
+- Old objects are larger
+* Most objects become garbage soon after they are created
+- Memory is unlimited
+! Collecting the young generation is cheap because little of it survives.
+
+#LESSON Modern C++ in practice | 13
+C++ gives the control of C with abstractions that cost nothing at run time when used well. Modern C++ (C++11 onward) is a markedly safer language than its early form.
+
+### Ownership made explicit
+```cpp
+std::unique_ptr<Widget> w = std::make_unique<Widget>();   // one owner; freed automatically
+std::shared_ptr<Config> c = std::make_shared<Config>();   // shared owners; freed when the last goes
+```
+
+Guidelines: prefer values and references. Use `unique_ptr` for owned heap objects. Use `shared_ptr` only for truly shared ownership. A raw pointer means "I observe this, I do not own it". Avoid writing `new` and `delete`.
+
+### Move semantics
+Copying a large object is expensive. **Moving** transfers its internal resources and leaves the source empty, at the cost of copying a few pointers.
+
+```cpp
+std::vector<int> a = makeBigVector();    // moved, not copied
+std::vector<int> b = std::move(a);       // a is now empty
+```
+
+Returning large objects by value is therefore cheap, which removes the old reason for output parameters and raw pointers.
+
+### The rule of zero
+If your class owns resources only through members that manage themselves (`std::vector`, `std::string`, smart pointers), you need write **no** destructor, copy or move operations. The compiler generates correct ones. Classes that manage a raw resource directly should be small and do only that.
+
+### const and references
+- `const` documents and enforces that something does not change. Use it by default.
+- Pass large objects as `const T&` to avoid copies.
+- `std::string_view` and `std::span` are non-owning views of strings and arrays.
+
+### The standard library
+Use containers and algorithms instead of raw arrays and hand-written loops.
+
+```cpp
+std::vector<int> v = {5, 2, 9, 1};
+std::sort(v.begin(), v.end());
+auto it = std::find_if(v.begin(), v.end(), [](int x) { return x > 4; });
+```
+
+Lambdas (`[](int x) { ... }`) are anonymous functions; `auto` deduces types.
+
+### Undefined behaviour
+Reading out of bounds, dereferencing a null or dangling pointer, signed integer overflow and data races are **undefined behaviour**: the standard places no requirement on what happens. The program may crash, appear to work, or do something else entirely, and optimisers assume it never occurs. This is the main hazard of C and C++.
+
+Defences:
+
+- Compile with warnings enabled and treated as errors.
+- Run tests under **sanitizers**: AddressSanitizer (memory errors), UndefinedBehaviorSanitizer, ThreadSanitizer (data races).
+- Use static analysis.
+- Prefer bounds-checked access (`.at()`) where it is not performance-critical.
+
+### Performance habits
+- Reserve capacity when the size is known: `v.reserve(n)`.
+- Prefer `std::vector` to node-based containers for the cache behaviour.
+- Pass and return by value when you will move; by const reference when you only read.
+- Measure before reaching for anything exotic.
+
+### When to choose C++
+When you need predictable performance, control over memory layout, or access to a large existing ecosystem: game engines, browsers, databases, trading systems, embedded devices. For new projects where memory safety is paramount, many teams now evaluate Rust first.
+
+> Key idea: Modern C++ expresses ownership in types and lets the compiler manage resources. Most historical C++ bugs came from doing that by hand.
+#Q What does the rule of zero recommend?
+- Never use classes
+* Design classes so that the compiler-generated destructor, copy and move operations are correct, by owning resources through self-managing members
+- Initialise everything to zero
+! Writing none of the special member functions means none can be wrong.
+#Q What is undefined behaviour?
+- Behaviour that varies between operating systems
+* Code for which the language standard imposes no requirements, so anything may happen
+- A compile-time error
+! The compiler assumes it never happens, which makes its effects unpredictable.
+
+#LAB js | Optimise three slow functions
+Each function below is **correct but slow**. Rewrite each so that it produces exactly the same results with better complexity. The grader checks the results and then runs each function on a large input. The grader stops any program that executes more than a few million loop steps, so the slow versions fail the large tests and an efficient version passes easily.
+
+- `hasPairWithSum(numbers, target)` returns true if two **different positions** hold numbers that add up to `target`. Currently O(n²). Make it O(n).
+- `countDistinct(items)` returns the number of distinct values. Currently O(n²). Make it O(n).
+- `rangeSums(numbers, queries)` takes a list of `[from, to]` index pairs (inclusive) and returns the sum of `numbers[from..to]` for each. Currently O(n) per query. Precompute **prefix sums** so that each query is answered in O(1).
+@starter
+function hasPairWithSum(numbers, target) {
+  for (let i = 0; i < numbers.length; i++) {
+    for (let j = i + 1; j < numbers.length; j++) {
+      if (numbers[i] + numbers[j] === target) return true;
+    }
+  }
+  return false;
+}
+
+function countDistinct(items) {
+  const seen = [];
+  for (const item of items) {
+    let found = false;
+    for (const s of seen) {
+      if (s === item) found = true;
+    }
+    if (!found) seen.push(item);
+  }
+  return seen.length;
+}
+
+function rangeSums(numbers, queries) {
+  const out = [];
+  for (const [from, to] of queries) {
+    let sum = 0;
+    for (let i = from; i <= to; i++) {
+      sum += numbers[i];
+    }
+    out.push(sum);
+  }
+  return out;
+}
+@solution
+function hasPairWithSum(numbers, target) {
+  const seen = new Set();
+  for (const n of numbers) {
+    if (seen.has(target - n)) return true;
+    seen.add(n);
+  }
+  return false;
+}
+
+function countDistinct(items) {
+  return new Set(items).size;
+}
+
+function rangeSums(numbers, queries) {
+  const prefix = [0];
+  for (let i = 0; i < numbers.length; i++) {
+    prefix.push(prefix[i] + numbers[i]);
+  }
+  return queries.map(([from, to]) => prefix[to + 1] - prefix[from]);
+}
+@tests
+hasPairWithSum([1, 4, 6, 9], 10) => true
+hasPairWithSum([1, 4, 6, 9], 8) => false
+hasPairWithSum([5], 10) => false
+hasPairWithSum([5, 5], 10) => true
+hasPairWithSum([], 0) => false
+hasPairWithSum([-3, 8, 1], 5) => true
+countDistinct([1, 2, 2, 3, 1]) => 3
+countDistinct([]) => 0
+countDistinct(["a", "a", "a"]) => 1
+rangeSums([3, 1, 4, 1, 5], [[0, 4], [1, 2], [3, 3]]) => [14, 5, 1]
+rangeSums([3, 1, 4], []) => []
+rangeSums([-2, 2, 7], [[0, 1], [2, 2], [0, 2]]) => [0, 7, 7]
+hasPairWithSum(Array.from({ length: 20000 }, (x, i) => i * 2), -1) => false
+countDistinct(Array.from({ length: 20000 }, (x, i) => i % 5000)) => 5000
+rangeSums(Array.from({ length: 3000 }, () => 1), Array.from({ length: 3000 }, () => [0, 2999])).filter((s) => s === 3000).length => 3000
+@hints
+For the pair problem, as you scan, ask "have I already seen the number that would complete this one?". A `Set` answers that in constant time.
+Be careful with `[5]` and a target of 10: a number may not pair with itself, only with another position.
+`new Set(items).size` counts distinct values in one pass.
+Build `prefix` where `prefix[k]` is the sum of the first k numbers. Then the sum from `from` to `to` is `prefix[to + 1] - prefix[from]`.
+
+#EXAM 22
+#Q What is the first step in improving performance?
+- Rewrite in a faster language
+* Define a measurable goal and measure the current behaviour
+- Add caching everywhere
+! Without measurement you cannot find the bottleneck or know when to stop.
+#Q What does a wide box in a flame graph indicate?
+- A function with many lines
+* A function in which, together with its callees, a large share of time is spent
+- A function that was called once
+! Width is proportional to samples.
+#Q Replacing `array.includes(x)` inside a loop with a Set lookup changes the complexity from what to what?
+* O(n²) to O(n)
+- O(n) to O(1)
+- O(n log n) to O(n²)
+! Each membership test drops from linear to constant.
+#Q Why is iterating a two-dimensional array in row order usually faster than in column order?
+- Row order performs fewer operations
+* Row order accesses memory sequentially, which uses cache lines and prefetching well
+- Column order is not permitted
+! The work is identical; the memory access pattern is not.
+#Q Which approach reclaims cyclic garbage without special handling?
+- Reference counting
+* Tracing garbage collection
+- Manual free
+! Unreachable cycles are simply never marked.
+#Q What does std::move do?
+- Copies an object
+* Permits an object's resources to be transferred to another object, leaving the source in a valid empty state
+- Deletes an object
+! It enables moving in place of an expensive copy.
+#Q Which tool detects out-of-bounds memory access in C++ at run time?
+- A formatter
+* AddressSanitizer
+- A profiler
+! It instruments memory accesses and reports violations.
+#W A report page that took one second with 1,000 records now takes four minutes with 60,000. Describe how you would investigate, what the growth suggests about the cause, the most likely specific causes, and how you would confirm the fix.
++ Notes that time grew far more than linearly, suggesting quadratic behaviour (60 times the data, about 240 times the time or worse)
++ Proposes profiling or query logging before changing anything
++ Names likely causes: nested loops, repeated linear searches, N+1 queries, missing index
++ Proposes a specific remedy such as a hash index, a join, batching or a database index
++ Confirms by measuring again at several data sizes
+
+#PROJECT Performance investigation
+Take a program with a real performance problem (your own, an open-source one, or one you write deliberately) and conduct a documented investigation.
+@requirements
+A stated, measurable performance goal
+A reproducible benchmark with realistic data, run repeatedly, reporting spread and percentiles
+Profiles (a flame graph or equivalent) identifying where time or memory goes
+At least three optimisations, applied one at a time, each measured; at least one is algorithmic and one concerns memory or data layout
+At least one attempted optimisation that did not help, reported honestly
+Correctness is protected by tests throughout
+@deliverables
+The code, benchmark harness and raw results
+The profiles before and after
+A report: goal, method, findings, each change with its measured effect, and what you would do next
+@rubric
+Measurement method is sound and reproducible | 25
+The bottleneck is correctly identified from evidence | 25
+Optimisations are effective and individually measured | 25
+Honesty about what did not work, and correctness preserved | 15
+Report clarity | 10
+
+#COURSE c405
+#LESSON Ownership | 14
+**Rust** is a systems language that guarantees memory safety and freedom from data races **at compile time**, with no garbage collector. It does this through a set of rules called **ownership**.
+
+```rust
+fn main() {
+    let name = String::from("Ada");
+    println!("Hello, {}", name);
+}
+```
+
+### The three rules
+1. Each value has exactly one **owner**.
+2. When the owner goes out of scope, the value is **dropped** (freed).
+3. Ownership can be **moved** to another owner.
+
+```rust
+let a = String::from("hello");
+let b = a;                  // ownership moves to b
+println!("{}", a);          // compile error: a was moved
+```
+
+After `let b = a`, there is still only one owner of the text, so it is freed exactly once. There is no double free, and no use of freed memory, because the compiler refuses to compile code that would do either.
+
+```diagram
+   before:   a ---> "hello"
+   after:    a (invalid)      b ---> "hello"
+```
+
+### Copy types
+Simple values that live entirely on the stack (integers, floats, booleans, characters) implement `Copy`: assignment copies them and both variables remain valid.
+
+```rust
+let x = 5;
+let y = x;          // both usable
+```
+
+### Clone
+To duplicate heap data deliberately, call `.clone()`. It is explicit because it may be expensive.
+
+### Functions and ownership
+Passing a value to a function moves it, just like assignment.
+
+```rust
+fn consume(s: String) { println!("{}", s); }   // s is dropped here
+
+let s = String::from("hi");
+consume(s);
+// s can no longer be used
+```
+
+A function can give ownership back by returning the value. Doing that for every call would be tedious, which is what **borrowing** (next lesson) solves.
+
+### Variables are immutable by default
+```rust
+let x = 5;
+x = 6;              // error
+let mut y = 5;
+y = 6;              // fine
+```
+
+You must opt in to mutation with `mut`. Reading code, you know that anything not marked `mut` never changes.
+
+### Why this design
+Garbage collection gives safety at a run-time cost. Manual management gives control at a safety cost. Ownership gives both safety and control, and charges for it in the effort of satisfying the compiler. That effort is front-loaded: programs that compile have ruled out entire categories of bug.
+
+> Key idea: In Rust, the question "who is responsible for freeing this?" always has exactly one answer, checked by the compiler.
+#TRY rust | Make this program compile and print the greeting twice by cloning the string.
+@starter
+fn main() {
+    let greeting = String::from("hello");
+    let copy = greeting;
+    println!("{}", greeting);
+    println!("{}", copy);
+}
+@solution
+fn main() {
+    let greeting = String::from("hello");
+    let copy = greeting.clone();
+    println!("{}", greeting);
+    println!("{}", copy);
+}
+@out
+hello
+hello
+#Q What happens to a String when it is assigned to another variable in Rust?
+- It is copied
+* Ownership moves, and the original variable can no longer be used
+- Both variables share it
+! Only one owner exists at a time, so the value is freed exactly once.
+#Q When is a value's memory freed in Rust?
+- When the garbage collector runs
+* When its owner goes out of scope
+- When the program ends
+! Dropping is determined at compile time by scope.
+
+#LESSON Borrowing and lifetimes | 14
+Moving ownership into every function would be impractical. Instead you can **borrow** a value by taking a **reference** to it, which lets a function use it without owning it.
+
+```rust
+fn length(s: &String) -> usize { s.len() }
+
+let name = String::from("Ada");
+let n = length(&name);          // lend it
+println!("{} has {} letters", name, n);    // still usable
+```
+
+### The borrowing rules
+At any moment, for any value, you may have **either**:
+
+- any number of **shared** references (`&T`), which can only read, **or**
+- exactly one **mutable** reference (`&mut T`), which can read and write,
+
+and never both. And a reference must never outlive the value it points to.
+
+```rust
+let mut v = vec![1, 2, 3];
+let first = &v[0];
+v.push(4);                      // error: v is borrowed while we try to change it
+println!("{}", first);
+```
+
+This is a real bug in other languages: `push` may reallocate the vector, leaving `first` pointing at freed memory. Rust rejects it at compile time.
+
+The same rule, **shared or mutable but not both**, is exactly what prevents data races between threads. One principle gives both memory safety and thread safety.
+
+### Mutable borrows
+```rust
+fn add_exclamation(s: &mut String) { s.push('!'); }
+
+let mut text = String::from("hi");
+add_exclamation(&mut text);
+```
+
+### Slices
+A **slice** is a reference to part of a collection. `&str` is a string slice; `&[i32]` is a slice of integers. Functions should usually take slices, so they accept any source.
+
+```rust
+fn first_word(s: &str) -> &str {
+    s.split(' ').next().unwrap_or("")
+}
+```
+
+### Lifetimes
+Every reference has a **lifetime**: the region of code in which it is valid. The compiler (the **borrow checker**) usually infers them. When a function returns a reference and it is ambiguous which input it comes from, you annotate:
+
+```rust
+fn longest<'a>(a: &'a str, b: &'a str) -> &'a str {
+    if a.len() >= b.len() { a } else { b }
+}
+```
+
+`'a` says: the result is valid for as long as both inputs are. Annotations do not change how long anything lives; they describe relationships so that the compiler can check them.
+
+### Dangling references are impossible
+```rust
+fn dangle() -> &String {
+    let s = String::from("hi");
+    &s                          // error: s is dropped at the end of the function
+}
+```
+
+Return the `String` itself, transferring ownership.
+
+### Working with the borrow checker
+When the compiler rejects your code, it is usually pointing at a genuine hazard. Common remedies: shorten the scope of a borrow, restructure so that data flows one way, or clone when a separate copy is really what you want.
+
+> Key idea: Many readers or one writer. That single rule eliminates use-after-free and data races.
+#Q Which combination of references to one value is allowed at the same time?
+- One mutable and several shared
+* Several shared references and no mutable one
+- Two mutable references
+! Either many readers or exactly one writer.
+#Q What does a lifetime annotation such as 'a do?
+- Extends how long a value lives
+* Describes how the validity of references relates, so the compiler can check them
+- Allocates memory
+! It is a description for the checker, not an instruction.
+
+#LESSON Structs, enums and pattern matching | 13
+### Structs
+A **struct** groups named fields. Behaviour is added in an `impl` block.
+
+```rust
+struct Rectangle { width: u32, height: u32 }
+
+impl Rectangle {
+    fn new(width: u32, height: u32) -> Self { Rectangle { width, height } }
+    fn area(&self) -> u32 { self.width * self.height }
+    fn widen(&mut self, by: u32) { self.width += by; }
+}
+```
+
+`&self` borrows the value to read it; `&mut self` to change it; plain `self` takes ownership.
+
+### Enums carry data
+A Rust **enum** is a type that is exactly one of several variants, each of which may hold different data. This is far more powerful than the enums of C or Java.
+
+```rust
+enum Shape {
+    Circle { radius: f64 },
+    Rectangle { width: f64, height: f64 },
+    Point,
+}
+```
+
+### Pattern matching
+`match` examines a value and runs the arm that fits. It must be **exhaustive**: every possible case must be handled, or the code does not compile.
+
+```rust
+fn area(s: &Shape) -> f64 {
+    match s {
+        Shape::Circle { radius } => 3.14159 * radius * radius,
+        Shape::Rectangle { width, height } => width * height,
+        Shape::Point => 0.0,
+    }
+}
+```
+
+Add a new variant later and the compiler lists every `match` that must be updated. A whole class of "forgot to handle the new case" bugs disappears.
+
+### No null: Option
+Rust has no `null`. A value that may be absent is an `Option<T>`:
+
+```rust
+enum Option<T> { Some(T), None }
+```
+
+```rust
+fn find(names: &[&str], target: &str) -> Option<usize> {
+    for (i, n) in names.iter().enumerate() {
+        if *n == target { return Some(i); }
+    }
+    None
+}
+
+match find(&names, "Ada") {
+    Some(i) => println!("found at {}", i),
+    None => println!("not found"),
+}
+```
+
+You cannot use the inner value without handling the `None` case. Tony Hoare, who introduced null references in 1965, later called them his "billion-dollar mistake". `Option` moves the check from run time to compile time.
+
+`if let` handles one case concisely:
+
+```rust
+if let Some(i) = find(&names, "Ada") { println!("found at {}", i); }
+```
+
+### Make illegal states unrepresentable
+Design types so that invalid combinations cannot be constructed.
+
+```rust
+enum Connection {
+    Disconnected,
+    Connecting { attempt: u32 },
+    Connected { session_id: String },
+}
+```
+
+A session ID exists only in the `Connected` state. There is no way to have one while disconnected, so no code needs to check for it.
+
+### Collections
+`Vec<T>` is a growable array. `String` is owned text and `&str` a borrowed view. `HashMap<K, V>` is a hash table.
+
+> Key idea: Enums with data plus exhaustive matching let the compiler verify that every case is handled.
+#Q What does it mean that `match` is exhaustive?
+- It runs every arm
+* Every possible value must be handled, or the program does not compile
+- It is slow
+! The compiler checks coverage of all variants.
+#Q How does Rust represent a value that may be absent?
+- null
+* Option<T>, which is Some(value) or None
+- An empty string
+! The absent case must be handled before the value can be used.
+
+#LESSON Traits, generics and error handling | 14
+### Traits
+A **trait** defines behaviour that types can share. It is Rust's form of interface.
+
+```rust
+trait Describe {
+    fn describe(&self) -> String;
+}
+
+impl Describe for Rectangle {
+    fn describe(&self) -> String { format!("{}x{}", self.width, self.height) }
+}
+```
+
+Traits can be implemented for types you did not write, and can supply default methods. Common standard traits are derived automatically:
+
+```rust
+#[derive(Debug, Clone, PartialEq)]
+struct Point { x: i32, y: i32 }
+```
+
+### Generics
+Generic code works for any type that satisfies its **trait bounds**.
+
+```rust
+fn largest<T: PartialOrd>(items: &[T]) -> &T {
+    let mut best = &items[0];
+    for item in items { if item > best { best = item; } }
+    best
+}
+```
+
+The compiler generates a specialised copy for each type used (**monomorphisation**), so generics cost nothing at run time. This is a **zero-cost abstraction**.
+
+When different types must be handled through one interface at run time, use a **trait object**, `Box<dyn Describe>`, which dispatches dynamically like a virtual method.
+
+### Errors are values
+Rust has no exceptions. A function that can fail returns a `Result`:
+
+```rust
+enum Result<T, E> { Ok(T), Err(E) }
+```
+
+```rust
+fn parse_age(text: &str) -> Result<u32, String> {
+    match text.trim().parse::<u32>() {
+        Ok(n) if n <= 150 => Ok(n),
+        Ok(_) => Err(String::from("age out of range")),
+        Err(_) => Err(format!("'{}' is not a number", text)),
+    }
+}
+```
+
+The caller cannot ignore the possibility of failure: the value is wrapped and must be unwrapped.
+
+### The ? operator
+`?` after a `Result` means "if it is an error, return it from this function now; otherwise give me the value".
+
+```rust
+fn total(a: &str, b: &str) -> Result<u32, String> {
+    let x = parse_age(a)?;
+    let y = parse_age(b)?;
+    Ok(x + y)
+}
+```
+
+Error handling stays visible in the function signature without cluttering the logic.
+
+### panic
+For **bugs**, situations that should be impossible, Rust has `panic!`, which unwinds and stops the thread. `unwrap()` and `expect("message")` panic if a value is `None` or `Err`. Use them in tests and prototypes, and where failure would truly be a programming error. Use `Result` for anything that can legitimately go wrong: bad input, a missing file, a network failure.
+
+### Iterators and closures
+```rust
+let total: i32 = numbers.iter().filter(|n| *n % 2 == 0).map(|n| n * n).sum();
+```
+
+Iterator chains are lazy and compile to loops as fast as hand-written ones.
+
+### Cargo
+`cargo` is Rust's build tool and package manager: `cargo new`, `cargo build`, `cargo test`, `cargo run`. Dependencies are declared in `Cargo.toml`, and tests live beside the code.
+
+> Key idea: Failure is part of a function's type. The compiler makes sure every caller has decided what to do about it.
+#Q How does Rust signal that a function may fail?
+- By throwing an exception
+* By returning a Result that is either Ok(value) or Err(error)
+- By returning -1
+! The possibility of failure is in the type and must be handled.
+#Q What does the ? operator do?
+- Ignores an error
+* Returns the error from the current function if there is one; otherwise yields the value
+- Converts a value to a boolean
+! It propagates errors concisely.
+
+#LESSON Fearless concurrency | 13
+Rust's ownership rules were designed for memory safety. They turn out to prevent **data races** as well, which makes concurrent Rust much less frightening.
+
+### Threads and ownership
+```rust
+use std::thread;
+
+let data = vec![1, 2, 3];
+let handle = thread::spawn(move || {
+    println!("{:?}", data);          // the thread now owns data
+});
+handle.join().unwrap();
+```
+
+`move` transfers ownership of `data` into the thread. The main thread can no longer touch it, so there is nothing to race over. Without `move`, the compiler rejects the code, because the thread might outlive the borrowed data.
+
+### Message passing
+Channels send values between threads. Sending **moves** the value: the sender gives it up.
+
+```rust
+use std::sync::mpsc;
+
+let (tx, rx) = mpsc::channel();
+thread::spawn(move || { tx.send(42).unwrap(); });
+println!("{}", rx.recv().unwrap());
+```
+
+### Shared state
+When threads must share data, two types work together.
+
+- `Arc<T>` (atomically reference-counted) allows several owners across threads.
+- `Mutex<T>` protects the data. The data is **inside** the mutex, so the only way to reach it is to lock it.
+
+```rust
+use std::sync::{Arc, Mutex};
+
+let counter = Arc::new(Mutex::new(0));
+let mut handles = vec![];
+for _ in 0..8 {
+    let c = Arc::clone(&counter);
+    handles.push(thread::spawn(move || {
+        let mut n = c.lock().unwrap();
+        *n += 1;
+    }));                              // the lock is released when n goes out of scope
+}
+for h in handles { h.join().unwrap(); }
+println!("{}", *counter.lock().unwrap());       // 8
+```
+
+In other languages a mutex is a convention: nothing stops you touching the data without it. In Rust it is impossible to forget.
+
+### Send and Sync
+Two marker traits make this work.
+
+- A type is `Send` if it is safe to **move** to another thread.
+- A type is `Sync` if it is safe to **share** by reference between threads.
+
+The compiler derives them automatically and refuses to compile code that sends or shares a type that is not safe to. `Rc<T>`, the single-threaded reference counter, is not `Send`, so you are forced to use `Arc`.
+
+### What Rust does not prevent
+Data races are ruled out. **Deadlocks** and logical race conditions (doing the right operations in the wrong order) are still possible. Design remains your job.
+
+### Async
+For I/O-heavy programs, Rust has `async` and `await`. An `async fn` returns a **future**, which does nothing until a runtime (commonly Tokio) polls it. Futures compile to state machines with no heap allocation per task, so a single thread can drive enormous numbers of them.
+
+### unsafe
+An `unsafe` block permits a few operations the compiler cannot verify, such as dereferencing raw pointers and calling C. It does not switch off the borrow checker; it marks code where the programmer vouches for safety. Standard-library types such as `Vec` and `Mutex` are built on small, carefully reviewed `unsafe` cores behind safe interfaces.
+
+### Where Rust is used
+Operating-system components, browsers, databases, command-line tools, network services, embedded systems and WebAssembly. Major operating systems and browsers now accept Rust for new low-level code, largely because memory-safety bugs have historically made up a large share of their security vulnerabilities.
+
+> Key idea: If a concurrent Rust program compiles, it has no data races. That is a guarantee no amount of testing can give in C or C++.
+#Q Why does `thread::spawn` often require the `move` keyword on its closure?
+- To make the thread faster
+* So the thread takes ownership of the data it uses, since it may outlive the scope that created it
+- To copy the stack
+! Borrowing would risk the data being freed while the thread still uses it.
+#Q Which concurrency bug is still possible in safe Rust?
+- Data races
+- Use after free
+* Deadlock
+! The type system prevents data races, not logical errors such as inconsistent lock ordering.
+
+#LAB rust | Inventory with enums and Result
+Write a Rust program that models stock changes with an enum and reports errors with `Result`.
+
+Define an enum `Change` with two variants: `Add(u32)` and `Remove(u32)`.
+
+Write `fn apply(stock: u32, change: Change) -> Result<u32, String>`:
+- `Add(n)` returns `Ok(stock + n)`.
+- `Remove(n)` returns `Ok(stock - n)` if there is enough stock, otherwise `Err` with the text `insufficient stock`.
+
+In `main`, start with stock 10 and apply, in order: `Add(5)`, `Remove(8)`, `Remove(20)`, `Add(1)`. After each, print either `ok: <new stock>` or `error: <message>`. A failed change leaves the stock unchanged.
+
+The output must be exactly:
+
+```text
+ok: 15
+ok: 7
+error: insufficient stock
+ok: 8
+```
+@starter
+enum Change {
+    Add(u32),
+    Remove(u32),
+}
+
+fn apply(stock: u32, change: Change) -> Result<u32, String> {
+    Ok(stock)
+}
+
+fn main() {
+    let mut stock: u32 = 10;
+    let changes = vec![Change::Add(5), Change::Remove(8), Change::Remove(20), Change::Add(1)];
+    for change in changes {
+        match apply(stock, change) {
+            Ok(n) => {
+                stock = n;
+                println!("ok: {}", stock);
+            }
+            Err(e) => println!("error: {}", e),
+        }
+    }
+}
+@solution
+enum Change {
+    Add(u32),
+    Remove(u32),
+}
+
+fn apply(stock: u32, change: Change) -> Result<u32, String> {
+    match change {
+        Change::Add(n) => Ok(stock + n),
+        Change::Remove(n) => {
+            if n > stock {
+                Err(String::from("insufficient stock"))
+            } else {
+                Ok(stock - n)
+            }
+        }
+    }
+}
+
+fn main() {
+    let mut stock: u32 = 10;
+    let changes = vec![Change::Add(5), Change::Remove(8), Change::Remove(20), Change::Add(1)];
+    for change in changes {
+        match apply(stock, change) {
+            Ok(n) => {
+                stock = n;
+                println!("ok: {}", stock);
+            }
+            Err(e) => println!("error: {}", e),
+        }
+    }
+}
+@out
+ok: 15
+ok: 7
+error: insufficient stock
+ok: 8
+@hints
+`main` is complete. Only `apply` needs to change.
+Use `match change { Change::Add(n) => ..., Change::Remove(n) => ... }`.
+`u32` cannot go below zero, so check `n > stock` before subtracting.
+Create the error with `Err(String::from("insufficient stock"))`.
+
+#EXAM 20
+#Q How many owners can a value have at one time in Rust?
+* Exactly one
+- Any number
+- None
+! Single ownership is what allows deterministic freeing.
+#Q What does this code do? let a = String::from("x"); let b = a; println!("{}", a);
+- Prints x
+* Fails to compile, because a was moved
+- Prints an empty line
+! After the move, a is no longer valid.
+#Q Why does Rust forbid a mutable reference while shared references exist?
+- For style reasons
+* Changing data that others are reading can invalidate their references or cause data races
+- To save memory
+! The same rule gives memory safety and thread safety.
+#Q What must a match expression on an enum do?
+- Handle at least one variant
+* Handle every variant
+- Return a boolean
+! Exhaustiveness is checked by the compiler.
+#Q What replaces null in Rust?
+- Zero
+* Option<T>
+- An exception
+! Absence is represented in the type and must be handled.
+#Q What is monomorphisation?
+- Converting code to one thread
+* Generating specialised code for each concrete type a generic is used with
+- Removing unused functions
+! It makes generics free at run time.
+#Q Which pair of types is used to share mutable state between threads?
+- Rc and RefCell
+* Arc and Mutex
+- Box and Vec
+! Arc shares ownership across threads; Mutex guards the data.
+#W Compare how C, Java and Rust each handle memory management and the safety of concurrent access. For each, say what the programmer must do, what can go wrong, and what it costs at run time.
++ C: manual allocation and freeing; leaks, use after free and overflows possible; no run-time overhead
++ Java: garbage collection removes memory-safety bugs; cost in pauses, CPU and memory; data races still possible
++ Rust: ownership and borrowing checked at compile time; no collector; memory-safety bugs and data races prevented in safe code
++ Notes Rust's cost is in learning and satisfying the compiler, not run time
++ Comparison is accurate and balanced
+
+#PROJECT Command-line tool in Rust
+Write a useful command-line tool in Rust. Suggested: a word-frequency counter, a log-file analyser, or a to-do manager stored in a file.
+@requirements
+The project is built with Cargo and has unit tests that pass with cargo test
+Arguments are parsed, and incorrect use prints a helpful message and a non-zero exit code
+All fallible operations return Result and errors are reported cleanly; there is no unwrap on anything that can fail from user input or the file system
+Data is modelled with structs and at least one enum handled by an exhaustive match
+At least one trait is implemented or one generic function written
+Clippy reports no warnings
+@deliverables
+The repository
+The output of cargo test and cargo clippy
+A short note on one compile error the borrow checker gave you and the real problem it was pointing at
+@rubric
+Correct, idiomatic Rust | 30
+Error handling with Result | 20
+Data modelling with structs and enums | 20
+Tests | 15
+The borrow-checker reflection shows understanding | 15

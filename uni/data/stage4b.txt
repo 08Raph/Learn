@@ -1,0 +1,2105 @@
+#COURSE c406
+#LESSON The compilation pipeline and lexing | 13
+A **compiler** translates a program from one language into another, usually from source code into machine code or bytecode. An **interpreter** executes the program directly. Both begin the same way, by turning text into structure, and that front half is useful far beyond compilers: every linter, formatter, template engine, query language and configuration format uses it.
+
+### The pipeline
+```diagram
+   source text
+      |  lexer (scanner)
+   tokens
+      |  parser
+   abstract syntax tree (AST)
+      |  semantic analysis (names, types)
+   annotated AST
+      |  lowering
+   intermediate representation (IR)
+      |  optimisation
+   improved IR
+      |  code generation
+   machine code or bytecode
+```
+
+The **front end** (through semantic analysis) depends on the source language. The **back end** (code generation) depends on the target machine. A shared IR in the middle means N languages and M machines need N + M components, not N × M. This is the design of LLVM, which serves C, C++, Rust, Swift and many more.
+
+### Lexing
+The **lexer** groups characters into **tokens**: the words of the language.
+
+```text
+total = price * 2 + tax;
+
+IDENT(total)  ASSIGN  IDENT(price)  STAR  NUMBER(2)  PLUS  IDENT(tax)  SEMICOLON
+```
+
+Each token has a **kind**, its text, and its position in the source (line and column) for error messages. Whitespace and comments are normally discarded here.
+
+### How a lexer works
+Token shapes are described by **regular expressions**: an identifier is a letter followed by letters or digits; a number is one or more digits. Regular expressions correspond exactly to **finite automata**, which is why lexing is fast: one pass, one character at a time, constant memory.
+
+A hand-written lexer is a loop:
+
+```js
+while (i < src.length) {
+  const c = src[i];
+  if (c === " ") { i++; continue; }
+  if (isDigit(c)) { let j = i; while (isDigit(src[j])) j++; tokens.push({ kind: "NUMBER", text: src.slice(i, j) }); i = j; continue; }
+  if (isLetter(c)) { /* read an identifier, then check whether it is a keyword */ }
+  /* operators and punctuation */
+}
+```
+
+Two rules resolve ambiguity:
+
+- **Longest match (maximal munch):** `>=` is one token, not `>` then `=`.
+- **Keywords take priority** over identifiers: `while` is a keyword, `whilex` is an identifier.
+
+### Errors
+A character that begins no token is a **lexical error**. Good tools report the position, skip the character and continue, so that one typo does not hide every later error.
+
+### Why learn this
+You will rarely write a compiler for a general-purpose language. You will often need to read structured text: a log format, a search query, a small rule language. Knowing how to lex and parse properly replaces fragile piles of string splitting and regular expressions.
+
+> Key idea: A lexer turns characters into tokens; a parser turns tokens into a tree. Separating the two keeps each simple.
+#Q What does a lexer produce?
+- An abstract syntax tree
+* A sequence of tokens
+- Machine code
+! It groups characters into the words of the language.
+#Q Why do many compilers share an intermediate representation?
+- To make programs slower but safer
+* So that each language front end and each machine back end is written once and combined freely
+- Because machine code cannot be generated directly
+! N languages and M targets need N + M components.
+
+#LESSON Grammars and parsing | 14
+A lexer finds words. A **parser** finds sentences: it checks that tokens form a valid program and builds a tree that shows its structure.
+
+### Context-free grammars
+The syntax of a language is described by a **grammar**: a set of rules saying how each construct is built from smaller ones.
+
+```text
+expression  ->  term   ( ("+" | "-") term )*
+term        ->  factor ( ("*" | "/") factor )*
+factor      ->  NUMBER | "(" expression ")" | "-" factor
+```
+
+Read `->` as "is made of", `|` as "or" and `( ... )*` as "repeated zero or more times". Names on the left are **non-terminals**; tokens are **terminals**. Because `expression` appears inside `factor`, the grammar is recursive, which is what allows nesting to any depth. Regular expressions cannot express that; grammars can.
+
+### Precedence and associativity are in the grammar
+The layering above is deliberate. An `expression` is a sum of `term`s; a `term` is a product of `factor`s. So multiplication is grouped first: `2 + 3 * 4` parses as `2 + (3 * 4)`.
+
+```diagram
+        +
+       / \
+      2   *
+         / \
+        3   4
+```
+
+The repetition `( "-" term )*` handled left to right gives **left associativity**: `8 - 3 - 2` is `(8 - 3) - 2`.
+
+### Recursive descent
+The simplest practical parsing technique: write one function per grammar rule. Each function consumes the tokens for its rule and calls the functions for the rules it mentions.
+
+```js
+function expression() {
+  let left = term();
+  while (peek() === "+" || peek() === "-") {
+    const op = next();
+    const right = term();
+    left = { type: "binary", op, left, right };
+  }
+  return left;
+}
+```
+
+`term` and `factor` follow the same shape. The call stack mirrors the nesting of the input. Recursive descent is easy to write, easy to debug and gives good error messages, which is why many production compilers use hand-written recursive-descent parsers.
+
+One restriction: a rule must not call itself first without consuming a token (**left recursion**), or it recurses forever. `expr -> expr "+" term` is rewritten with repetition, as above.
+
+### Precedence climbing
+With many operator levels, one function per level is tedious. **Precedence climbing** (Pratt parsing) uses a table of operator precedences and a single loop. It is the standard technique for expressions.
+
+### Parser generators
+Tools such as ANTLR and Yacc generate a parser from a grammar. They suit complex grammars and quick experiments. Two families exist: **LL** parsers work top-down, like recursive descent; **LR** parsers work bottom-up and accept more grammars.
+
+### Ambiguity
+A grammar is **ambiguous** if some input has two parse trees. The classic case is the dangling `else`: in `if a if b x else y`, which `if` owns the `else`? Languages resolve it by rule (the nearest `if`).
+
+### Error recovery
+On a syntax error, a good parser reports what it expected and where, then **synchronises**: it skips to a safe point such as the next semicolon and carries on, so several errors can be reported in one run.
+
+> Key idea: Encode precedence by layering grammar rules. Then the tree comes out right without special cases.
+#Q In the layered expression grammar, why does multiplication bind tighter than addition?
+- The lexer handles it
+* An expression is defined as a sum of terms, and each term is a product, so products are grouped first
+- Multiplication tokens are read first
+! The grammar's structure determines the tree's structure.
+#Q What is recursive descent?
+- A way of optimising loops
+* A parsing technique with one function per grammar rule, each calling the others
+- A garbage-collection algorithm
+! The functions' call structure follows the grammar.
+
+#LESSON Syntax trees, scopes and types | 13
+### The abstract syntax tree
+The parser's output is an **abstract syntax tree** (AST). "Abstract" because it drops what does not matter once structure is known: parentheses, semicolons, commas.
+
+```js
+// let area = width * (height + 1);
+{ type: "let", name: "area",
+  value: { type: "binary", op: "*",
+           left:  { type: "name", id: "width" },
+           right: { type: "binary", op: "+",
+                    left: { type: "name", id: "height" },
+                    right: { type: "number", value: 1 } } } }
+```
+
+Everything after parsing works on this tree. Tools walk it with a recursive function that switches on the node type, often organised as the **visitor pattern**.
+
+Linters, formatters, refactoring tools and transpilers are all AST programs. A linter rule "no unused variables" is a tree walk. A formatter prints the tree back out in a standard style.
+
+### Semantic analysis
+A program can be grammatical and still meaningless: `x = y + 1` where `y` was never declared. **Semantic analysis** checks what the grammar cannot.
+
+### Names and scopes
+The compiler keeps a **symbol table** mapping each name to its declaration. Scopes nest, so the table is a chain: look in the innermost scope, then outward.
+
+```diagram
+   global scope:    { print, total }
+        ^
+   function scope:  { n, result }
+        ^
+   block scope:     { i }
+```
+
+**Resolution** links each use of a name to its declaration and reports undeclared or duplicate names. Most languages use **lexical scoping**: a name refers to the nearest enclosing declaration in the source text, which can be decided without running the program.
+
+### Types
+A **type checker** computes a type for each expression and verifies that operations are applied to suitable types.
+
+```text
+rule: if e1 has type int and e2 has type int, then e1 + e2 has type int
+```
+
+Checking is a bottom-up tree walk: find the types of the children, then apply the rule for the parent.
+
+- **Static typing** checks before the program runs (Java, Rust, TypeScript). **Dynamic typing** checks during execution (Python, JavaScript).
+- **Strong** typing refuses to mix unrelated types; **weak** typing converts silently.
+- **Type inference** lets the compiler deduce types you did not write: `let x = 5` is an integer. Languages in the ML family infer nearly everything using the Hindley-Milner algorithm, which solves type equations by **unification**.
+
+### What a type system buys
+A type checker is a lightweight proof tool: it proves, for every possible run, that a class of errors cannot happen. A **sound** type system never accepts a program that will commit a type error. The price is that some correct programs are rejected. Most practical languages include escape hatches (casts), trading soundness for convenience.
+
+### Other checks
+Definite assignment (no variable read before it is written), reachability (no code after `return`), exhaustiveness of `match`, and in Rust the borrow checker, are all semantic analyses over the tree or a control-flow graph built from it.
+
+> In industry: If you ever write a custom lint rule, a codemod to migrate thousands of files, or a plugin for a build tool, you will be writing AST code.
+#Q What does an abstract syntax tree omit?
+- The structure of the program
+* Syntactic details such as parentheses and semicolons that are no longer needed once structure is known
+- Variable names
+! Structure makes the punctuation redundant.
+#Q What does it mean for a type system to be sound?
+- It infers every type
+* It never accepts a program that will go on to commit a type error it claims to prevent
+- It has no casts
+! Soundness is a guarantee about all possible executions.
+
+#LESSON Interpreters, bytecode and virtual machines | 13
+Once you have a checked tree, you can run it.
+
+### Tree-walking interpreters
+The simplest way to execute a program: a recursive function that evaluates each node.
+
+```js
+function evaluate(node, env) {
+  switch (node.type) {
+    case "number": return node.value;
+    case "name":   return env.lookup(node.id);
+    case "binary": {
+      const l = evaluate(node.left, env), r = evaluate(node.right, env);
+      if (node.op === "+") return l + r;
+      if (node.op === "*") return l * r;
+    }
+  }
+}
+```
+
+The **environment** maps names to values and is chained like the scopes it represents. A function value captures the environment where it was defined: that is a **closure**.
+
+Tree walking is easy and slow: each step follows pointers and switches on node types.
+
+### Bytecode
+Faster interpreters first compile the tree to **bytecode**: a compact, linear sequence of simple instructions for an imaginary machine.
+
+```text
+source:    2 + 3 * 4
+
+bytecode:  PUSH 2
+           PUSH 3
+           PUSH 4
+           MUL
+           ADD
+```
+
+### Stack machines
+The program above is for a **stack machine**. Operands are pushed; an operator pops its inputs and pushes its result.
+
+```diagram
+   PUSH 2     [2]
+   PUSH 3     [2, 3]
+   PUSH 4     [2, 3, 4]
+   MUL        [2, 12]
+   ADD        [14]
+```
+
+Generating stack code from a tree is a post-order walk: emit code for the left child, then the right, then the operator. The Java Virtual Machine, CPython and WebAssembly are stack machines. **Register machines** (Lua, the Android runtime) use numbered slots instead and execute fewer, larger instructions.
+
+### The virtual machine loop
+```js
+while (true) {
+  const instr = code[pc++];
+  switch (instr.op) {
+    case "PUSH": stack.push(instr.arg); break;
+    case "ADD":  { const b = stack.pop(), a = stack.pop(); stack.push(a + b); break; }
+    case "JUMP_IF_FALSE": if (!stack.pop()) pc = instr.arg; break;
+    case "HALT": return stack.pop();
+  }
+}
+```
+
+Control flow becomes **jumps**: an `if` compiles to a conditional jump over the "then" part; a loop is a jump backwards. Function calls push a **frame** holding the return address and local variables.
+
+### Why use a virtual machine
+- **Portability:** the same bytecode runs wherever the VM exists.
+- **Safety:** the VM can verify bytecode and check every operation.
+- **Services:** garbage collection, reflection and debugging are built in.
+
+### Just-in-time compilation
+A **JIT compiler** observes the running program, finds **hot** code and compiles it to machine code on the fly, specialised to the types actually seen. If an assumption later fails, it **deoptimises** back to the interpreter. This is how JavaScript and Java reach speeds near those of ahead-of-time compiled languages, at the cost of warm-up time and memory.
+
+> Key idea: Compiling to a simple linear instruction set, then running that in a tight loop, is the design behind most language runtimes you use.
+#Q In a stack machine, what does an ADD instruction do?
+- Adds two named registers
+* Pops two values from the stack and pushes their sum
+- Jumps to another instruction
+! Operands are implicit: they are whatever is on top of the stack.
+#Q What does a JIT compiler do?
+- Compiles the whole program before it starts
+* Compiles frequently executed code to machine code while the program runs
+- Removes type checks from the source
+! It uses run-time information to specialise hot code.
+
+#LESSON Optimisation and code generation | 13
+### Intermediate representation
+Optimisers work on an IR that is simpler and more regular than source code. A common form is **three-address code**: each instruction has at most one operator.
+
+```text
+a = b * c + d        becomes        t1 = b * c
+                                    t2 = t1 + d
+                                    a  = t2
+```
+
+The IR is divided into **basic blocks**, straight-line sequences with one entry and one exit, linked into a **control-flow graph**.
+
+**Static single assignment (SSA)** form gives every variable exactly one assignment, renaming as needed (`x1`, `x2`). Where branches merge, a **phi** function selects the right version. SSA makes it trivial to see where each value comes from, and nearly every modern optimiser uses it.
+
+### Classic optimisations
+| Optimisation | Example |
+|---|---|
+| Constant folding | `3 * 4` becomes `12` |
+| Constant propagation | after `x = 5`, uses of `x` become `5` |
+| Dead-code elimination | remove code whose result is never used |
+| Common-subexpression elimination | compute `a * b` once, reuse it |
+| Inlining | replace a call with the function's body |
+| Loop-invariant code motion | move a calculation that does not change out of the loop |
+| Strength reduction | replace `x * 2` with a shift or an addition |
+
+Optimisations enable each other: inlining exposes constants, folding creates dead branches, and so on. Compilers run them in repeated passes.
+
+**Inlining** is the most important. It removes call overhead and, more significantly, lets the optimiser see across function boundaries.
+
+### Correctness first
+An optimisation must preserve the program's observable behaviour. The compiler therefore needs proofs, by **data-flow analysis**, that a transformation is safe. If it cannot prove that two pointers refer to different memory (**aliasing**), it must assume they might be the same, which blocks many optimisations.
+
+This is also why **undefined behaviour** is dangerous in C and C++. The compiler assumes it never happens and reasons from that. A null check placed after a dereference may be deleted, since "the pointer was dereferenced, so it cannot be null".
+
+### Code generation
+The back end turns IR into machine instructions.
+
+- **Instruction selection:** choose machine instructions that implement each IR operation.
+- **Register allocation:** the IR has unlimited temporaries; the CPU has a few registers. Decide which values live in registers and which **spill** to memory. This is modelled as graph colouring.
+- **Instruction scheduling:** order instructions to suit the processor's pipeline.
+
+The **calling convention** fixes how functions receive arguments and return results, so that separately compiled code can interoperate.
+
+### Ahead of time and just in time
+An **ahead-of-time** compiler has unlimited time but must guess how the program will be used. A **JIT** knows the actual behaviour but must work quickly. **Profile-guided optimisation** gives an ahead-of-time compiler the best of both by feeding it measurements from a trial run.
+
+### What to take away
+- Write clear code. The compiler performs the micro-optimisations better than you can.
+- Compilers cannot fix algorithms or data layout. Those remain yours.
+- Look at the output when it matters. Tools such as Compiler Explorer show the generated assembly.
+
+> In industry: Understanding what the optimiser can and cannot see (aliasing, virtual calls, missing inlining) explains most surprising benchmark results.
+#Q What is constant folding?
+- Storing constants in a table
+* Evaluating constant expressions at compile time
+- Removing constants from a program
+! `3 * 4` is replaced with `12`.
+#Q Why must a compiler assume two pointers may alias unless it can prove otherwise?
+- Aliasing is always an error
+* If they refer to the same memory, a write through one changes what the other reads, so optimisations that reorder or cache would be wrong
+- Pointers are slow
+! Correctness requires assuming the worst case.
+
+#LAB js | A tokenizer and an expression evaluator
+Build the front end of a tiny language: arithmetic expressions.
+
+**`tokenize(source)`** returns an array of tokens. Numbers (whole or decimal, such as `42` or `2.5`) become JavaScript numbers. The symbols `+ - * / ( )` become one-character strings. Spaces are skipped. Any other character throws an `Error`.
+
+**`evaluate(source)`** returns the numeric value of the expression, using this grammar:
+
+```text
+expression  ->  term   ( ("+" | "-") term )*
+term        ->  factor ( ("*" | "/") factor )*
+factor      ->  NUMBER | "(" expression ")" | "-" factor
+```
+
+- `*` and `/` bind tighter than `+` and `-`; operators of equal precedence group left to right.
+- A leading `-` negates a factor.
+- Division by zero throws an `Error`.
+- Malformed input (a missing operand, an unclosed parenthesis, leftover tokens) throws an `Error`.
+@starter
+function tokenize(source) {
+  return [];
+}
+
+function evaluate(source) {
+  const tokens = tokenize(source);
+  return 0;
+}
+@solution
+function tokenize(source) {
+  const tokens = [];
+  let i = 0;
+  while (i < source.length) {
+    const c = source[i];
+    if (c === " ") { i++; continue; }
+    if ("+-*/()".includes(c)) { tokens.push(c); i++; continue; }
+    if ((c >= "0" && c <= "9") || c === ".") {
+      let j = i;
+      while (j < source.length && ((source[j] >= "0" && source[j] <= "9") || source[j] === ".")) { j++; }
+      const n = Number(source.slice(i, j));
+      if (Number.isNaN(n)) throw new Error("bad number");
+      tokens.push(n);
+      i = j;
+      continue;
+    }
+    throw new Error("unexpected character " + c);
+  }
+  return tokens;
+}
+
+function evaluate(source) {
+  const tokens = tokenize(source);
+  let pos = 0;
+  const peek = () => tokens[pos];
+  const next = () => tokens[pos++];
+
+  function factor() {
+    const t = next();
+    if (typeof t === "number") return t;
+    if (t === "-") return -factor();
+    if (t === "(") {
+      const v = expression();
+      if (next() !== ")") throw new Error("expected )");
+      return v;
+    }
+    throw new Error("unexpected token");
+  }
+  function term() {
+    let left = factor();
+    while (peek() === "*" || peek() === "/") {
+      const op = next();
+      const right = factor();
+      if (op === "/" && right === 0) throw new Error("division by zero");
+      left = op === "*" ? left * right : left / right;
+    }
+    return left;
+  }
+  function expression() {
+    let left = term();
+    while (peek() === "+" || peek() === "-") {
+      const op = next();
+      const right = term();
+      left = op === "+" ? left + right : left - right;
+    }
+    return left;
+  }
+
+  const value = expression();
+  if (pos !== tokens.length) throw new Error("unexpected trailing input");
+  return value;
+}
+@tests
+tokenize("3 + 4") => [3, "+", 4]
+tokenize("3+4*(2-1)") => [3, "+", 4, "*", "(", 2, "-", 1, ")"]
+tokenize("2.5 / 5") => [2.5, "/", 5]
+tokenize("") => []
+tokenize("   12   ") => [12]
+(() => { try { tokenize("2 $ 3"); return "no error"; } catch (e) { return "error"; } })() => "error"
+evaluate("7") => 7
+evaluate("2+3*4") => 14
+evaluate("(2+3)*4") => 20
+evaluate("10/4") => 2.5
+evaluate("8-3-2") => 3
+evaluate("24/4/2") => 3
+evaluate("-3+5") => 2
+evaluate("2*-3") => -6
+evaluate("-(2+3)") => -5
+evaluate("2*(3+(4-1))") => 12
+evaluate(" 1 + 2 ") => 3
+(() => { try { evaluate("1/0"); return "no error"; } catch (e) { return "error"; } })() => "error"
+(() => { try { evaluate("2+"); return "no error"; } catch (e) { return "error"; } })() => "error"
+(() => { try { evaluate("(1+2"); return "no error"; } catch (e) { return "error"; } })() => "error"
+(() => { try { evaluate("1 2"); return "no error"; } catch (e) { return "error"; } })() => "error"
+(() => { try { evaluate(""); return "no error"; } catch (e) { return "error"; } })() => "error"
+@hints
+In the tokenizer, walk the string with an index. When you meet a digit, keep advancing while you see digits or a dot, then convert that slice with `Number`.
+Write three functions named after the grammar rules: `expression`, `term` and `factor`. Each consumes tokens from a shared position.
+`expression` calls `term`, then loops while the next token is `+` or `-`. `term` does the same with `factor` and `*` or `/`.
+After parsing, check that every token was consumed. Leftover tokens mean the input was malformed.
+
+#EXAM 20
+#Q Which phase reports that a variable is used but never declared?
+- Lexing
+- Parsing
+* Semantic analysis
+! The program is grammatical; the error is in its meaning.
+#Q Which formalism describes the shapes of tokens?
+* Regular expressions
+- Context-free grammars
+- Type rules
+! Tokens are recognised by finite automata.
+#Q Why can a regular expression not describe arbitrarily nested parentheses?
+- Regular expressions cannot contain parentheses
+* Matching nesting to any depth needs unbounded memory, which finite automata lack
+- Nesting is a lexical matter
+! A context-free grammar is required.
+#Q With the usual layered grammar, how does 8 - 3 - 2 parse?
+* (8 - 3) - 2
+- 8 - (3 - 2)
+- It is ambiguous
+! Repetition handled left to right gives left associativity.
+#Q What does a symbol table record?
+- The tokens of the program
+* What each name refers to in each scope
+- The generated machine code
+! Name resolution links uses to declarations.
+#Q What bytecode would a stack machine run for 2 * (3 + 4)?
+- PUSH 2, MUL, PUSH 3, PUSH 4, ADD
+* PUSH 2, PUSH 3, PUSH 4, ADD, MUL
+- ADD, MUL, PUSH 2, PUSH 3, PUSH 4
+! Operands first, in order, then each operator after its operands.
+#Q Which optimisation most enables others by exposing code across function boundaries?
+- Strength reduction
+* Inlining
+- Register allocation
+! After inlining, the optimiser can see constants and dead branches inside the callee.
+#C js | Write `rpn(tokens)` that evaluates an array in reverse Polish notation, such as `[2, 3, 4, "*", "+"]`, using a stack. Numbers are pushed; each of `"+"`, `"-"`, `"*"`, `"/"` pops two values and pushes the result (the first value popped is the right-hand operand). Return the final value.
+@starter
+function rpn(tokens) {
+  return 0;
+}
+@solution
+function rpn(tokens) {
+  const stack = [];
+  for (const t of tokens) {
+    if (typeof t === "number") { stack.push(t); continue; }
+    const b = stack.pop(), a = stack.pop();
+    if (t === "+") stack.push(a + b);
+    else if (t === "-") stack.push(a - b);
+    else if (t === "*") stack.push(a * b);
+    else stack.push(a / b);
+  }
+  return stack.pop();
+}
+@tests
+rpn([2, 3, 4, "*", "+"]) => 14
+rpn([10, 4, "-"]) => 6
+rpn([8, 2, "/", 3, "-"]) => 1
+rpn([5]) => 5
+rpn([2, 3, "+", 4, "*"]) => 20
+#W Explain the difference between an ahead-of-time compiler, a tree-walking interpreter and a bytecode virtual machine with a JIT. For each, describe how a program is executed and give one advantage and one disadvantage.
++ Ahead-of-time: translated to machine code before running; fast execution and start-up; less portable and no run-time information
++ Tree-walking: evaluates the AST directly; simple to build; slow
++ Bytecode VM with JIT: compiles to bytecode, interprets, then compiles hot code; portable and fast when warm; warm-up time and memory cost
++ Uses the terms correctly
++ Comparison is balanced
+
+#PROJECT Compiler or database engine
+Build either (a) a compiler or interpreter for a small language of your own design, or (b) a small database engine.
+@requirements
+Option (a): a lexer, a parser producing an AST, semantic checks for undeclared names, and either a tree-walking interpreter or a bytecode compiler with a virtual machine
+Option (a): the language has variables, arithmetic, comparison, if, while and functions with recursion
+Option (b): a storage layer that persists to disk, a B-tree or hash index, and a query layer supporting insert, lookup by key, range scan and delete, with a small query language parsed properly
+Either option: errors report a line and a helpful message
+Either option: a test suite of at least 30 cases including error cases
+Either option: a written specification (grammar or file format)
+@deliverables
+The repository with tests
+The specification
+Three example programs or query sessions with their output
+A design note on the two hardest problems and how you solved them
+@rubric
+Correctness across the test suite | 35
+Design of the front end or storage layer | 25
+Error handling and messages | 15
+Specification and documentation | 15
+Depth of the design note | 10
+
+#COURSE c407
+#LESSON Threat modelling | 13
+Security work without a model is guesswork: effort goes to whatever is fashionable, and the real weakness is missed. **Threat modelling** is a structured way of asking what can go wrong before it does.
+
+### Four questions
+1. **What are we building?**
+2. **What can go wrong?**
+3. **What are we going to do about it?**
+4. **Did we do a good job?**
+
+### Model the system
+Draw a **data-flow diagram**: the processes, the data stores, the external parties, and the flows of data between them. Then mark the **trust boundaries**: the lines where data passes between parts with different levels of trust.
+
+```diagram
+   browser  ==(internet: trust boundary)==>  API  ---->  database
+                                              |
+                                              +---->  payment provider (third party: boundary)
+```
+
+Attacks happen at boundaries. Everything arriving across one must be authenticated, authorised and validated.
+
+### Assets and attackers
+What are you protecting: personal data, money, credentials, availability, reputation? And from whom?
+
+- An opportunistic attacker running automated scans.
+- A motivated criminal seeking money.
+- An insider with legitimate access.
+- A well-resourced organisation.
+
+Defences that stop the first are routine. Stopping the last is a different budget. Be explicit about which you are designing for.
+
+### STRIDE
+A checklist of threat categories, applied to each element of the diagram.
+
+| Threat | Violates | Example |
+|---|---|---|
+| **S**poofing | Authentication | Logging in as someone else |
+| **T**ampering | Integrity | Altering a price in a request |
+| **R**epudiation | Accountability | Denying an action; no audit log |
+| **I**nformation disclosure | Confidentiality | Reading other users' records |
+| **D**enial of service | Availability | Exhausting the server |
+| **E**levation of privilege | Authorisation | A user gaining administrator rights |
+
+### Rating and responding
+Estimate **likelihood** and **impact** to rank threats. For each, choose a response:
+
+- **Mitigate:** add a control.
+- **Eliminate:** remove the feature or the data. Data you do not hold cannot leak.
+- **Transfer:** to an insurer or a specialist provider.
+- **Accept:** knowingly, with a named owner.
+
+### Principles
+- **Defence in depth:** several independent layers, so one failure is not a breach.
+- **Least privilege:** each component has only the access it needs.
+- **Fail secure:** when something breaks, deny.
+- **Minimise attack surface:** fewer endpoints, features and dependencies.
+- **Do not rely on secrecy of design.** Assume the attacker knows how the system works; only keys should need to be secret.
+- **Assume breach:** design so that one compromised component does not hand over everything.
+
+### When to do it
+At design time, when change is cheap, and again whenever the architecture changes. An hour at a whiteboard regularly finds flaws that would cost weeks to fix later.
+
+> Key idea: Find the trust boundaries. Then ask, for each thing that crosses one, how it could be forged, altered, read or flooded.
+#Q What is a trust boundary?
+- A firewall product
+* A point where data moves between components with different levels of trust
+- The edge of a database table
+! Data crossing a boundary must be validated and authorised.
+#Q A user changes the account number in a URL and sees another customer's statement. Which STRIDE categories apply most directly?
+- Denial of service
+* Information disclosure, through missing authorisation
+- Repudiation
+! The server failed to check that the record belongs to the requester.
+
+#LESSON Cryptography in practice | 15
+Cryptography provides **confidentiality** (only intended parties can read), **integrity** (changes are detected) and **authenticity** (the sender is who they claim). The first rule: **never invent your own**. Use well-reviewed libraries and standard constructions. Subtle flaws are invisible in testing.
+
+### Hash functions
+A **cryptographic hash** maps any input to a fixed-size digest. It is one-way, and it is infeasible to find two inputs with the same digest. Use the SHA-2 or SHA-3 families. MD5 and SHA-1 are broken for security purposes.
+
+### Symmetric encryption
+One key both encrypts and decrypts. It is fast. The standard is **AES**.
+
+A cipher alone is not enough: the **mode** matters. Use **authenticated encryption** (AES-GCM or ChaCha20-Poly1305), which gives confidentiality and integrity together and rejects tampered data. Each message needs a unique **nonce**; reusing one with the same key can be catastrophic.
+
+### Message authentication
+An **HMAC** combines a secret key with a hash to produce a tag proving a message has not been altered and came from a key holder. It is what signs session cookies and webhook payloads.
+
+### Asymmetric cryptography
+A **key pair**: a public key that anyone may have and a private key kept secret.
+
+- **Encryption:** anyone encrypts with the public key; only the private key decrypts.
+- **Signatures:** the private key signs; anyone verifies with the public key.
+- **Key exchange:** two parties derive a shared secret over an open channel (Diffie-Hellman).
+
+RSA and elliptic-curve algorithms are the common families. Asymmetric operations are slow, so real systems use them to agree a symmetric key and then switch to symmetric encryption.
+
+### TLS
+```diagram
+   client                                   server
+     | ---- hello: supported options ---->   |
+     | <--- certificate, key-exchange data - |
+     |  verify certificate chain to a trusted root
+     | ---- key-exchange data ----------->   |
+     |  both derive the same session keys
+     | <=== encrypted, authenticated data ==>|
+```
+
+A **certificate** binds a public key to a domain name and is signed by a **certificate authority** that browsers trust. TLS gives confidentiality, integrity and server authentication. Modern TLS also provides **forward secrecy**: stealing the server's long-term key later does not decrypt past traffic.
+
+### Passwords
+Never encrypt passwords and never use a plain hash. Use a **password-hashing function** designed to be slow and memory-hard, with a unique **salt** per password: **Argon2id**, scrypt or bcrypt. Slowness makes guessing expensive; the salt defeats precomputed tables.
+
+### Randomness
+Keys, tokens and nonces must come from a **cryptographically secure random generator**. Ordinary random functions (`Math.random`) are predictable.
+
+### Comparing secrets
+Compare tags and tokens in **constant time**. An ordinary comparison stops at the first differing byte, and the time taken leaks how much matched.
+
+### Key management
+The hard part in practice. Keys belong in a key-management service or hardware module, not in code or configuration files. Rotate them, limit who can use them, and plan for compromise. **Envelope encryption** encrypts data with a data key, and the data key with a master key held by the service.
+
+### Common mistakes
+- Encoding (Base64) mistaken for encryption.
+- Encryption without authentication.
+- Hard-coded keys.
+- Disabling certificate verification "temporarily".
+- Fast hashes for passwords.
+
+### The future
+Large quantum computers would break today's public-key algorithms. **Post-quantum** algorithms have been standardised and are being deployed.
+
+> Key idea: Use authenticated encryption, a real password-hashing function, a secure random source and a key-management service. Almost every cryptographic failure in applications is a departure from one of these.
+#Q Which should be used to store user passwords?
+- AES encryption
+- SHA-256
+* Argon2id with a unique salt per password
+! Password hashing must be deliberately slow and salted.
+#Q What does authenticated encryption add to plain encryption?
+- Compression
+* Detection of any tampering with the ciphertext
+- Faster decryption
+! It provides integrity as well as confidentiality.
+
+#LESSON Identity: authentication and authorisation at scale | 14
+### Authentication factors
+Something you **know** (a password), something you **have** (a phone, a hardware key), something you **are** (a fingerprint). **Multi-factor authentication** requires two kinds and defeats most credential theft.
+
+Not all second factors are equal. Codes sent by SMS can be intercepted. Codes from an authenticator app can be phished. **Passkeys** (WebAuthn/FIDO2) use a key pair bound to the real site's domain, so a look-alike site receives nothing useful. They are phishing-resistant by construction.
+
+### Sessions and tokens
+After login, the server must recognise later requests.
+
+- **Server-side sessions:** the client holds a random session ID in a cookie; the server stores the state. Easy to revoke.
+- **Signed tokens (JWT):** the client holds a signed statement of who it is. No lookup is needed to verify it, but it cannot easily be revoked before it expires, so lifetimes must be short.
+
+Cookies holding credentials need `HttpOnly` (hidden from scripts), `Secure` (HTTPS only) and `SameSite` (limits cross-site sending).
+
+Classic JWT mistakes: accepting the `none` algorithm, not checking the signature, the expiry or the audience, and putting secrets in the payload, which is only encoded.
+
+### OAuth 2.0 and OpenID Connect
+**OAuth 2.0** is a protocol for **delegated authorisation**: letting an application act on your behalf at another service without giving it your password. **OpenID Connect** adds **authentication** on top: "Sign in with ...".
+
+The **authorisation code flow with PKCE**:
+
+```diagram
+   user --> app:                    "sign in"
+   app --> browser:                 redirect to the identity provider, with a code challenge
+   user <--> identity provider:     logs in and consents
+   identity provider --> app:       redirect back with a one-time code
+   app --> identity provider:       code + code verifier
+   identity provider --> app:       access token (and ID token)
+   app --> API:                     request with the access token
+```
+
+The password never reaches the app. **Access tokens** are short-lived and carry **scopes** that limit what they permit. **Refresh tokens** obtain new access tokens.
+
+Do not implement an identity provider yourself. Use an established one.
+
+### Authorisation models
+- **Role-based (RBAC):** permissions attach to roles; users are given roles. Simple and auditable.
+- **Attribute-based (ABAC):** rules over attributes of the user, the resource and the context ("managers may approve expenses in their own department under 5,000").
+- **Relationship-based:** access follows relationships ("editors of the folder containing this document").
+
+### Where checks go
+Authorisation must be enforced **on the server, on every request, for the specific object**. The most common serious flaw in web APIs is **broken object-level authorisation**: the server checks that you are logged in but not that record 1234 is yours.
+
+Centralise the decision in one policy layer and **deny by default**.
+
+### Service-to-service identity
+Services must authenticate each other too. **Mutual TLS** gives each service a certificate. Workloads should receive short-lived credentials from the platform, never long-lived keys in files.
+
+### Zero trust
+The older model trusted anything inside the corporate network. **Zero trust** assumes the network is hostile: every request is authenticated and authorised according to identity, device state and context, wherever it comes from. Being "inside" grants nothing.
+
+> Key idea: Authentication establishes who. Authorisation decides what. Check both on the server for every request and every object.
+#Q Why are passkeys resistant to phishing?
+- They are longer than passwords
+* The credential is bound to the genuine site's domain, so a fake site cannot obtain a usable response
+- They are sent by SMS
+! The browser will only use the key for the origin it was registered with.
+#Q What is broken object-level authorisation?
+- A weak password policy
+* The server confirms the user is logged in but does not check that the requested object belongs to them
+- An expired certificate
+! Each access to a specific record needs its own ownership check.
+
+#LESSON Vulnerability classes in depth | 15
+Most vulnerabilities come from a small number of root causes. Learn the causes, not just the names.
+
+### Injection
+**Cause:** untrusted data is combined with code and then interpreted.
+
+- **SQL injection:** input becomes part of a query. **Fix:** parameterised queries, always.
+- **Command injection:** input reaches a shell. **Fix:** do not use a shell; pass arguments as a list.
+- **Cross-site scripting (XSS):** input becomes part of a page and runs as script in another user's browser.
+
+XSS has three forms: **stored** (saved and shown to others), **reflected** (echoed from the request) and **DOM-based** (client code writes it into the page). **Fix:** encode output for its context. HTML body, attribute, JavaScript and URL each need different encoding, which is why you rely on a framework's automatic escaping and avoid raw HTML APIs. Add a **Content Security Policy** as a second layer.
+
+The general rule: keep data and code separate. Where they must meet, use an API that keeps them apart.
+
+### Cross-site request forgery (CSRF)
+**Cause:** browsers attach cookies automatically, so another site can make a logged-in user's browser send a request. **Fix:** `SameSite` cookies, anti-CSRF tokens, and checking the `Origin` header for state-changing requests.
+
+### Server-side request forgery (SSRF)
+**Cause:** the server fetches a URL supplied by a user. The attacker points it at internal addresses: the cloud metadata service, an admin panel, the local machine. **Fix:** allow-list destinations, resolve and check the address before connecting, block internal ranges, and do not follow redirects blindly.
+
+### Insecure deserialisation
+**Cause:** turning untrusted bytes back into objects with a format that can instantiate arbitrary types. **Fix:** use plain data formats such as JSON with schema validation; never deserialise untrusted native formats.
+
+### Path traversal
+**Cause:** a file name from the user containing `../`. **Fix:** do not use user input in paths; if you must, resolve the final path and confirm it is inside the permitted directory.
+
+### Open redirects
+**Cause:** redirecting to a URL taken from a parameter. Attackers use your trusted domain to bounce victims to a phishing site. **Fix:** allow only relative paths or an allow-list.
+
+### Memory-safety errors
+Buffer overflows and use-after-free in C and C++ let attackers overwrite memory and take control. **Fix:** memory-safe languages for new code; sanitizers, fuzzing and hardening for existing code.
+
+### Race conditions
+**Time of check to time of use:** the state changes between a check and the action that relies on it, such as two simultaneous withdrawals both passing the balance check. **Fix:** make the check and the action atomic with a transaction or a conditional update.
+
+### Mass assignment
+**Cause:** binding every field of a request to an object, so a user can add `"isAdmin": true`. **Fix:** an explicit list of fields that may be set.
+
+### Business-logic flaws
+No scanner finds these: a negative quantity that produces a refund, a discount code applied repeatedly, a step in a workflow that can be skipped. They are found by thinking like an attacker about what the system is *for*.
+
+### Input validation
+Validate at every trust boundary: type, length, range and format, against an **allow-list** of what is acceptable. Validation reduces risk but does not replace context-specific output encoding or parameterisation.
+
+> Key idea: Injection, broken authorisation and trusting the client account for most real breaches. Parameterise, encode on output, and check ownership on the server.
+#Q What is the root cause shared by SQL injection, command injection and XSS?
+- Weak passwords
+* Untrusted data being interpreted as code
+- Missing encryption
+! The remedy is to keep data and code separate.
+#Q A server feature fetches any URL the user provides. Which attack does this invite?
+- CSRF
+* SSRF, reaching internal services from the server
+- Clickjacking
+! The server can reach addresses the attacker cannot.
+
+#LESSON Secure development, supply chain and response | 13
+Security is not a phase at the end. It is a property of how software is built and run.
+
+### Security in the development lifecycle
+| Stage | Activity |
+|---|---|
+| Design | Threat modelling; security requirements |
+| Coding | Secure defaults, safe libraries, peer review |
+| Build | Static analysis, dependency scanning, secret scanning |
+| Test | Security tests, fuzzing, dynamic scanning |
+| Release | Signed artifacts, hardened configuration |
+| Operation | Monitoring, patching, incident response |
+
+Finding a flaw in design costs a conversation. Finding it in production costs an incident.
+
+### Automated checks
+- **Static analysis (SAST)** inspects source code for dangerous patterns.
+- **Dependency scanning (SCA)** flags libraries with known vulnerabilities.
+- **Secret scanning** catches keys committed by mistake.
+- **Dynamic scanning (DAST)** probes the running application.
+- **Fuzzing** feeds huge numbers of malformed inputs to find crashes.
+
+These find the routine problems cheaply. They do not find design flaws or logic errors; those need people.
+
+### The software supply chain
+Modern applications are mostly other people's code. An attacker who compromises one popular package or a build system compromises everyone downstream.
+
+Defences:
+
+- **Pin** dependency versions with a lock file and verify checksums.
+- Keep a **software bill of materials** (SBOM) so that you can tell at once whether a new vulnerability affects you.
+- Update routinely and automatically; small frequent updates are safer than rare large ones.
+- Prefer fewer, well-maintained dependencies.
+- Beware **typosquatting**: packages with names one character from a popular one.
+- **Sign** build artifacts and verify signatures at deployment.
+- Protect the build pipeline as a production system: it holds credentials for everything.
+
+### Secrets
+Never in source control. Load them at run time from a secrets manager, give each service its own, make them short-lived where possible and rotate them. A secret that has been committed must be treated as compromised and **rotated**; deleting the commit does not help.
+
+### Hardening
+Run as a non-root user. Remove unused services and default accounts. Set security headers. Disable verbose errors. Encrypt in transit and at rest. Patch promptly.
+
+### Logging and detection
+You cannot respond to what you cannot see. Record authentication events, authorisation failures, administrative actions and changes to sensitive data, with who, what and when. Protect the logs from tampering, and never log secrets or full personal data. Alert on anomalies.
+
+### Incident response
+1. **Prepare:** a plan, contacts and practice.
+2. **Detect and analyse.**
+3. **Contain:** stop the damage; revoke credentials; isolate systems.
+4. **Eradicate:** remove the cause.
+5. **Recover:** restore service, verified clean.
+6. **Learn:** a blameless review that produces changes.
+
+Many jurisdictions require notifying regulators and affected people of a personal-data breach within a fixed time. Know your obligations before you need them.
+
+### Responsible disclosure
+Publish a way for researchers to report vulnerabilities and respond constructively. A report is a gift.
+
+### Culture
+Security works when it is everyone's job: engineers who model threats, reviewers who ask "what if this input is hostile?", and an organisation in which reporting a mistake is safe.
+
+> In industry: Several of the largest breaches of recent years began not with a clever exploit but with a leaked credential, an unpatched dependency or a compromised build step.
+#Q A developer accidentally commits an API key and immediately deletes it in a new commit. What must happen?
+- Nothing; the key is gone
+* The key must be revoked and replaced, because it remains in the repository history and may already have been copied
+- The repository must be made private
+! A leaked secret is compromised regardless of later deletion.
+#Q What is a software bill of materials used for?
+- Billing customers
+* Knowing exactly which components and versions a system contains, so affected systems can be identified when a vulnerability is announced
+- Compressing dependencies
+! It turns "are we affected?" into a lookup.
+
+#LAB js | Output encoding, safe redirects and login throttling
+Implement three defensive building blocks.
+
+**`escapeHtml(text)`** returns the text made safe for an HTML body by replacing `&` with `&amp;`, `<` with `&lt;`, `>` with `&gt;`, `"` with `&quot;` and `'` with `&#39;`. Non-string input is converted with `String` first.
+
+**`isSafeRedirect(target)`** returns true only if `target` is a local path that cannot send the user to another site: it must be a string that starts with a single `/`, and its second character must not be `/` or `\`. Everything else (absolute URLs, `//host`, empty strings, non-strings) is unsafe.
+
+**`class LoginThrottle`**, created with `new LoginThrottle(maxAttempts, windowSeconds)`.
+- `attempt(user, now)` records a login attempt by `user` at time `now` (in seconds) and returns `true` if it is allowed. An attempt is allowed if fewer than `maxAttempts` **allowed** attempts by that user fall within the last `windowSeconds` (an earlier attempt at time `t` counts while `now - t < windowSeconds`). Blocked attempts are not recorded.
+- `reset(user)` forgets that user's attempts (called after a successful login).
+- Users are independent of each other.
+@starter
+function escapeHtml(text) {
+  return text;
+}
+
+function isSafeRedirect(target) {
+  return true;
+}
+
+class LoginThrottle {
+  constructor(maxAttempts, windowSeconds) {
+    this.maxAttempts = maxAttempts;
+    this.windowSeconds = windowSeconds;
+  }
+  attempt(user, now) {
+    return true;
+  }
+  reset(user) {
+  }
+}
+@solution
+function escapeHtml(text) {
+  return String(text)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+function isSafeRedirect(target) {
+  if (typeof target !== "string" || target.length === 0) return false;
+  if (target[0] !== "/") return false;
+  if (target[1] === "/" || target[1] === "\\") return false;
+  return true;
+}
+
+class LoginThrottle {
+  constructor(maxAttempts, windowSeconds) {
+    this.maxAttempts = maxAttempts;
+    this.windowSeconds = windowSeconds;
+    this.times = {};
+  }
+  attempt(user, now) {
+    const recent = (this.times[user] || []).filter((t) => now - t < this.windowSeconds);
+    if (recent.length >= this.maxAttempts) {
+      this.times[user] = recent;
+      return false;
+    }
+    recent.push(now);
+    this.times[user] = recent;
+    return true;
+  }
+  reset(user) {
+    delete this.times[user];
+  }
+}
+@tests
+escapeHtml("<b>bold</b>") => "&lt;b&gt;bold&lt;/b&gt;"
+escapeHtml("Tom & Jerry") => "Tom &amp; Jerry"
+escapeHtml("say \"hi\"") => "say &quot;hi&quot;"
+escapeHtml("it's") => "it&#39;s"
+escapeHtml("&lt;") => "&amp;lt;"
+escapeHtml("plain text") => "plain text"
+escapeHtml(42) => "42"
+escapeHtml("<img src=x onerror=\"alert(1)\">") => "&lt;img src=x onerror=&quot;alert(1)&quot;&gt;"
+isSafeRedirect("/dashboard") => true
+isSafeRedirect("/a/b?next=/c") => true
+isSafeRedirect("/") => true
+isSafeRedirect("//evil.example") => false
+isSafeRedirect("/\\evil.example") => false
+isSafeRedirect("https://evil.example") => false
+isSafeRedirect("javascript:alert(1)") => false
+isSafeRedirect("dashboard") => false
+isSafeRedirect("") => false
+isSafeRedirect(null) => false
+(() => { const t = new LoginThrottle(3, 60); return [t.attempt("ada", 0), t.attempt("ada", 1), t.attempt("ada", 2), t.attempt("ada", 3)]; })() => [true, true, true, false]
+(() => { const t = new LoginThrottle(3, 60); t.attempt("ada", 0); t.attempt("ada", 1); t.attempt("ada", 2); return [t.attempt("ada", 59), t.attempt("ada", 60), t.attempt("ada", 60.5)]; })() => [false, true, false]
+(() => { const t = new LoginThrottle(1, 10); return [t.attempt("ada", 0), t.attempt("tim", 0), t.attempt("ada", 5), t.attempt("tim", 10)]; })() => [true, true, false, true]
+(() => { const t = new LoginThrottle(2, 60); t.attempt("ada", 0); t.attempt("ada", 1); t.reset("ada"); return t.attempt("ada", 2); })() => true
+(() => { const t = new LoginThrottle(2, 10); t.attempt("ada", 0); t.attempt("ada", 1); t.attempt("ada", 2); t.attempt("ada", 3); return t.attempt("ada", 10.5); })() => true
+@hints
+Replace `&` first in `escapeHtml`. If you replace it last, you will double-encode the entities you just produced.
+For the redirect check, test three things in order: it is a non-empty string, it starts with `/`, and the next character is neither `/` nor a backslash.
+In the throttle, keep an array of timestamps per user. On each attempt, first discard the timestamps that have left the window.
+Only push the new timestamp when the attempt is allowed, so blocked attempts do not extend the lock-out.
+
+#EXAM 22
+#Q In threat modelling, what should be done for data crossing a trust boundary?
+- It should be logged only
+* It should be authenticated, authorised and validated
+- It should be trusted if it comes from inside the network
+! Boundaries are where attacks enter.
+#Q Which property does an HMAC provide?
+- Confidentiality
+* Integrity and authenticity of a message
+- Compression
+! It proves the message was not altered and came from a holder of the key.
+#Q What does forward secrecy protect?
+- Future messages if a password is weak
+* Past sessions, even if the server's long-term private key is later stolen
+- Certificates from expiring
+! Session keys are not derivable from the long-term key.
+#Q Why must a JWT have a short lifetime?
+- Long tokens are too large
+* A signed token is valid until it expires and is hard to revoke
+- Browsers delete long tokens
+! There is no server-side record to delete.
+#Q What does the PKCE extension to the OAuth code flow prevent?
+- Password reuse
+* An intercepted authorisation code being exchanged by an attacker, since they lack the code verifier
+- Token expiry
+! The code is useless without the secret verifier held by the genuine client.
+#Q Which defence addresses stored XSS most directly?
+- Rate limiting
+* Context-appropriate output encoding, supported by a Content Security Policy
+- Encrypting the database
+! The data must not be interpreted as markup or script when displayed.
+#Q Two simultaneous requests each pass a balance check and both withdraw. What kind of flaw is this?
+- Injection
+* A time-of-check to time-of-use race condition
+- Open redirect
+! The check and the action must be atomic.
+#W You are asked to review the design of a file-sharing feature: users upload documents and share them by link with other users or with anyone holding the link. Produce a short threat model. Identify the assets and trust boundaries, give at least five distinct threats, and propose a mitigation for each.
++ Identifies assets (documents, share links, accounts) and boundaries (upload, download, sharing)
++ Unauthorised access: guessable or leaked links; mitigates with long random tokens, expiry and revocation
++ Broken object-level authorisation on download or listing; mitigates with server-side ownership checks
++ Malicious uploads (malware, HTML or script served from the site, oversized files); mitigates with type and size limits, scanning, serving from a separate domain as attachments
++ Path traversal or overwriting via file names; mitigates with server-generated names
++ At least one of: denial of service, missing audit trail, information disclosure through metadata, with a mitigation
+
+#PROJECT Security assessment
+Carry out a security assessment of an application that you own or are explicitly authorised to test: one of your earlier projects, or a deliberately vulnerable training application running locally. Never test systems without permission.
+@requirements
+A statement of scope and of your authorisation to test
+A data-flow diagram with trust boundaries and a STRIDE-based threat model
+Testing of authentication, session handling, authorisation (including object-level), input handling and configuration
+Automated scanning of dependencies and of the code, with the results triaged
+At least five findings, each with a description, evidence, a severity rating with reasoning, and a recommended fix
+At least three findings fixed, with a re-test showing the fix works
+@deliverables
+The assessment report, written for both a technical and a managerial reader
+The threat model
+The fixes, as commits or pull requests, with the re-test evidence
+@rubric
+Threat model is systematic and specific to the application | 20
+Breadth and rigour of testing | 25
+Findings are accurate, evidenced and sensibly rated | 25
+Fixes address root causes and are verified | 20
+Report quality and ethical conduct | 10
+
+#COURSE c408
+#LESSON Cloud foundations and infrastructure as code | 13
+**Cloud computing** is renting computing resources on demand, paying for what you use, and managing them through an API.
+
+### Service models
+| Model | You manage | Provider manages | Example |
+|---|---|---|---|
+| Infrastructure (IaaS) | Operating system upward | Hardware, virtualisation | Virtual machines |
+| Platform (PaaS) | Your code and data | Runtime, scaling, patching | App platforms |
+| Functions (FaaS) | Individual functions | Everything else | Serverless functions |
+| Software (SaaS) | Your use of it | The whole application | Hosted email |
+
+Higher levels mean less to operate and less control. A sensible default is the highest level that meets your needs.
+
+### Shared responsibility
+The provider secures the cloud: buildings, hardware, the virtualisation layer. **You** secure what you put in it: identities, permissions, network rules, data, and your code. Most cloud breaches are customer misconfigurations, such as a storage bucket left public or an over-permissive access policy.
+
+### Regions and zones
+A **region** is a geographic area. Each contains several **availability zones**: separate data centres with independent power and networking. Spread instances across zones to survive the loss of one. Use several regions for the highest availability, for latency, or for data-residency law.
+
+### Core building blocks
+- **Compute:** virtual machines, containers, functions.
+- **Storage:** object storage for files; block storage for disks.
+- **Databases:** managed relational and non-relational services.
+- **Networking:** virtual private networks, subnets, load balancers, DNS, CDN.
+- **Identity and access management (IAM):** who may do what to which resource.
+- **Messaging:** queues and event streams.
+
+### Identity and access
+Every action is an API call authorised by IAM. Apply least privilege: give each workload a **role** with exactly the permissions it needs, and let the platform supply short-lived credentials. Do not create long-lived access keys and put them in files.
+
+### Infrastructure as code
+Clicking through a console is unrepeatable and unreviewable. **Infrastructure as code** (IaC) describes infrastructure in files kept in version control.
+
+```text
+resource "storage_bucket" "uploads" {
+  name       = "app-uploads"
+  versioning = true
+  public     = false
+}
+```
+
+Tools such as Terraform are **declarative**: you describe the desired state, and the tool computes the changes needed (**plan**) and makes them (**apply**).
+
+Benefits: every change is reviewed, tested and recorded. Environments are reproducible, so staging matches production. Recovery from disaster is running the code again.
+
+Habits: never change managed infrastructure by hand (that causes **drift**); review the plan before applying; keep the state file secure; split large configurations into modules.
+
+### Immutable infrastructure
+Do not patch running servers. Build a new image, deploy it, and discard the old instances. Servers become interchangeable "cattle, not pets", and every instance is known to match its definition.
+
+### Cost
+In the cloud, architecture is spending. Idle resources, oversized instances, data transfer between regions and forgotten test environments are the usual waste. Tag resources by owner, set budgets with alerts, and scale down what is not in use. **FinOps** is the practice of making cost a visible engineering metric.
+
+> Key idea: Treat infrastructure as software: versioned, reviewed, tested and reproducible.
+#Q Under the shared responsibility model, who is responsible for a storage bucket being publicly readable?
+- The cloud provider
+* The customer who configured it
+- Nobody
+! Configuration of your resources is your responsibility.
+#Q What is drift in infrastructure as code?
+- Slow network traffic
+* A difference between the real infrastructure and its definition in code, usually from manual changes
+- A type of load balancer
+! Manual changes make the code an inaccurate description.
+
+#LESSON Kubernetes fundamentals | 14
+Running a few containers by hand is easy. Running hundreds across many machines, restarting them when they fail, routing traffic to them and updating them without downtime needs an **orchestrator**. **Kubernetes** is the standard one.
+
+### Desired state
+Kubernetes is **declarative**. You submit a description of what you want. **Controllers** continuously compare the actual state with the desired state and act to close the gap. This **reconciliation loop** is the central idea.
+
+```diagram
+        desired state (your manifests)
+                 |
+           [ controller ] <---- observes ---- actual state
+                 |
+                 +---- acts (start, stop, replace) ---->
+```
+
+If a container crashes or a machine dies, nobody needs to notice: the controller sees fewer replicas than desired and starts more. The system is **self-healing**.
+
+### Architecture
+- The **control plane** makes decisions: the **API server** (the front door for everything), **etcd** (the consistent store of all cluster state, using Raft), the **scheduler** (assigns pods to nodes) and the **controller manager**.
+- **Nodes** are the worker machines. Each runs a **kubelet**, which starts and monitors containers, and a network proxy.
+
+### Core objects
+**Pod.** The smallest deployable unit: one or more containers that share a network address and storage. Pods are disposable and are replaced, not repaired.
+
+**Deployment.** Declares "run N replicas of this pod template" and manages updates.
+
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: web
+spec:
+  replicas: 3
+  selector:
+    matchLabels: { app: web }
+  template:
+    metadata:
+      labels: { app: web }
+    spec:
+      containers:
+        - name: web
+          image: registry.example/web:1.4.2
+          ports: [{ containerPort: 8080 }]
+```
+
+**Service.** Pods come and go and their addresses change. A Service gives a stable name and address and load-balances across the pods matching its **label selector**.
+
+**Ingress** (or Gateway). Routes external HTTP traffic to Services by host and path, and terminates TLS.
+
+**ConfigMap** and **Secret.** Configuration and sensitive values, injected as environment variables or files, so one image runs in every environment.
+
+**Namespace.** A partition of the cluster for teams or environments.
+
+**StatefulSet** for workloads needing stable identity and storage, **DaemonSet** to run one pod on every node, and **Job** and **CronJob** for tasks that run to completion.
+
+### Labels
+Objects are loosely connected by **labels**: key-value pairs. A Service finds its pods by label; a Deployment owns pods by label. This loose coupling is what lets you run a new version alongside an old one and shift traffic between them.
+
+### Storage
+Containers' own file systems are temporary. A **PersistentVolumeClaim** requests durable storage that outlives the pod.
+
+### When not to use it
+Kubernetes is powerful and complex. For a small application, a managed container service or a platform-as-a-service is usually the better choice. Adopt Kubernetes when you have many services and a team able to operate it, and prefer a managed control plane.
+
+> Key idea: You tell Kubernetes what should exist. Its controllers work continuously to make reality match.
+#Q What does a Kubernetes controller do?
+- Runs once at deployment
+* Continuously compares actual state with desired state and acts to reconcile them
+- Stores container images
+! The reconciliation loop is what makes the system self-healing.
+#Q Why do clients connect to a Service and not directly to pods?
+- Pods cannot receive traffic
+* Pods are replaced and their addresses change; the Service provides a stable address and load balancing
+- Services are faster
+! The Service tracks whichever pods currently match its selector.
+
+#LESSON Running workloads reliably on Kubernetes | 14
+Getting a container running is the start. Running it reliably needs a few more declarations.
+
+### Health probes
+Kubernetes cannot know whether your application is healthy unless you tell it how to check.
+
+- A **liveness probe** answers "is this container broken beyond recovery?". Failure causes a restart.
+- A **readiness probe** answers "can this container serve traffic right now?". Failure removes the pod from the Service until it passes again.
+- A **startup probe** gives slow-starting applications time before the other probes begin.
+
+A readiness probe should check the application's ability to serve. A liveness probe should be simple. If liveness depends on the database, a database outage makes Kubernetes restart every pod, which makes things worse.
+
+### Resource requests and limits
+```yaml
+resources:
+  requests: { cpu: "250m", memory: "256Mi" }
+  limits:   { memory: "512Mi" }
+```
+
+**Requests** are what the scheduler reserves when placing the pod. **Limits** are enforced ceilings: a container over its memory limit is killed; one over its CPU limit is throttled. Without requests, the scheduler packs nodes blindly and workloads starve each other.
+
+### Rolling updates
+Changing the image in a Deployment triggers a **rolling update**: new pods are started and, as each becomes **ready**, old ones are stopped.
+
+```diagram
+   v1 v1 v1 v1  -->  v1 v1 v1 v2  -->  v1 v1 v2 v2  -->  v1 v2 v2 v2  -->  v2 v2 v2 v2
+```
+
+`maxUnavailable` and `maxSurge` control the pace. Because progress waits for readiness, a version that fails to start halts the rollout while the old version keeps serving. `kubectl rollout undo` returns to the previous version.
+
+For this to be safe the application must tolerate two versions running together, including against the same database.
+
+### Graceful shutdown
+Before stopping a pod, Kubernetes sends `SIGTERM` and waits for a grace period. The application should stop accepting new work, finish requests in progress, and exit. Ignoring the signal means dropped requests on every deployment.
+
+### Autoscaling
+- The **Horizontal Pod Autoscaler** changes the number of replicas according to a metric such as CPU use or request rate.
+- The **cluster autoscaler** adds or removes nodes.
+
+### Spreading and disruption
+Spread replicas across nodes and zones so that one failure does not take them all. A **PodDisruptionBudget** states how many replicas must stay available during voluntary disruptions such as node upgrades.
+
+### Security
+- Run containers as non-root with a read-only file system where possible.
+- **NetworkPolicies** restrict which pods may talk to which; by default, all can.
+- **RBAC** limits who can do what in the cluster.
+- Scan images, pin versions (never `latest`), and admit only signed images.
+- Keep Secrets encrypted at rest, or fetch them from an external secrets manager.
+
+### GitOps
+The desired state of the cluster lives in a Git repository. An agent in the cluster continuously applies whatever is in the repository. Deployment is a merged pull request; rollback is a revert; the repository is the audit log.
+
+### Packaging
+**Helm** charts and **Kustomize** overlays template manifests so that the same definition serves several environments with different settings.
+
+> In industry: Most "Kubernetes outages" trace to a handful of omissions: no readiness probe, no resource requests, no graceful shutdown, or every replica on one node.
+#Q What happens when a readiness probe fails?
+- The container is restarted
+* The pod is removed from the Service's endpoints until it passes again
+- The node is drained
+! Readiness controls traffic; liveness controls restarts.
+#Q Why should a liveness probe not depend on the database?
+- Databases cannot be probed
+* A database outage would cause every pod to be restarted repeatedly, worsening the incident
+- It makes the probe too fast
+! Restarting the application does not fix a failed dependency.
+
+#LESSON Observability | 13
+**Monitoring** tells you whether a system is working. **Observability** is the ability to understand *why* it is not, from the outside, including for failures you did not anticipate.
+
+### Three kinds of signal
+**Metrics** are numbers measured over time: request rate, error rate, latency, memory. They are cheap to store, good for dashboards and alerts, and show *that* something changed.
+
+**Logs** are records of individual events. Use **structured** logs (JSON with named fields), not free text, so they can be searched and aggregated. They show *what* happened.
+
+**Traces** follow one request across services. Each unit of work is a **span** with a start, a duration and a parent. Traces show *where* time went.
+
+```diagram
+   trace 7f3a
+   |-- gateway           ============================ 240 ms
+       |-- auth            ===   20 ms
+       |-- orders             ====================== 200 ms
+           |-- database          ===============    150 ms   <-- here
+           |-- inventory                        === 30 ms
+```
+
+The three are joined by shared identifiers. Put the **trace ID** in every log line; attach example trace IDs to metrics. Then you can move from "latency rose" to the slow trace to its logs.
+
+**OpenTelemetry** is the vendor-neutral standard for producing all three.
+
+### What to measure
+For request-driven services, the **RED** method:
+
+- **R**ate: requests per second.
+- **E**rrors: failing requests.
+- **D**uration: the latency distribution.
+
+For resources, the **USE** method: **U**tilisation, **S**aturation, **E**rrors.
+
+Google's **four golden signals** combine them: latency, traffic, errors and saturation.
+
+### Metric types
+- A **counter** only increases (requests served). You graph its rate.
+- A **gauge** goes up and down (memory in use).
+- A **histogram** records a distribution in buckets, from which percentiles are computed.
+
+Never average percentiles across servers; aggregate the histograms and compute the percentile from the total.
+
+### Cardinality
+Each unique combination of label values is a separate time series. A label holding a user ID or a full URL creates millions of series and overwhelms the metrics system. Keep labels to small, bounded sets; put high-cardinality detail in logs and traces.
+
+### Alerting
+Bad alerting burns people out and trains them to ignore pages.
+
+- Alert on **symptoms that users feel** (errors, slowness), not on causes (CPU is high).
+- Every page must be **actionable** and **urgent**. If no one needs to act now, it is a ticket, not a page.
+- Link each alert to a **runbook**.
+- Tune or delete alerts that fire without need.
+
+### Dashboards
+One overview per service with the golden signals, then detail below. A dashboard should answer "is it healthy, and if not, where do I look?" in seconds.
+
+### Cost
+Telemetry is not free. **Sample** traces, keeping errors and slow requests. Set retention by value: high-resolution metrics for days, aggregates for months.
+
+### Observability as design
+Instrument as you build, not after an incident. Ask of each feature: "how will we know it is working in production?"
+
+> Key idea: Metrics tell you something is wrong, traces tell you where, logs tell you what. Tie them together with a shared ID.
+#Q Which signal is best suited to finding which service made a particular request slow?
+- Metrics
+- Logs
+* Traces
+! A trace shows the time spent in each span of one request.
+#Q Why is a user ID a poor metric label?
+- It is private
+* It creates a separate time series for every user, which overwhelms the metrics system
+- Metrics cannot store text
+! High-cardinality data belongs in logs and traces.
+
+#LESSON Site reliability engineering | 14
+**Site reliability engineering** (SRE), developed at Google, treats operations as a software problem and manages reliability with numbers instead of hope.
+
+### Reliability is a feature with a cost
+100% is the wrong target. It is impossible, since the user's own network is less reliable than that, and each additional nine costs far more than the last while slowing delivery. The right question is: how reliable does this service need to be for its users to be happy?
+
+### SLI, SLO, SLA
+- A **service level indicator** (SLI) is a measurement of what users experience: the proportion of requests that succeed, or that complete within 300 ms.
+- A **service level objective** (SLO) is the target for an SLI over a period: "99.9% of requests succeed, measured over 30 days."
+- A **service level agreement** (SLA) is a contract with consequences if missed. It is set looser than the SLO.
+
+Choose SLIs from the user's point of view, measured as close to the user as possible.
+
+### Error budgets
+An SLO of 99.9% permits 0.1% failure. That allowance is the **error budget**.
+
+```text
+1,000,000 requests in the period × 0.1% = 1,000 requests may fail
+30 days × 0.1% ≈ 43 minutes of complete downtime
+```
+
+The budget turns an argument into a rule:
+
+- **Budget remaining:** release freely, take risks, run experiments.
+- **Budget exhausted:** stop feature releases and work on reliability until it recovers.
+
+Development and operations now share one goal and one number.
+
+### Burn rate
+**Burn rate** is how fast the budget is being used relative to the rate that would spend exactly all of it over the period. A burn rate of 1 uses the budget in exactly 30 days; a burn rate of 10 uses it in 3. Alerting on burn rate (fast burn: page now; slow burn: open a ticket) is far better than alerting on every error.
+
+### Toil
+**Toil** is manual, repetitive, automatable work that grows with the service and has no lasting value. SRE teams cap it (commonly at half their time) and spend the rest on engineering that removes it.
+
+### Incident response
+- A clear **incident commander** coordinates; others investigate, communicate or fix.
+- **Mitigate first.** Roll back, fail over or shed load. Diagnosis of the root cause can wait until users are served.
+- Communicate early and regularly to those affected.
+- Keep a timeline.
+
+### Blameless postmortems
+After an incident, write down what happened, the impact, the timeline, the contributing causes and the actions to take.
+
+**Blameless** means assuming that everyone acted reasonably given what they knew. The question is not "who made the mistake?" but "why did the system make that mistake easy and its consequences severe?" People who fear blame hide information, and hidden information is what causes the next incident.
+
+Look for several contributing causes. "Human error" is where an investigation starts, not where it ends.
+
+### Release engineering
+Most outages are caused by changes. Make change safe: small releases, automated tests, canary deployments, automatic rollback on SLO violation, and feature flags.
+
+### Capacity and resilience
+Forecast demand, load-test to find limits, and keep headroom. Test recovery deliberately with failure injection and disaster-recovery exercises. A backup that has never been restored is not a backup.
+
+> Key idea: An error budget makes reliability a quantity that can be spent, which lets a team move fast and stay reliable on purpose.
+#Q An SLO is 99.9% over a period with 2,000,000 requests. How many requests may fail within the error budget?
+- 200
+* 2,000
+- 20,000
+! 0.1% of 2,000,000.
+#Q What does "blameless" mean in a postmortem?
+- Nobody is responsible for anything
+* The review focuses on how the system allowed the failure, not on punishing individuals, so that people share information honestly
+- The report is anonymous
+! Fear of blame suppresses the information needed to improve.
+
+#LAB js | Error budgets and rollout planning
+Implement the arithmetic that SRE teams use every day.
+
+- `allowedFailures(sloPercent, totalRequests)` returns how many requests may fail: `totalRequests × (100 − sloPercent) / 100`, **rounded to the nearest whole number**.
+- `budgetRemaining(sloPercent, totalRequests, failedRequests)` returns allowed failures minus actual failures (it may be negative).
+- `burnRate(sloPercent, totalRequests, failedRequests)` returns the actual failure ratio divided by the allowed failure ratio, rounded to 2 decimal places. Return 0 if `totalRequests` is 0.
+- `seriesAvailability(parts)` takes availabilities as fractions (such as `0.999`) of components that must **all** work and returns the combined availability, rounded to 4 decimal places.
+- `rolloutBatches(replicas, maxUnavailable)` returns an array describing a rolling update: the number of pods replaced in each batch, where each batch replaces at most `maxUnavailable` pods. For example `rolloutBatches(5, 2)` is `[2, 2, 1]`.
+- `canDeploy(sloPercent, totalRequests, failedRequests)` returns true only if some error budget remains (more than zero).
+@starter
+function allowedFailures(sloPercent, totalRequests) {
+  return 0;
+}
+
+function budgetRemaining(sloPercent, totalRequests, failedRequests) {
+  return 0;
+}
+
+function burnRate(sloPercent, totalRequests, failedRequests) {
+  return 0;
+}
+
+function seriesAvailability(parts) {
+  return 1;
+}
+
+function rolloutBatches(replicas, maxUnavailable) {
+  return [];
+}
+
+function canDeploy(sloPercent, totalRequests, failedRequests) {
+  return false;
+}
+@solution
+function allowedFailures(sloPercent, totalRequests) {
+  return Math.round(totalRequests * (100 - sloPercent) / 100);
+}
+
+function budgetRemaining(sloPercent, totalRequests, failedRequests) {
+  return allowedFailures(sloPercent, totalRequests) - failedRequests;
+}
+
+function burnRate(sloPercent, totalRequests, failedRequests) {
+  if (totalRequests === 0) return 0;
+  const actual = failedRequests / totalRequests;
+  const allowed = (100 - sloPercent) / 100;
+  return Math.round((actual / allowed) * 100) / 100;
+}
+
+function seriesAvailability(parts) {
+  let product = 1;
+  for (const p of parts) { product *= p; }
+  return Math.round(product * 10000) / 10000;
+}
+
+function rolloutBatches(replicas, maxUnavailable) {
+  const batches = [];
+  let left = replicas;
+  while (left > 0) {
+    const n = Math.min(maxUnavailable, left);
+    batches.push(n);
+    left -= n;
+  }
+  return batches;
+}
+
+function canDeploy(sloPercent, totalRequests, failedRequests) {
+  return budgetRemaining(sloPercent, totalRequests, failedRequests) > 0;
+}
+@tests
+allowedFailures(99.9, 1000000) => 1000
+allowedFailures(99, 5000) => 50
+allowedFailures(99.95, 200000) => 100
+allowedFailures(100, 1000) => 0
+budgetRemaining(99.9, 1000000, 400) => 600
+budgetRemaining(99.9, 1000000, 1500) => -500
+burnRate(99.9, 1000000, 1000) => 1
+burnRate(99.9, 1000000, 5000) => 5
+burnRate(99, 10000, 25) => 0.25
+burnRate(99.9, 0, 0) => 0
+seriesAvailability([0.999, 0.999, 0.999]) => 0.997
+seriesAvailability([0.99, 0.95]) => 0.9405
+seriesAvailability([]) => 1
+rolloutBatches(5, 2) => [2, 2, 1]
+rolloutBatches(4, 1) => [1, 1, 1, 1]
+rolloutBatches(3, 5) => [3]
+rolloutBatches(0, 2) => []
+canDeploy(99.9, 1000000, 400) => true
+canDeploy(99.9, 1000000, 1000) => false
+canDeploy(99.9, 1000000, 2000) => false
+@hints
+`100 - 99.9` is not exactly `0.1` in floating point, which is why the specification says to round. Use `Math.round`.
+Burn rate is `(failed / total) / ((100 - slo) / 100)`. Round to two places with `Math.round(x * 100) / 100`.
+For availability in series, multiply the fractions together.
+For the rollout, loop while pods remain, taking `Math.min(maxUnavailable, remaining)` each time.
+
+#EXAM 22
+#Q Which service model leaves you responsible for patching the operating system?
+* Infrastructure as a service
+- Platform as a service
+- Software as a service
+! With virtual machines you manage the operating system upward.
+#Q What does a declarative infrastructure tool do when you run "plan"?
+- Deletes all resources
+* Shows the changes needed to move the real infrastructure to the declared state
+- Restarts every server
+! Review the plan before applying it.
+#Q Which Kubernetes object keeps a specified number of pod replicas running and manages updates?
+- Service
+* Deployment
+- ConfigMap
+! Its controller replaces failed pods and performs rolling updates.
+#Q What does Kubernetes do to a container that exceeds its memory limit?
+- Throttles it
+* Kills it
+- Moves it to a bigger node
+! Memory cannot be throttled, so the container is terminated.
+#Q What should an application do on receiving SIGTERM during a deployment?
+- Exit immediately
+* Stop accepting new requests, finish those in progress, then exit
+- Ignore it
+! Graceful shutdown prevents dropped requests.
+#Q Which is a good paging alert?
+- CPU above 80% on one server
+* The proportion of failed checkout requests is burning the error budget at ten times the sustainable rate
+- A single request returned an error
+! It is a user-facing symptom, urgent and actionable.
+#Q A service's error budget for the month is exhausted. According to SRE practice, what happens?
+- Nothing changes
+* Feature releases pause and effort goes to reliability until the budget recovers
+- The SLO is raised
+! The budget is the agreed rule for balancing speed and stability.
+#W A team deploys a new version and, ten minutes later, error rates climb. Describe how the incident should be handled from detection to follow-up, including roles, the first technical action, communication, and what the postmortem should contain.
++ Detection through a symptom-based alert, and declaring an incident with a commander
++ Mitigation first: roll back the deployment before diagnosing the cause
++ Regular communication to stakeholders and a recorded timeline
++ A blameless postmortem with impact, timeline, contributing causes and specific actions
++ Suggests preventive measures such as canary releases or automatic rollback
+
+#PROJECT Cloud-native platform
+Deploy a multi-service application to a Kubernetes cluster (a local cluster is acceptable) with production-grade operations.
+@requirements
+All infrastructure and cluster resources are defined as code in a repository; nothing is created by hand
+At least two services plus a database, each with resource requests, readiness and liveness probes, and graceful shutdown
+Configuration and secrets are injected, not baked into images
+A CI/CD pipeline builds, scans and deploys images; a rolling update is demonstrated with no failed requests under load
+Metrics, structured logs and traces are collected, with a dashboard showing the golden signals
+One SLO is defined, with an error-budget calculation and a burn-rate alert
+A failure exercise: a pod and a node are killed under load and the effect is measured
+A runbook for the alert and a postmortem for the failure exercise
+@deliverables
+The repository
+Screenshots or exports of the dashboard, the rollout and the failure exercise
+The SLO document, runbook and postmortem
+A cost estimate for running this in a public cloud, with the assumptions stated
+@rubric
+Infrastructure and deployment are fully automated and reproducible | 25
+Workloads are configured for reliability | 20
+Observability and the SLO are meaningful | 20
+The failure exercise is rigorous and honestly reported | 20
+Documentation (runbook, postmortem, cost) | 15
+
+#COURSE c409
+#LESSON Writing a technical design document | 13
+At an advanced level, the hardest part of a project is deciding what to build and how, and getting others to agree. The tool for this is the **design document** (also called an RFC or technical proposal).
+
+### Why write one
+- Writing forces clear thinking. Gaps that survive a conversation do not survive a page.
+- Review happens **before** the expensive work, when changing course is cheap.
+- It leaves a record of why the system is the way it is.
+
+Write one when the work is large, hard to reverse, crosses teams, or has several plausible approaches. Do not write one for a routine change.
+
+### A structure that works
+1. **Summary.** Two or three sentences a busy reader can stop after.
+2. **Context and problem.** What is wrong today, for whom, and how you know. Include numbers.
+3. **Goals and non-goals.** Non-goals are as important: they say what you have deliberately excluded, which prevents scope growing.
+4. **Requirements.** Functional, and the quality attributes: scale, latency, availability, security, cost.
+5. **Proposed design.** Architecture diagram, data model, interfaces, key flows. Enough detail that a competent engineer could build it.
+6. **Alternatives considered.** At least two real ones, each with why it was not chosen. This section is where reviewers gain confidence that you explored the space.
+7. **Trade-offs and risks.** What this design is bad at. What could go wrong, and how you will reduce or detect it.
+8. **Security and privacy.**
+9. **Testing, rollout and rollback.**
+10. **Operations.** Monitoring, alerts, on-call impact, cost.
+11. **Open questions.**
+12. **Milestones.**
+
+### Writing well
+- Lead with the conclusion.
+- Be specific. "Fast" means nothing; "p99 under 200 ms at 2,000 requests a second" can be tested.
+- Diagrams for structure, prose for reasoning, tables for comparisons.
+- Separate fact from assumption, and mark assumptions.
+- Keep it as short as it can be while remaining complete.
+
+### The honest alternatives section
+A weak document lists straw-man alternatives. A strong one presents each fairly, in terms its supporters would accept, and states the conditions under which it would have been the better choice. "We would choose option B if write volume were ten times higher."
+
+### Review
+Circulate early, even incomplete. Ask specific reviewers for specific things: security, the data model, operations. Treat disagreement as information. Record decisions and the reasons in the document, and resolve every comment.
+
+The goal is not unanimous agreement. It is a decision made with the relevant knowledge, which everyone can commit to even if they would have chosen differently.
+
+### After approval
+The document is a plan, not a contract. When reality differs, update it or note where the implementation diverged. A design document that describes a system that was never built is worse than none.
+
+> Key idea: A design document is a tool for making a decision well. Its most valuable sections are the non-goals, the alternatives and the trade-offs.
+#Q Why include non-goals in a design document?
+- To make the document longer
+* To state what is deliberately out of scope, preventing misunderstanding and scope growth
+- To list features for later versions only
+! Explicit exclusions are as informative as goals.
+#Q What makes an "alternatives considered" section strong?
+- Listing options that are obviously bad
+* Presenting real alternatives fairly, with the conditions under which each would be preferable
+- Omitting the chosen design
+! It demonstrates that the design space was explored.
+
+#LESSON Deciding under uncertainty: trade-off analysis | 13
+Engineering decisions are made with incomplete information, among options that are each better at something. A method helps you avoid deciding by habit or by the loudest voice.
+
+### Quality attributes compete
+You cannot maximise everything. Typical tensions:
+
+| Improve | Often at the cost of |
+|---|---|
+| Consistency | Availability and latency |
+| Performance | Simplicity, sometimes cost |
+| Security | Convenience |
+| Flexibility | Simplicity and performance |
+| Time to market | Robustness |
+| Low cost | Redundancy |
+
+An architecture is a set of choices about which attributes matter most **for this system**.
+
+### Make the attributes concrete
+"It must be scalable" cannot be evaluated. Write **quality-attribute scenarios**:
+
+```text
+Source:      10 times normal traffic during a sale
+Stimulus:    arrives within five minutes
+Response:    the system keeps serving
+Measure:     p95 latency stays under 500 ms and no orders are lost
+```
+
+A scenario can be tested against each candidate design.
+
+### A decision matrix
+List the options and the criteria, weight the criteria, and score each option.
+
+| Criterion | Weight | Option A | Option B |
+|---|---|---|---|
+| Meets latency target | 5 | 4 | 5 |
+| Operational burden | 4 | 4 | 2 |
+| Team familiarity | 3 | 5 | 2 |
+| Cost | 2 | 3 | 4 |
+| **Weighted total** | | **57** | **47** |
+
+The number is not the answer. The value lies in forcing the criteria and weights into the open, where disagreement about them can be discussed. If the result contradicts everyone's instinct, examine the weights.
+
+### One-way and two-way doors
+- A **two-way door** is reversible: decide quickly, try it, and change if wrong.
+- A **one-way door** is hard to reverse: a data model, a public API, a choice of core technology, anything touching customers' data. Slow down and gather evidence.
+
+Most decisions are two-way doors treated with one-way caution. Where possible, turn one-way doors into two-way ones by putting an interface in front of the choice.
+
+### Reduce uncertainty cheaply
+- A **spike** or prototype answers a specific technical question. Throw it away afterwards.
+- A **benchmark** replaces opinion with measurement.
+- A **walking skeleton** connects every part end to end, minimally, to expose integration problems early.
+- Ask someone who has done it.
+
+Tackle the **riskiest assumption first**. If the project fails on one thing, find out in week one.
+
+### The last responsible moment
+Decide as late as you can without the delay itself causing harm. You know more later. But not deciding is also a decision, and it has a cost.
+
+### Cognitive traps
+- **Sunk cost:** continuing because of what has been spent.
+- **Anchoring** on the first option proposed.
+- **Novelty bias** toward new technology, and its opposite, refusing anything unfamiliar.
+- **Confirmation bias:** seeking only supporting evidence.
+- **Résumé-driven development:** choosing what you want to learn.
+
+A useful check: "What would have to be true for the other option to be better? Is it?"
+
+### Boring technology
+Every new technology brings unknown failure modes. A team can absorb only a few. Spend those few on what gives your product an advantage, and use well-understood tools for everything else.
+
+> Key idea: State the criteria, weigh them openly, test the riskiest assumption first, and save your caution for decisions you cannot undo.
+#Q What distinguishes a one-way door decision?
+- It is always wrong
+* It is difficult or costly to reverse, so it deserves more evidence and care
+- It involves only one person
+! Reversible decisions can be made quickly and corrected.
+#Q Why tackle the riskiest assumption first?
+- It is the most interesting
+* If it proves false, you find out before investing in everything that depends on it
+- It is always the easiest
+! Early failure is cheap failure.
+
+#LESSON Architecture decision records and living documentation | 12
+Six months after a decision, someone asks "why on earth is it done this way?". If the answer is lost, the team either breaks something by undoing a deliberate choice, or lives in fear of touching it.
+
+### Architecture decision records
+An **architecture decision record** (ADR) is a short document capturing one significant decision.
+
+```text
+# 7. Use an outbox table for publishing order events
+
+Status: Accepted (2026-03-02)
+
+## Context
+Orders are stored in PostgreSQL and announced on the event bus. Writing to both
+can leave them inconsistent if the process fails between the two writes. We have
+seen 14 missing events in the last quarter.
+
+## Decision
+Write events to an outbox table in the same transaction as the order. A relay
+process publishes rows from the table and marks them sent.
+
+## Consequences
++ An order and its event are recorded atomically.
++ Events may be published more than once; consumers must be idempotent.
+- Adds a relay process to operate and monitor.
+- Events are delayed by up to the polling interval (currently 1 second).
+
+## Alternatives considered
+Two-phase commit (not supported by the event bus). Change data capture
+(more infrastructure than the team can currently operate).
+```
+
+### What makes ADRs work
+- **One decision each**, one or two pages.
+- **Numbered and immutable.** If a decision changes, write a new ADR that **supersedes** the old one. The history is the value.
+- **Stored with the code**, in the repository, reviewed by pull request.
+- **Context is the most important part.** The decision was right or wrong given the circumstances; record them.
+- **Consequences include the negative ones.** A record listing only benefits is advertising.
+
+Write an ADR when a choice affects structure, is costly to reverse, or was argued over. If you had the discussion, record its result.
+
+### The C4 model
+A consistent way to draw architecture at four levels of zoom:
+
+1. **Context:** the system, its users and the other systems it talks to.
+2. **Containers:** the deployable parts: web app, API, database, queue.
+3. **Components:** the major pieces inside one container.
+4. **Code:** classes, rarely drawn by hand.
+
+Most audiences need only the first two. Every diagram needs a title, a legend, and labels on its arrows saying what flows and how.
+
+### Documentation that stays true
+Documentation decays when it lives apart from the thing it describes.
+
+- Keep it in the repository and change it in the same pull request as the code.
+- Generate what can be generated: API references from the specification, diagrams from code.
+- Prefer executable documentation: tests, example scripts, a `README` whose commands are run by CI.
+- Delete what is wrong. Wrong documentation is worse than none.
+
+### What to document
+- **README:** what it is, how to run it, how to test it.
+- **Architecture overview:** the C4 diagrams and the key flows.
+- **ADRs:** the why.
+- **Runbooks:** what to do when each alert fires.
+- **Onboarding guide:** the first day and the first week.
+
+Do not document what the code already says clearly. Document intent, constraints and reasons.
+
+### The test
+Could a capable engineer who has never seen the system get it running, understand its shape, and learn why its three strangest features exist, in a day, without asking anyone? If so, the documentation is doing its job.
+
+> In industry: Teams that keep ADRs report the same benefit: decisions stop being re-argued every time someone new joins.
+#Q What should happen when a decision recorded in an ADR is reversed?
+- The old ADR is edited
+* A new ADR is written that supersedes the old one, which is kept
+- The old ADR is deleted
+! The history of decisions and reasons is the purpose.
+#Q Which part of an ADR is most valuable to a future reader?
+- The title
+* The context: the circumstances and constraints that made the decision reasonable
+- The date
+! Without the context, the decision cannot be re-evaluated.
+
+#LESSON Production readiness | 13
+"It works on my machine" and "it is ready for users" are far apart. A **production readiness review** is a checklist-driven examination of whether a service can be run responsibly.
+
+### Reliability
+- Is there more than one instance, across zones?
+- Do all remote calls have timeouts, bounded retries and, where useful, circuit breakers?
+- What happens when each dependency is slow or down? Has that been **tested**, not assumed?
+- Does the service shut down gracefully and start cleanly?
+- Is there an SLO, and does the design plausibly meet it?
+
+### Scalability and performance
+- Has it been load-tested to beyond expected peak? What breaks first?
+- Are there limits on request size, page size, queue length and concurrency? Anything unbounded will eventually be exploited or will fall over.
+- Is there rate limiting?
+- Is there a **performance budget**: a target per operation, checked in CI so that regressions are caught?
+
+### Data
+- Are backups taken **and restored** in a rehearsal?
+- Can every schema migration be applied without downtime and rolled back?
+- What are the recovery time and recovery point objectives, and are they met?
+- Is personal data identified, minimised, encrypted and deletable on request?
+
+### Security
+- Has a threat model been done?
+- Are authentication and object-level authorisation enforced on every endpoint?
+- Are secrets in a secrets manager, dependencies scanned, images minimal and non-root?
+- Is there an audit log of sensitive actions?
+
+### Observability
+- Are the golden signals on a dashboard?
+- Are logs structured, with trace IDs, and free of secrets?
+- Do alerts fire on user-visible symptoms, and does each have a runbook?
+- Can you tell which version is running?
+
+### Deployment
+- Is deployment automated, with one command or one merge?
+- Is there a canary or staged rollout?
+- Can you roll back in minutes, and has the rollback been tried?
+- Are feature flags in place for risky changes?
+
+### Operations
+- Who is on call, and do they know the service?
+- Is there documentation for common failures?
+- What is the cost, and what happens to it at ten times the load?
+
+### Capacity limits and back-pressure
+A system that accepts more work than it can complete does not slow down gracefully; it collapses. Bound every queue. When full, reject new work quickly with a clear signal (**back-pressure**) so that callers can back off. Serving 80% of requests well is better than serving 100% of them badly.
+
+### Dependencies
+List every dependency and classify it: **critical** (the service cannot work without it) or **optional** (degrade gracefully). Reducing the number of critical dependencies is one of the most effective reliability improvements available.
+
+### Use it early
+The review is most useful as a checklist during design, not as a gate the week before launch. Each "no" found early is a small task; found late it is a delay or an incident.
+
+### Proportion
+A prototype for ten internal users does not need all of this. Match the rigour to the consequences of failure. But decide deliberately what you are skipping and write it down.
+
+> Key idea: Production readiness is mostly about the unhappy paths: what happens when things are slow, full, down or hostile.
+#Q Why must every queue and input in a production service have a limit?
+- Limits make code shorter
+* Unbounded resources allow overload or abuse to exhaust memory and bring the service down
+- Limits improve security certificates
+! Bounded systems degrade predictably.
+#Q What is back-pressure?
+- Compressing responses
+* Signalling callers to slow down when a system is at capacity, instead of accepting work it cannot complete
+- Retrying failed requests faster
+! Rejecting early protects the work already in progress.
+
+#LESSON Delivering, demonstrating and reflecting | 12
+A project is finished when it has been delivered, shown and learned from.
+
+### Deliver in slices
+Build the thinnest end-to-end version first, then widen. At every point you have something that works and can be shown. The alternative, building each layer completely before the next, hides integration problems until the end, when there is no time to fix them.
+
+Prioritise by risk and value: the riskiest and most valuable parts first; polish last.
+
+### Manage scope
+You will not finish everything you planned. Decide what to cut **early and deliberately**:
+
+- **Must have:** the project fails without it.
+- **Should have:** important; can be simplified.
+- **Could have:** only if time remains.
+- **Will not have this time:** written down, so that it is a decision and not a failure.
+
+A smaller project done well demonstrates far more than a larger one left half-working.
+
+### Evidence
+Claims need evidence. For each requirement, be able to point to:
+
+- a **test** showing it works,
+- a **measurement** showing the quality target is met (the load-test graph, the failure-test log),
+- a **document** explaining the decision.
+
+"It is scalable" is an assertion. "It sustained 2,000 requests a second at p99 of 180 ms; here is the graph and the script to reproduce it" is engineering.
+
+### The technical report
+1. Problem and goals.
+2. Design, with diagrams, and the key decisions with their alternatives.
+3. Implementation highlights: the two or three interesting parts, not a tour of every file.
+4. Evaluation: what you measured, how, and the results, including what did not meet its target.
+5. Limitations and future work.
+6. Reflection.
+
+State limitations plainly. Assessors and employers trust a report that says "the failover takes 40 seconds, longer than the 10-second goal, because of X" more than one that claims perfection.
+
+### The demonstration
+- **Tell a story.** A user with a problem, and how the system solves it.
+- Show the most impressive real thing early.
+- Then show the engineering: kill a server during the demo; show the dashboard; show the test suite passing.
+- Rehearse, time it, and have a recording as a fallback.
+- Prepare for questions: "what would you change?", "what happens if this component fails?", "how would it handle ten times the load?".
+
+### Explaining decisions
+At this level you are assessed on judgement as much as on code. For each major choice, be ready to say what the alternatives were, why you chose as you did, what it cost, and what would make you reconsider.
+
+### Retrospective
+Look back honestly.
+
+- What went well and should be repeated?
+- What went badly, and what was the underlying cause?
+- What surprised you?
+- What will you do differently, specifically?
+
+"I should have tested earlier" is a wish. "I will write the failure test before the feature next time, because finding the replication bug in week six cost four days" is a lesson.
+
+### The portfolio
+A finished advanced project is evidence of ability. Make it legible: a clear README, the architecture diagram, the design document, the measured results and a short video. Someone should grasp what you built and why it is good in three minutes.
+
+> Key idea: Scope down early, back every claim with evidence, and be candid about limitations. That is what senior engineering looks like.
+#Q Why build a thin end-to-end version first?
+- It needs less testing
+* It exposes integration problems early and always leaves a working system to show
+- It avoids writing documentation
+! Risk is discovered while there is still time to respond.
+#Q Which statement is best supported as an engineering claim?
+- The system is highly scalable
+* The system sustained 2,000 requests a second with p99 latency of 180 ms in the attached load test
+- The system uses modern technology
+! It is specific, measured and reproducible.
+
+#LAB js | Backoff, a circuit breaker and a weighted decision matrix
+Implement three tools used in advanced projects.
+
+**`backoffDelays(baseMs, factor, maxMs, attempts)`** returns an array of `attempts` retry delays. Delay number `i` (starting at 0) is `baseMs × factor^i`, capped at `maxMs`.
+
+**`class CircuitBreaker`**, created with `new CircuitBreaker(threshold, cooldownMs)`.
+- It starts **closed**. `state(now)` returns `"closed"`, `"open"` or `"half-open"`.
+- `record(success, now)` reports the result of a call. In the closed state, each failure increases a count of **consecutive** failures and a success resets it to zero. When the count reaches `threshold`, the breaker opens at time `now`.
+- While open, `state(now)` is `"open"` until `cooldownMs` has passed since it opened (`now - openedAt >= cooldownMs`), after which it is `"half-open"`.
+- In the half-open state, a recorded success closes the breaker (count reset); a recorded failure opens it again at time `now`.
+- `allow(now)` returns false only when the state is `"open"`.
+
+**`decide(criteria, options)`** computes a weighted decision matrix. `criteria` is an object mapping criterion name to weight. `options` is an object mapping option name to an object of scores per criterion (a missing score counts as 0). Return an array of `[optionName, total]` pairs sorted by total, highest first; ties keep the order in which the options were given.
+@starter
+function backoffDelays(baseMs, factor, maxMs, attempts) {
+  return [];
+}
+
+class CircuitBreaker {
+  constructor(threshold, cooldownMs) {
+    this.threshold = threshold;
+    this.cooldownMs = cooldownMs;
+  }
+  state(now) {
+    return "closed";
+  }
+  record(success, now) {
+  }
+  allow(now) {
+    return true;
+  }
+}
+
+function decide(criteria, options) {
+  return [];
+}
+@solution
+function backoffDelays(baseMs, factor, maxMs, attempts) {
+  const delays = [];
+  for (let i = 0; i < attempts; i++) {
+    delays.push(Math.min(baseMs * Math.pow(factor, i), maxMs));
+  }
+  return delays;
+}
+
+class CircuitBreaker {
+  constructor(threshold, cooldownMs) {
+    this.threshold = threshold;
+    this.cooldownMs = cooldownMs;
+    this.failures = 0;
+    this.openedAt = null;
+  }
+  state(now) {
+    if (this.openedAt === null) return "closed";
+    return now - this.openedAt >= this.cooldownMs ? "half-open" : "open";
+  }
+  record(success, now) {
+    const s = this.state(now);
+    if (s === "open") return;
+    if (s === "half-open") {
+      if (success) { this.openedAt = null; this.failures = 0; }
+      else { this.openedAt = now; }
+      return;
+    }
+    if (success) { this.failures = 0; return; }
+    this.failures++;
+    if (this.failures >= this.threshold) this.openedAt = now;
+  }
+  allow(now) {
+    return this.state(now) !== "open";
+  }
+}
+
+function decide(criteria, options) {
+  const rows = Object.keys(options).map((name, index) => {
+    let total = 0;
+    for (const c of Object.keys(criteria)) {
+      total += criteria[c] * (options[name][c] || 0);
+    }
+    return { name, total, index };
+  });
+  rows.sort((a, b) => b.total - a.total || a.index - b.index);
+  return rows.map((r) => [r.name, r.total]);
+}
+@tests
+backoffDelays(100, 2, 1000, 6) => [100, 200, 400, 800, 1000, 1000]
+backoffDelays(50, 3, 10000, 4) => [50, 150, 450, 1350]
+backoffDelays(100, 2, 1000, 0) => []
+backoffDelays(500, 1, 1000, 3) => [500, 500, 500]
+(() => { const b = new CircuitBreaker(3, 1000); return [b.state(0), b.allow(0)]; })() => ["closed", true]
+(() => { const b = new CircuitBreaker(3, 1000); b.record(false, 0); b.record(false, 1); return b.state(2); })() => "closed"
+(() => { const b = new CircuitBreaker(3, 1000); b.record(false, 0); b.record(false, 1); b.record(false, 2); return [b.state(3), b.allow(3)]; })() => ["open", false]
+(() => { const b = new CircuitBreaker(3, 1000); b.record(false, 0); b.record(false, 1); b.record(true, 2); b.record(false, 3); b.record(false, 4); return b.state(5); })() => "closed"
+(() => { const b = new CircuitBreaker(2, 1000); b.record(false, 0); b.record(false, 10); return [b.state(1009), b.state(1010), b.allow(1010)]; })() => ["open", "half-open", true]
+(() => { const b = new CircuitBreaker(2, 1000); b.record(false, 0); b.record(false, 10); b.record(true, 1500); return [b.state(1501), b.allow(1501)]; })() => ["closed", true]
+(() => { const b = new CircuitBreaker(2, 1000); b.record(false, 0); b.record(false, 10); b.record(false, 1500); return [b.state(1600), b.state(2499), b.state(2500)]; })() => ["open", "open", "half-open"]
+(() => { const b = new CircuitBreaker(2, 1000); b.record(false, 0); b.record(false, 10); b.record(true, 1500); b.record(false, 1600); return b.state(1700); })() => "closed"
+decide({ speed: 2, cost: 1 }, { A: { speed: 3, cost: 5 }, B: { speed: 5, cost: 2 } }) => [["B", 12], ["A", 11]]
+decide({ latency: 5, ops: 4, familiarity: 3, cost: 2 }, { A: { latency: 4, ops: 4, familiarity: 5, cost: 3 }, B: { latency: 5, ops: 2, familiarity: 2, cost: 4 } }) => [["A", 57], ["B", 47]]
+decide({ x: 1 }, { first: { x: 2 }, second: { x: 2 }, third: { x: 9 } }) => [["third", 9], ["first", 2], ["second", 2]]
+decide({ x: 3, y: 1 }, { only: { x: 2 } }) => [["only", 6]]
+decide({ x: 1 }, {}) => []
+@hints
+`Math.min(baseMs * Math.pow(factor, i), maxMs)` gives each delay.
+The breaker needs two pieces of state: the count of consecutive failures and the time it opened (or `null` when closed).
+Derive the state from those two values in `state(now)`, and have `record` and `allow` call `state(now)` first.
+For `decide`, compute each option's total, remember its original position, and sort by total descending, then by position.
+
+#EXAM 20
+#Q When is a design document most valuable?
+- After the system has been built
+* Before significant work begins, while changing direction is cheap
+- Only when a regulator asks for it
+! Review before building is the point.
+#Q Which is a well-formed quality requirement?
+- The system should be fast
+* 99% of search requests complete within 300 ms at 1,000 requests a second
+- The system should use caching
+! It is specific and testable.
+#Q What is a spike?
+- A sudden increase in traffic
+* A short, throwaway experiment to answer a specific technical question
+- A security vulnerability
+! It reduces uncertainty before committing.
+#Q Where should architecture decision records be kept?
+- In a private notebook
+* In the repository with the code, reviewed like code
+- In email
+! They stay close to what they describe and have a history.
+#Q In the C4 model, what does a container diagram show?
+- Classes and methods
+* The separately deployable parts of a system, such as applications and data stores, and how they communicate
+- The organisation chart
+! It is the second level of zoom.
+#Q A service accepts every request into an unbounded in-memory queue. What is the risk?
+- Requests are processed too quickly
+* Under overload, memory is exhausted and latency grows without limit until the service fails
+- The queue becomes sorted
+! Bounded queues with back-pressure degrade predictably.
+#Q Which is the most useful retrospective conclusion?
+- We should communicate better
+* We will write the failure-injection test before the replication feature, because finding that bug late cost four days
+- Everything went fine
+! It is specific, has a cause and names a change.
+#W Choose a significant technical decision from one of your own projects (or invent a realistic one). Write it as an architecture decision record with context, the decision, at least two alternatives considered, and consequences that include at least two negative ones.
++ Context explains the circumstances and constraints, ideally with numbers
++ The decision is stated clearly and specifically
++ At least two genuine alternatives with reasons for rejection
++ Consequences include at least two real disadvantages
++ A reader unfamiliar with the project could understand why the decision was reasonable
+
+#PROJECT Advanced engineering project
+Design, build, evaluate and present a substantial system that brings together the advanced stage. Choose one: a distributed application, a microservices ecosystem, a real-time collaborative platform, a scalable API platform, a search engine, or a security-focused application.
+@requirements
+A reviewed design document with goals, non-goals, requirements as measurable scenarios, the design, at least two alternatives, and risks
+At least four architecture decision records, each with negative consequences
+The system runs as several processes or services and tolerates the failure of one, shown by a test
+Stated performance and availability targets, with load-test and failure-test evidence for or against each
+A threat model and evidence that its top three threats are mitigated
+Automated tests at several levels and a CI pipeline
+Observability: metrics, structured logs and tracing, with a dashboard
+A production-readiness checklist, completed honestly, with what was skipped and why
+A technical report including limitations, and a recorded demonstration of no more than ten minutes
+@deliverables
+The repository
+The design document and ADRs
+The evaluation evidence (graphs, logs, scripts to reproduce)
+The technical report, the readiness checklist and the demonstration
+A retrospective
+@rubric
+Design quality and reasoning about trade-offs | 20
+Implementation correctness and engineering quality | 20
+Evaluation: claims are backed by reproducible evidence | 20
+Reliability and security are demonstrated, not asserted | 15
+Documentation, ADRs and report | 15
+Demonstration, candour about limitations, and retrospective | 10

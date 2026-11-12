@@ -1,3 +1,51 @@
+08Raph Learn 4.0: security, ten new courses, visualiser and practice studio
+
+READ FIRST
+- docs/FIREBASE_SETUP.md   how to lock down the multiplayer database (NOT live until you do it)
+- docs/DEPLOYMENT.md       how to upload, and the manual actions this release asks of you
+- docs/TESTING.md          what was tested, with counts, and what could not be tested
+- docs/SECURITY.md  docs/PRIVACY.md  docs/COMMUNITY.md  docs/ACADEMIC_AUDIT.md  CHANGELOG.md
+
+NEW IN 4.0
+- Firebase security: sign-in support, strict rules (firebase/database.rules.json), console-managed
+  administrators, audit log. Opt-in: the live site and database are unchanged until you switch it on.
+- index.html is 1.5 MB instead of 10 MB. The quiz and multiplayer question bank is now ranked_extra.json
+  (upload it!) and loads on demand. ranked_questions.json is no longer used: delete it from your repository.
+- University: 10 new electives (GDV 102/103, CEN 102/103, MOB 102/103, HCI 101, NUM 101, MAT 101/102).
+- Labs: algorithm visualiser, practice studio (27 exercises), language environment check.
+- Projects: objectives, milestones, submission guidance, completion criteria.
+- sw.js cache is now learn-v4.0.
+- Run the tests: sh tests/run-all.sh
+
+----------------------------------------------------------------------
+EARLIER RELEASE NOTES
+----------------------------------------------------------------------
+08Raph Learn 3.1: Technology University release
+
+NEW IN 3.1
+- University: 8 departments with learning pathways, 3 new elective courses (game programming, digital logic and CPUs,
+  mobile foundations), a Career centre (skill gaps, CV builder, interview practice), a My study page (weekly goal,
+  bookmarks, history, achievements, weekly challenge), a stronger built-in AI Professor, 22 video lectures.
+- Security: the HTML escaper now escapes quote characters (fixes an attribute-injection flaw). University progress
+  is now part of cloud sync.
+- READ docs/SECURITY.md: your Firebase database is open to anyone and needs a rules change that only you can make.
+- Documents: docs/DEPLOYMENT.md (how to upload), docs/TESTING.md (what was tested and what was not),
+  docs/SECURITY.md, docs/PRIVACY.md, docs/ACADEMIC_AUDIT.md, uni/README.md (maintainer's guide).
+- Tests: sh tests/run-all.sh
+- Upload EVERYTHING in this folder, including the uni, docs and tests folders and the hidden .nojekyll file.
+- Still not an accredited university. No degrees. No AI service connected. No paid service required.
+
+08Raph Learn 3.0: Software Engineering University
+
+NEW IN 3.0
+- 🎓 University: a new section at #/uni (button and banner on the home page). 6 stages, 52 courses, 255 lessons,
+  programming assignments marked by tests, examinations, projects, labs for 16 languages, video centre,
+  AI Professor (built-in tutor; no AI service connected), dashboard, transcript, portfolio and certificates.
+- It is NOT an accredited university and awards no degrees. Every University page says so.
+- Everything is in the new "uni" folder. Upload that folder together with index.html, sw.js and the other files.
+- Maintainer's guide: uni/README.md. Connecting a real AI model (optional, needs your own server): uni/ai-endpoint-example/README.md.
+- Nothing in the existing app was removed or redesigned.
+
 08Raph Learn: fixed build
 
 Upload ALL files in this folder to Netlify / GitHub Pages (index.html, sw.js, manifest.json, icon-192.png, icon-512.png).

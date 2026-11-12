@@ -1,0 +1,1556 @@
+#COURSE c205
+#LESSON The relational model | 12
+Programs forget everything when they stop. A **database** keeps data safely, lets many users reach it at once, and answers questions about it quickly. The most widely used kind is the **relational database**: PostgreSQL, MySQL, SQLite, SQL Server, Oracle.
+
+A relational database stores data in **tables**. A table has named **columns**, each with a type, and any number of **rows**. Each row is one record.
+
+```diagram
+  customers
+  +----+--------+-----------+
+  | id | name   | city      |
+  +----+--------+-----------+
+  |  1 | Ada    | London    |
+  |  2 | Linus  | Helsinki  |
+  +----+--------+-----------+
+```
+
+### Keys
+Every table should have a **primary key**: a column whose value is unique for each row and never changes. Usually it is an integer `id`. It is how one row is identified for certain.
+
+### Relationships
+Data about different things goes in different tables, linked by keys. An order belongs to a customer, so the `orders` table has a `customer_id` column holding a customer's primary key. That column is a **foreign key**.
+
+```diagram
+  orders
+  +----+-------------+--------+
+  | id | customer_id | amount |
+  +----+-------------+--------+
+  | 10 |      1      |   30   |   <- belongs to Ada
+  | 11 |      1      |   40   |   <- belongs to Ada
+  | 12 |      2      |   25   |   <- belongs to Linus
+  +----+-------------+--------+
+```
+
+This is a **one-to-many** relationship: one customer, many orders. A **many-to-many** relationship (students and courses) needs a third table holding pairs of keys.
+
+### Why split data up?
+If each order row repeated the customer's name and city, changing Ada's city would mean updating many rows, and missing one would leave the database contradicting itself. Storing each fact **once** makes contradiction impossible.
+
+### Schema
+The definition of the tables, columns, types and keys is the **schema**. It is a contract: the database refuses data that does not fit it.
+
+> In industry: The relational model dates from 1970 and still runs most of the world's business data. Its strength is that the database itself guarantees the data stays consistent.
+#Q What is a primary key?
+- The first column of any table
+* A column whose value uniquely identifies each row
+- A password for the database
+! It is unique, never null and should not change.
+#Q An orders table has a customer_id column that refers to the customers table. What is customer_id?
+- A primary key
+* A foreign key
+- An index
+! A foreign key holds the primary key of a row in another table.
+
+#LESSON SELECT: asking questions | 14
+**SQL** (Structured Query Language) is how you talk to a relational database. It is **declarative**: you describe the result you want, not the steps to get it. The database works out the steps.
+
+```sql
+SELECT name, city
+FROM customers
+WHERE city = 'London'
+ORDER BY name;
+```
+
+Read it as a sentence: select these columns, from this table, where this condition holds, ordered like this.
+
+### The clauses
+- `SELECT` chooses columns. `SELECT *` means all of them.
+- `FROM` names the table.
+- `WHERE` keeps only rows matching a condition.
+- `ORDER BY` sorts; add `DESC` for descending.
+- `LIMIT n` keeps the first n rows.
+
+### Conditions
+```sql
+WHERE amount > 20 AND amount <= 100
+WHERE city IN ('London', 'Paris')
+WHERE name LIKE 'A%'          -- starts with A; % matches any text
+WHERE email IS NULL           -- no value recorded
+```
+
+Text values go in **single quotes**. Equality is a single `=`.
+
+### NULL
+`NULL` means "no value". It is not zero and not an empty string. Comparing anything with NULL using `=` gives neither true nor false, so the row is not selected. Always use `IS NULL` or `IS NOT NULL`.
+
+### Removing duplicates and renaming
+```sql
+SELECT DISTINCT city FROM customers;
+SELECT name AS customer_name FROM customers;
+```
+
+### Changing data
+```sql
+INSERT INTO customers (id, name, city) VALUES (3, 'Grace', 'New York');
+UPDATE customers SET city = 'Paris' WHERE id = 1;
+DELETE FROM customers WHERE id = 3;
+```
+
+> Warning: `UPDATE` and `DELETE` without a `WHERE` clause affect **every row** in the table. Write the `WHERE` first.
+
+### Creating a table
+```sql
+CREATE TABLE customers (
+  id INTEGER PRIMARY KEY,
+  name TEXT NOT NULL,
+  city TEXT
+);
+```
+
+> In industry: Engineers write SQL constantly, even when the application uses a library that generates it, because investigating data and performance problems means running queries by hand.
+#TRY sql | Select the name of every product that costs more than 10, cheapest first.
+@setup
+CREATE TABLE products (id INTEGER, name TEXT, price INTEGER);
+INSERT INTO products VALUES (1, 'pen', 2), (2, 'bag', 30), (3, 'lamp', 18), (4, 'cup', 9);
+@starter
+SELECT name FROM products;
+@solution
+SELECT name FROM products WHERE price > 10 ORDER BY price;
+@rows
+[["lamp"], ["bag"]]
+#Q What does the WHERE clause do?
+- Sorts the result
+* Keeps only the rows that match a condition
+- Chooses which columns to show
+! Filtering is WHERE; choosing columns is SELECT; sorting is ORDER BY.
+#Q How do you test for a missing value in SQL?
+- WHERE email = NULL
+* WHERE email IS NULL
+- WHERE email == ''
+! NULL cannot be compared with `=`.
+
+#LESSON Joins | 14
+Facts are spread across tables, so questions usually need more than one table. A **join** combines rows from two tables that belong together.
+
+```sql
+SELECT customers.name, orders.amount
+FROM orders
+JOIN customers ON orders.customer_id = customers.id;
+```
+
+`ON` states how rows match: an order goes with the customer whose `id` equals the order's `customer_id`.
+
+```diagram
+  orders                      customers                 result
+  id customer_id amount       id name                   name   amount
+  10      1        30    -->   1 Ada         ==>        Ada      30
+  11      1        40    -->   1 Ada                    Ada      40
+  12      2        25    -->   2 Linus                  Linus    25
+```
+
+### Kinds of join
+- **INNER JOIN** (plain `JOIN`) keeps only rows that have a match on both sides. A customer with no orders does not appear.
+- **LEFT JOIN** keeps every row from the left table. Where there is no match, the right table's columns are NULL.
+
+```sql
+SELECT customers.name, orders.amount
+FROM customers
+LEFT JOIN orders ON orders.customer_id = customers.id;
+```
+
+Now a customer with no orders appears once, with a NULL amount. This is how you answer "which customers have never ordered?":
+
+```sql
+... LEFT JOIN orders ON orders.customer_id = customers.id
+WHERE orders.id IS NULL;
+```
+
+### Aliases
+Short names keep joins readable:
+
+```sql
+SELECT c.name, o.amount
+FROM orders AS o
+JOIN customers AS c ON o.customer_id = c.id;
+```
+
+### Joining several tables
+Chain them: orders to customers, orders to order lines, order lines to products. Each `JOIN ... ON` adds one table.
+
+### A common mistake
+Forget the `ON` condition and every row of one table is paired with every row of the other: 1,000 customers and 10,000 orders produce 10 million rows. This is a **Cartesian product**, and it is almost never what you meant.
+
+> Key idea: Split data into tables to store each fact once. Use joins to bring the facts back together when you ask a question.
+#Q Which join keeps customers who have no orders?
+- INNER JOIN from orders to customers
+* LEFT JOIN from customers to orders
+- No join can do that
+! A left join keeps every row of the left table, filling missing matches with NULL.
+#Q What does the ON clause specify?
+- The order of the result
+* How rows of the two tables are matched
+- Which database to use
+! It usually compares a foreign key with a primary key.
+
+#LESSON Aggregation and grouping | 12
+Often you do not want rows; you want a summary. **Aggregate functions** collapse many rows into one value.
+
+| Function | Gives |
+|---|---|
+| `COUNT(*)` | the number of rows |
+| `SUM(col)` | the total |
+| `AVG(col)` | the mean |
+| `MIN(col)`, `MAX(col)` | the smallest, the largest |
+
+```sql
+SELECT COUNT(*), SUM(amount) FROM orders;
+```
+
+### GROUP BY
+To get one summary **per group**, add `GROUP BY`. Rows with the same value in the grouping column are gathered, and the aggregate is computed for each group.
+
+```sql
+SELECT customer_id, COUNT(*) AS orders, SUM(amount) AS total
+FROM orders
+GROUP BY customer_id;
+```
+
+```diagram
+  orders                         grouped by customer_id
+  customer_id amount             customer_id  orders  total
+       1        30        ==>         1          2      70
+       1        40                    2          1      25
+       2        25
+```
+
+The rule: every column in the `SELECT` must either be in the `GROUP BY` or be inside an aggregate function. Otherwise the database could not know which row's value to show.
+
+### HAVING
+`WHERE` filters rows *before* grouping. `HAVING` filters groups *after*.
+
+```sql
+SELECT customer_id, SUM(amount) AS total
+FROM orders
+WHERE amount > 0
+GROUP BY customer_id
+HAVING SUM(amount) > 50
+ORDER BY total DESC;
+```
+
+### The logical order
+A query is written in one order and evaluated in another:
+
+1. `FROM` and `JOIN`: assemble the rows
+2. `WHERE`: filter rows
+3. `GROUP BY`: form groups
+4. `HAVING`: filter groups
+5. `SELECT`: compute the output columns
+6. `ORDER BY`, then `LIMIT`
+
+Knowing this order explains most confusing error messages, for instance why you cannot use an aggregate in `WHERE`.
+
+### Joining and grouping together
+The most common report shape: join the tables, then group.
+
+```sql
+SELECT c.name, SUM(o.amount) AS total
+FROM customers c JOIN orders o ON o.customer_id = c.id
+GROUP BY c.name;
+```
+#TRY sql | Show each city and how many customers live there, most customers first.
+@setup
+CREATE TABLE customers (id INTEGER, name TEXT, city TEXT);
+INSERT INTO customers VALUES (1, 'Ada', 'London'), (2, 'Alan', 'London'), (3, 'Linus', 'Helsinki'), (4, 'Tim', 'London');
+@starter
+SELECT city FROM customers;
+@solution
+SELECT city, COUNT(*) AS n FROM customers GROUP BY city ORDER BY n DESC;
+@rows
+[["London", 3], ["Helsinki", 1]]
+#Q What is the difference between WHERE and HAVING?
+- There is none
+* WHERE filters rows before grouping; HAVING filters groups after
+- HAVING is only for text columns
+! HAVING can use aggregates because groups already exist when it runs.
+#Q In a GROUP BY query, what may appear in the SELECT list?
+- Any column of the table
+* Grouping columns and aggregate functions
+- Only COUNT(*)
+! Anything else would be ambiguous within a group.
+
+#LESSON Designing a schema | 14
+A good schema makes wrong data hard to store and questions easy to ask. Design is done before any code.
+
+### A method
+1. **List the things** the system knows about (**entities**): customers, products, orders.
+2. **List what is recorded** about each (**attributes**): a customer's name and email.
+3. **Find the relationships** and their kind: one-to-many or many-to-many.
+4. **Give every table a primary key.**
+5. **Add foreign keys** for the relationships.
+6. **Add constraints** so the database enforces the rules.
+
+Draw it as an **entity-relationship diagram**:
+
+```diagram
+  +-----------+        +-----------+        +-------------+        +-----------+
+  | customers |1------*|  orders   |1------*| order_items |*------1| products  |
+  +-----------+        +-----------+        +-------------+        +-----------+
+  | id (PK)   |        | id (PK)   |        | order_id FK |        | id (PK)   |
+  | name      |        | customer_ |        | product_ FK |        | name      |
+  | email     |        |   id (FK) |        | quantity    |        | price     |
+  +-----------+        | placed_at |        | unit_price  |        +-----------+
+                       +-----------+        +-------------+
+```
+
+An order can contain many products and a product can be in many orders. That many-to-many relationship is resolved by the `order_items` table, one row per product per order.
+
+### Constraints
+- `NOT NULL`: a value is required.
+- `UNIQUE`: no two rows may share this value (an email address).
+- `CHECK (price >= 0)`: a rule each row must satisfy.
+- `FOREIGN KEY ... REFERENCES`: the referenced row must exist.
+
+Constraints are the database refusing to hold nonsense, whatever buggy code tries to insert.
+
+### Store each fact once
+The guiding rule is **normalization**: do not repeat information. If a customer's email appears in two tables, the two copies will eventually disagree. (Stage 3 covers the normal forms formally.)
+
+Notice `unit_price` in `order_items`. That looks like a repeat of the product's price, but it is a different fact: the price *at the time of the order*. Prices change; past orders must not.
+
+### Naming
+Pick a convention and keep it: lower-case with underscores, plural table names, `id` for primary keys, `thing_id` for foreign keys.
+
+> In industry: Changing a schema once real data exists is slow and risky, so teams review schema designs carefully and apply changes through versioned **migrations**.
+#Q How is a many-to-many relationship stored in a relational database?
+- With two foreign keys in one of the tables
+* With a third table that holds pairs of foreign keys
+- It cannot be stored
+! The linking table has one row per related pair.
+#Q Why does order_items store unit_price instead of always reading the product's current price?
+- To make queries shorter
+* The price at the time of the order is a separate fact that must not change later
+- Foreign keys cannot be used for prices
+! Historical records must not change when current data does.
+
+#LAB sql | Sales report
+The database has two tables.
+
+```text
+customers(id, name, city)
+orders(id, customer_id, amount)
+```
+
+Write **one query** that returns, for every customer who has placed at least one order, the customer's `name` and the total of their order amounts as `total`. Only include customers whose total is **more than 50**. Sort by total, largest first.
+
+Your result must have exactly two columns in that order.
+@setup
+CREATE TABLE customers (id INTEGER, name TEXT, city TEXT);
+CREATE TABLE orders (id INTEGER, customer_id INTEGER, amount INTEGER);
+INSERT INTO customers VALUES (1, 'Ada', 'London'), (2, 'Linus', 'Helsinki'), (3, 'Grace', 'New York'), (4, 'Tim', 'London');
+INSERT INTO orders VALUES (10, 1, 30), (11, 1, 40), (12, 2, 25), (13, 3, 90), (14, 3, 15), (15, 2, 20);
+@starter
+SELECT name FROM customers;
+@solution
+SELECT c.name, SUM(o.amount) AS total
+FROM customers c
+JOIN orders o ON o.customer_id = c.id
+GROUP BY c.name
+HAVING SUM(o.amount) > 50
+ORDER BY total DESC;
+@rows
+[["Grace", 105], ["Ada", 70]]
+@hints
+You need both tables, so start with a JOIN on `orders.customer_id = customers.id`.
+"Total per customer" means `GROUP BY` the customer and `SUM` the amount.
+The filter is on the total, which exists only after grouping, so it belongs in `HAVING`, not `WHERE`.
+Finish with `ORDER BY total DESC`.
+
+#EXAM 18
+#Q What does SELECT DISTINCT city FROM customers return?
+- Every row of the table
+* Each different city once
+- The number of cities
+! DISTINCT removes duplicate rows from the result.
+#Q What is wrong with `DELETE FROM orders;`?
+- Nothing, it deletes one order
+* With no WHERE clause it deletes every row
+- It has a syntax error
+! Always write the WHERE clause first.
+#Q An INNER JOIN between customers and orders is run. Which customers appear?
+- All customers
+* Only customers with at least one matching order
+- Only customers without orders
+! Inner join keeps only matched rows.
+#Q Which clause can use SUM(amount) > 100 as a filter?
+- WHERE
+* HAVING
+- ORDER BY
+! Aggregates are available only after grouping.
+#Q Which is evaluated first in a query?
+* FROM
+- SELECT
+- ORDER BY
+! The rows are assembled before anything is filtered, grouped or selected.
+#Q Which constraint prevents two users from registering the same email?
+- NOT NULL
+* UNIQUE
+- CHECK
+! UNIQUE forbids duplicate values in the column.
+#Q Why store each fact in exactly one place?
+- It saves a small amount of disk space
+* Two copies of a fact can end up disagreeing
+- Databases cannot store duplicates
+! Avoiding inconsistency is the purpose of normalization.
+#C sql | Write a query returning the name of each customer in London, in alphabetical order. Table: customers(id, name, city).
+@setup
+CREATE TABLE customers (id INTEGER, name TEXT, city TEXT);
+INSERT INTO customers VALUES (1, 'Tim', 'London'), (2, 'Linus', 'Helsinki'), (3, 'Ada', 'London');
+@starter
+SELECT * FROM customers;
+@solution
+SELECT name FROM customers WHERE city = 'London' ORDER BY name;
+@rows
+[["Ada"], ["Tim"]]
+#W Design a schema for a school: students, courses, and which students take which courses, with a grade for each enrolment. List the tables, their columns, the primary and foreign keys, and two constraints you would add.
++ Has a students table and a courses table with primary keys
++ Has an enrolment (linking) table with foreign keys to both
++ Places the grade on the enrolment table
++ Identifies the relationship as many-to-many
++ Gives two sensible constraints (NOT NULL, UNIQUE, CHECK on grade, foreign key)
+
+#PROJECT Database-driven application
+Build an application whose data lives in a relational database (SQLite is ideal). Suggested: a personal library or a recipe collection.
+@requirements
+A schema with at least three related tables, including one many-to-many relationship
+Primary keys, foreign keys and at least two other constraints
+The application can create, read, update and delete records
+At least one screen or command shows data from a join with grouping
+Queries use parameters, never text pasted together with user input
+@deliverables
+The schema as SQL and an entity-relationship diagram
+The application source
+Five example queries with the questions they answer
+@rubric
+The schema is well designed and normalised | 30
+All four operations work | 25
+Joins and aggregation are used correctly | 20
+Queries are parameterised | 15
+Documentation is clear | 10
+
+#COURSE c206
+#LESSON Branches | 12
+On a team, several people change the same project at once. If everyone committed directly to one line of history, half-finished work would break things for everybody. **Branches** solve this.
+
+A branch is a separate line of commits. You create one, work on it without affecting anyone, and combine it with the main line when the work is ready.
+
+```diagram
+                  feature/login
+                 o---o---o
+                /
+   o---o---o---o---o---o     main
+```
+
+In Git a branch is very light: just a movable label pointing at a commit. Creating one is instant.
+
+### The commands
+```text
+git switch -c feature/login     # create a branch and move to it
+git switch main                 # move back
+git branch                      # list branches
+```
+
+`HEAD` is Git's name for "where you are now": the branch whose commits you are adding to.
+
+### One branch per piece of work
+The usual workflow, called **feature branching**:
+
+1. Update `main`.
+2. Create a branch named for the work: `fix/empty-cart-crash`, `feature/search`.
+3. Commit on it, in small steps.
+4. Push it and ask for review.
+5. Merge it into `main`.
+6. Delete the branch.
+
+Keep branches **short-lived**: days, not months. The longer a branch lives, the further it drifts from `main` and the more painful combining becomes.
+
+### main should always work
+The central agreement on most teams is that `main` is always in a releasable state. Unfinished or broken work stays on branches.
+
+### Seeing where you are
+`git status` names the current branch. `git log --oneline --graph --all` draws the history as a graph. When confused, draw the commit graph on paper; almost every Git problem becomes clear as a picture.
+
+> Key idea: A branch is a pointer to a commit. Commits form a graph. Every Git command either adds to the graph or moves a pointer.
+#Q What is a branch in Git?
+- A copy of the whole project folder
+* A movable pointer to a commit, marking a line of work
+- A backup on a server
+! Branches are lightweight labels on the commit graph.
+#Q Why keep feature branches short-lived?
+- Git deletes old branches automatically
+* They drift further from main over time, making merging harder
+- Long branches use too much disk space
+! The more both sides change, the more conflicts arise.
+
+#LESSON Merging, rebasing and conflicts | 14
+Combining two lines of work can be done in two ways.
+
+### Merge
+`git merge feature/login` (run while on `main`) creates a new **merge commit** with two parents, joining the histories.
+
+```diagram
+                 o---o---o
+                /         \
+   o---o---o---o---o---o---M     main
+```
+
+If `main` has not moved since the branch was created, Git simply slides the `main` label forward. That is a **fast-forward** and needs no merge commit.
+
+### Rebase
+`git rebase main` (run while on the feature branch) replays your commits on top of the latest `main`, as if you had started from there.
+
+```diagram
+   before:       o---o---o          after:               o'--o'--o'
+                /                                       /
+   o---o---o---o---o---o                o---o---o---o---o---o
+```
+
+History becomes a straight line, which is easier to read. The cost is that the replayed commits are **new commits** with new identities.
+
+> Warning: Never rebase commits that other people have already pulled. Rewriting shared history forces everyone else to repair their copies.
+
+### Conflicts
+If both sides changed the same lines, Git cannot choose. It stops and marks the file:
+
+```text
+<<<<<<< HEAD
+total = price * quantity
+=======
+total = price * quantity * (1 + tax)
+>>>>>>> feature/tax
+```
+
+To resolve:
+
+1. Open each conflicted file and decide what the final text should be. It may be one side, the other, or a combination.
+2. Delete the marker lines.
+3. Run the tests.
+4. `git add` the file, then `git commit` (or `git rebase --continue`).
+
+A conflict is not an error. It is Git asking a question only a person can answer. `git merge --abort` returns you to where you started if you need to think.
+
+### Avoiding conflicts
+Merge `main` into your branch often, keep changes small, and tell teammates when you are about to reorganise a file.
+
+### Undoing safely
+`git revert <commit>` creates a new commit that undoes an earlier one. It is safe on shared branches because it adds history instead of rewriting it.
+#Q What does a merge commit have that an ordinary commit does not?
+- A longer message
+* Two parent commits
+- No parent
+! It joins two lines of history.
+#Q When is rebasing dangerous?
+- When the branch has only one commit
+* When the commits have already been shared with others
+- When there are no conflicts
+! Rebase creates new commits, which breaks everyone else's copy of the old ones.
+
+#LESSON Pull requests and code review | 12
+A **pull request** (PR; GitLab calls it a merge request) is a proposal to merge a branch. It shows the changes, lets teammates comment, runs automated checks and records the decision. It is where collaboration happens.
+
+### Writing a good pull request
+- **Small.** One purpose. A reviewer can check 200 lines carefully; nobody reviews 2,000 well.
+- **A clear title and description.** What changed, why, how you tested it, and anything the reviewer should look at closely.
+- **Clean commits.** Each one a sensible step.
+- **Self-reviewed.** Read your own diff first. You will catch stray debug prints and commented-out code before anyone else has to.
+
+### Reviewing someone else's code
+Code review exists to catch defects, spread knowledge and keep the codebase consistent. In roughly this order, check:
+
+1. **Does it do what it claims?** Is the logic correct, including edge cases?
+2. **Is it tested?**
+3. **Is it clear?** Would a newcomer understand it?
+4. **Does it fit** the existing design and conventions?
+5. **Is it safe?** Any unchecked input, exposed secret or performance trap?
+
+### How to say it
+Reviews are about the code, never the person.
+
+| Instead of | Write |
+|---|---|
+| "This is wrong." | "This returns null when the list is empty. Should we return an empty list?" |
+| "Why did you do it like this?" | "What was the reason for the nested loop here? I wonder if a set would be simpler." |
+
+Ask questions, explain your reasoning, and say which comments are blocking and which are only suggestions. Point out what is good too.
+
+### Receiving review
+The comments are about the code. Assume good intent, answer every comment, and say so when you disagree, with reasons. Being reviewed is the fastest way to improve.
+
+### Automated checks
+Most teams run tests and linters on every pull request and block merging until they pass. This is continuous integration, which Stage 3 covers.
+
+> In industry: At most companies no code reaches `main` without at least one approving review. Reviewing well is a large part of how engineers are judged as they become senior.
+#Q What is the main advantage of small pull requests?
+- They use less storage
+* They can be reviewed thoroughly and merged quickly
+- They do not need tests
+! Review quality falls sharply as the change grows.
+#Q Which review comment is most useful?
+- "This is bad."
+* "This fails when the list is empty; could we return an empty list instead?"
+- "I would never write it this way."
+! It is specific, about the code, and proposes a way forward.
+
+#LESSON Team workflow and open-source contribution | 10
+Different teams arrange branches differently, but the patterns are few.
+
+### Trunk-based development
+Everyone merges small changes into `main` at least daily. Unfinished features are hidden behind **feature flags** (a setting that switches them off) instead of living on long branches. This suits teams that release continuously and is increasingly the norm.
+
+### Release branches
+When a version is released, a branch such as `release/2.3` is cut. Only fixes go into it. This suits software that users install and that must be supported in several versions at once.
+
+### Tags and versions
+A **tag** is a permanent name on one commit, used to mark releases: `v2.3.0`. **Semantic versioning** gives the three numbers meaning:
+
+- **MAJOR**: a change that breaks compatibility.
+- **MINOR**: new features, still compatible.
+- **PATCH**: bug fixes only.
+
+### Contributing to someone else's project
+You usually cannot push to another person's repository. The workflow is:
+
+1. **Fork** it: your own copy on the hosting service.
+2. **Clone** your fork and create a branch.
+3. Commit your change and push to your fork.
+4. Open a pull request from your fork to the original.
+
+Before you start, read the project's `CONTRIBUTING` file and its existing issues. Small first contributions (fixing documentation, adding a test) are welcome almost everywhere.
+
+### Issues
+An **issue** records a bug, a request or a task. A good bug report states what you did, what you expected, what happened instead and how to reproduce it. Linking a pull request to its issue ("Fixes #42") closes the issue automatically when it merges.
+
+### Protecting main
+Teams configure the repository so `main` cannot be pushed to directly: every change needs a pull request, a review and passing checks.
+
+> In industry: Your first weeks in any job involve learning that team's workflow. The details vary; branches, pull requests, review and a protected main line are nearly universal.
+#Q In semantic versioning, which number increases when a release breaks compatibility?
+* MAJOR
+- MINOR
+- PATCH
+! A major version signals that users may need to change their code.
+#Q What is a fork?
+- A branch inside the original repository
+* Your own copy of someone else's repository on the hosting service
+- A merge conflict
+! You push to your fork and propose changes back with a pull request.
+
+#EXAM 15
+#Q Which command creates a new branch and switches to it?
+- git branch --list
+* git switch -c name
+- git merge name
+! `-c` creates the branch.
+#Q What does HEAD refer to?
+- The first commit in the repository
+* Your current position: the commit or branch you are working on
+- The remote server
+! New commits are added where HEAD points.
+#Q Git stops a merge and inserts <<<<<<< and >>>>>>> markers in a file. What happened?
+- The file is corrupt
+* Both branches changed the same lines, and you must decide the result
+- The branch was deleted
+! This is a merge conflict.
+#Q Which command safely undoes a commit that has already been pushed to a shared branch?
+* git revert
+- git rebase
+- deleting the repository
+! Revert adds a new commit that reverses the old one, without rewriting history.
+#Q What should a pull request description contain?
+- Only the word "update"
+* What changed, why, and how it was tested
+- The author's opinion of the reviewers
+! Reviewers need context to review well.
+#Q What is a fast-forward merge?
+- A merge that skips the tests
+* Moving the branch pointer forward when there is no divergent history
+- A merge done by an administrator
+! No merge commit is needed because one branch simply contains the other.
+#Q A project is at version 3.4.1 and releases a bug fix. What is the new version?
+- 4.0.0
+- 3.5.0
+* 3.4.2
+! Bug fixes increase the PATCH number.
+#W Two developers both edited the same function on separate branches. Describe, step by step, how the second developer should bring their branch up to date and resolve the conflict, and how the team could reduce such conflicts in future.
++ Fetches or pulls the latest main
++ Merges or rebases main into the branch
++ Opens the conflicted file and decides the correct final code
++ Removes the markers and runs the tests
++ Stages and completes the merge or rebase
++ Suggests prevention (small changes, frequent integration, communication)
+
+#PROJECT Team workflow simulation
+Practise the full team workflow on a repository of your own, playing both author and reviewer. If you can, do it with another person.
+@requirements
+The repository has a protected or respected main branch that always works
+At least three features were developed on separate branches and merged through pull requests
+At least one merge conflict was created deliberately and resolved
+Each pull request has a description and at least two review comments
+At least one release is tagged with a semantic version
+There is a CONTRIBUTING file describing the workflow
+@deliverables
+A link to the repository, or the output of `git log --oneline --graph --all`
+The text of one pull request description and its review comments
+A paragraph on what you would do differently on a real team
+@rubric
+Branches and pull requests were used correctly | 30
+The conflict was resolved correctly | 20
+Commit messages and descriptions are clear | 20
+Review comments are specific and constructive | 20
+Tagging and documentation | 10
+
+#COURSE c207
+#LESSON Unit testing | 14
+How do you know your code works? Running it and looking is not enough: you will not repeat that check after every change. An **automated test** is code that checks other code and reports pass or fail.
+
+A **unit test** checks one small piece, usually one function, in isolation.
+
+```js
+function add(a, b) { return a + b; }
+
+test("adds two positive numbers", () => {
+  expect(add(2, 3)).toBe(5);
+});
+```
+
+The frameworks differ by language (pytest and unittest for Python, Jest and Vitest for JavaScript, JUnit for Java) but every test has the same three parts, **arrange, act, assert**:
+
+```py
+def test_withdraw_reduces_balance():
+    account = Account(100)          # arrange: set up
+    account.withdraw(30)            # act: do the thing
+    assert account.balance() == 70  # assert: check the result
+```
+
+### What to test
+For each function, think in categories:
+
+- **The typical case.**
+- **Edge cases:** empty input, zero, one item, the largest allowed value.
+- **Boundaries:** if the rule is "18 or over", test 17, 18 and 19.
+- **Error cases:** does invalid input produce the right error?
+
+### What good tests look like
+- **Fast.** Thousands should run in seconds, so people actually run them.
+- **Independent.** No test depends on another or on the order they run in.
+- **Deterministic.** The same result every time. A test that sometimes fails (a "flaky" test) destroys trust in all of them.
+- **Readable.** The name states the behaviour: `test_withdraw_more_than_balance_raises_error`.
+- **One reason to fail.**
+
+### Why bother
+1. **Confidence to change.** With tests, you can restructure code and know within seconds whether you broke something.
+2. **Bugs stay fixed.** A test written for a bug guards against its return (a **regression test**).
+3. **Better design.** Code that is hard to test is usually badly structured. Tests push you toward small functions with clear inputs and outputs.
+4. **Documentation.** Tests show how the code is meant to be used.
+
+> Key idea: Tests are what make changing code safe. Without them, every change is a gamble.
+#Q What are the three parts of a typical unit test?
+- Compile, link, run
+* Arrange, act, assert
+- Input, loop, output
+! Set up the situation, perform the action, check the outcome.
+#Q A rule says a discount applies to orders of 100 or more. Which values test the boundary best?
+- 50 and 500
+* 99, 100 and 101
+- Only 100
+! Off-by-one mistakes hide at the boundary.
+
+#LESSON Integration testing and test doubles | 12
+Unit tests prove each piece works alone. They cannot prove the pieces work **together**. An **integration test** exercises several parts at once: your code with a real database, or two modules calling each other.
+
+### The test pyramid
+Different kinds of test have different costs, which suggests how many of each to write.
+
+```diagram
+            /\
+           /  \        end-to-end: few, slow, realistic
+          /----\
+         /      \      integration: some
+        /--------\
+       /          \    unit: many, fast, precise
+      +------------+
+```
+
+- **Unit tests** are fast and pinpoint the failure, so write many.
+- **Integration tests** catch mistakes at the joins between parts.
+- **End-to-end tests** drive the whole system as a user would. They are slow and break easily, so keep only a few for the most important paths.
+
+### Test doubles
+To unit-test code that depends on something slow or unpredictable (a database, the network, the clock), replace the dependency with a stand-in, a **test double**.
+
+- A **stub** returns fixed answers.
+- A **fake** is a simple working version, such as an in-memory database.
+- A **mock** also records how it was called, so you can check that.
+
+```py
+class FakeMailer:
+    def __init__(self):
+        self.sent = []
+    def send(self, to, subject):
+        self.sent.append((to, subject))
+
+def test_signup_sends_welcome_email():
+    mailer = FakeMailer()
+    signup("ada@example.com", mailer)
+    assert mailer.sent == [("ada@example.com", "Welcome")]
+```
+
+This works only because `signup` receives its mailer as a parameter instead of creating one internally. Handing a piece of code the things it depends on is called **dependency injection**, and it is the main technique for making code testable.
+
+### Do not over-mock
+A test that replaces everything with mocks checks only that your code calls what you told it to call. It can pass while the real system is broken. Prefer real objects and fakes where they are fast enough.
+
+### Coverage
+**Code coverage** measures which lines the tests executed. Low coverage shows untested code. High coverage does not prove the tests check anything useful, so treat it as a guide, never a goal.
+
+> In industry: A typical service has thousands of unit tests that run in under a minute, hundreds of integration tests, and a handful of end-to-end tests guarding sign-in and payment.
+#Q What does an integration test check that a unit test does not?
+- That a single function returns the right value
+* That several parts work correctly together
+- That the code is formatted properly
+! Mistakes often lie at the boundaries between components.
+#Q What makes it possible to substitute a fake mailer in a test?
+- Making the mailer a global variable
+* Passing the mailer into the code as a parameter (dependency injection)
+- Deleting the real mailer
+! Code that receives its dependencies can be given test versions.
+
+#LESSON Debugging techniques | 12
+You met the basic method in Stage 1: reproduce, hypothesise, observe, fix. Professional debugging adds better tools and more discipline.
+
+### Use a debugger
+A **debugger** runs your program under your control. It replaces dozens of print statements.
+
+- A **breakpoint** pauses the program at a chosen line.
+- **Step over** runs the next line; **step into** enters the function being called; **step out** finishes the current function.
+- While paused, you can **inspect** every variable and the **call stack**, which shows how the program reached this point.
+- A **conditional breakpoint** pauses only when a condition is true, such as `i == 999`.
+
+Every editor and browser has one. Learning it once pays back for your whole career.
+
+### Read the stack trace
+When a program crashes, the **stack trace** lists the chain of function calls that led to the error. Find the first line that is in *your* code, not a library's. That is usually where to start.
+
+### Bisect
+When something "used to work", `git bisect` finds the commit that broke it by binary search: you mark one commit good and one bad, and Git has you test the midpoint repeatedly. A thousand commits take about ten tests.
+
+### Make it smaller
+Remove code and data until the bug disappears, then put the last piece back. The smallest input that still fails (a **minimal reproduction**) usually makes the cause obvious, and is what you should give anyone you ask for help.
+
+### Logging
+In a deployed system you cannot attach a debugger. **Logs**, lines the program writes recording what it did, are how you see inside. Log decisions and failures, with enough context (which user, which request) to reconstruct what happened. Never log passwords or personal data.
+
+### Habits that prevent wasted hours
+- **Change one thing at a time.** If you change three things and it works, you learned nothing.
+- **Check your assumptions.** "That function definitely returns a list" is a belief. Verify it.
+- **Read the error message, all of it.**
+- **Take a break.** Solutions often arrive away from the screen.
+- **Write the test first.** Capture the bug in a failing test, then fix it. The test proves the fix and keeps the bug away.
+
+> Key idea: Debugging is the scientific method applied to code. Guess, predict, test, and let the evidence overrule your beliefs.
+#Q What does a breakpoint do?
+- Deletes a line of code
+* Pauses the running program at a chosen line so you can inspect its state
+- Makes the program run faster
+! While paused you can examine variables and the call stack.
+#Q What is a minimal reproduction?
+- The longest program that shows the bug
+* The smallest code and input that still triggers the bug
+- A program with no bugs
+! Shrinking the problem isolates the cause.
+
+#LESSON Clean code | 14
+Code is read many more times than it is written, by teammates and by you six months later. **Clean code** is code that is easy to read, understand and change. It is a matter of care, not cleverness.
+
+### Names
+A good name says what something *means* and makes comments unnecessary.
+
+| Poor | Better |
+|---|---|
+| `d` | `days_since_login` |
+| `data2` | `overdue_invoices` |
+| `process()` | `send_reminder_emails()` |
+| `flag` | `is_admin` |
+
+Functions are verbs, variables and classes are nouns, booleans read as yes/no questions.
+
+### Functions
+- **Small**, doing **one thing**. If you describe it with "and", split it.
+- **Few parameters.** More than three suggests a missing object.
+- **No surprises.** A function called `get_total` should not also save to the database. Hidden effects are where bugs breed.
+
+### Do not repeat yourself (DRY)
+The same logic in two places means a future change will be made in one and forgotten in the other. Extract it into one function. But do not merge code that merely *looks* alike while representing different ideas: that creates a tangle worse than the duplication.
+
+### Reduce nesting
+Deep indentation is hard to follow. Handle the unusual cases first and return early.
+
+```py
+def discount(order):
+    if order is None:
+        return 0
+    if not order.customer.is_member:
+        return 0
+    return order.total * 0.1
+```
+
+### Comments
+Comments explain **why**, not what. `i += 1  # add one to i` is noise. `# The supplier's API counts pages from 1` is valuable. If a comment explains what confusing code does, rewrite the code instead.
+
+### No magic numbers
+`if age >= 18` is unclear. `if age >= VOTING_AGE` explains itself and can be changed in one place.
+
+### Consistency
+Follow the project's style even where you would choose differently, and let a **formatter** and a **linter** enforce it automatically, so reviews can focus on substance.
+
+### Refactoring
+Improve structure in small steps, running the tests after each. Never refactor and change behaviour in the same step.
+
+> Key idea: Leave code a little cleaner than you found it.
+
+> In industry: These are rules of thumb, not laws. Experienced engineers break them deliberately when a rule makes a particular piece of code worse.
+#Q What should a comment explain?
+- What each line does, in English
+* Why the code is the way it is, when that is not obvious
+- The author's name
+! Clear code shows what it does; comments carry the reasons.
+#Q A function is named get_total but also writes to a database. What is the problem?
+- It is too short
+* It has a hidden side effect that its name does not reveal
+- It has too few parameters
+! Callers will not expect it, which leads to bugs.
+
+#LESSON First design patterns | 12
+A **design pattern** is a named, reusable solution to a problem that keeps appearing in software design. Patterns are not code to paste; they are ideas with names, which lets engineers discuss designs in a few words. Stage 3 studies them in depth. Three simple ones are useful straight away.
+
+### Strategy: swap the algorithm
+When behaviour varies, pass the varying part in as a function or object instead of writing `if` chains.
+
+```js
+const byPrice = (a, b) => a.price - b.price;
+const byName = (a, b) => a.name.localeCompare(b.name);
+
+function sortProducts(products, compare) {
+  return products.slice().sort(compare);
+}
+sortProducts(items, byPrice);
+```
+
+`sortProducts` does not know how the comparison works. Adding a new ordering changes nothing in it.
+
+### Observer: tell everyone who is interested
+One object announces that something happened; any number of others react. Neither side needs to know the other's details.
+
+```js
+class EventBus {
+  constructor() { this.listeners = {}; }
+  on(event, fn) { (this.listeners[event] = this.listeners[event] || []).push(fn); }
+  emit(event, data) { (this.listeners[event] || []).forEach((fn) => fn(data)); }
+}
+```
+
+You have used this already: `addEventListener` is the observer pattern.
+
+### Factory: one place that creates
+Instead of scattering `new` and construction details around, put creation in one function.
+
+```js
+function createLogger(kind) {
+  if (kind === "console") return new ConsoleLogger();
+  if (kind === "file") return new FileLogger("app.log");
+  throw new Error("unknown logger: " + kind);
+}
+```
+
+The rest of the program asks for a logger and uses it, without knowing which class it got.
+
+### The common thread
+Each pattern separates the part that **changes** from the part that **stays the same**, and connects them through a small interface. That is the heart of good design.
+
+### A caution
+Patterns solve problems. Applying one where there is no problem only adds indirection. A beginner who has just learned patterns tends to use them everywhere; the skill is in recognising when the plain version is better.
+
+> In industry: Pattern names are shared vocabulary. "Make it a strategy" or "that is an observer" conveys a whole design in a sentence during a review.
+#Q What problem does the strategy pattern solve?
+- Creating many objects quickly
+* Letting an algorithm be chosen or replaced without changing the code that uses it
+- Storing data on disk
+! The varying behaviour is passed in.
+#Q Which familiar browser feature is an example of the observer pattern?
+- localStorage
+* addEventListener
+- JSON.parse
+! Listeners register interest and are notified when the event occurs.
+
+#LAB js | Write code that passes a test suite, and find the bugs
+Two tasks.
+
+**1. Implement to a specification.** Write `slugify(title)`, which turns a title into a URL-friendly slug:
+- lower-case everything;
+- trim spaces from the ends;
+- replace each run of characters that are not letters or digits with a single hyphen;
+- remove hyphens from the start and end.
+
+`"  Hello, World!  "` becomes `"hello-world"`. An empty or all-punctuation title becomes `""`.
+
+**2. Debug.** The function `median(numbers)` below is supposed to return the median of a non-empty list without changing the list. It has **three bugs**. Find and fix them. (The median is the middle value of the sorted list, or the mean of the two middle values when the count is even.)
+@starter
+function slugify(title) {
+  return title;
+}
+
+function median(numbers) {
+  const sorted = numbers.sort();
+  const mid = sorted.length / 2;
+  if (sorted.length % 2 === 0) {
+    return (sorted[mid] + sorted[mid + 1]) / 2;
+  }
+  return sorted[mid];
+}
+@solution
+function slugify(title) {
+  return title.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+}
+
+function median(numbers) {
+  const sorted = numbers.slice().sort((a, b) => a - b);
+  const mid = Math.floor(sorted.length / 2);
+  if (sorted.length % 2 === 0) {
+    return (sorted[mid - 1] + sorted[mid]) / 2;
+  }
+  return sorted[mid];
+}
+@tests
+slugify("Hello World") => "hello-world"
+slugify("  Hello, World!  ") => "hello-world"
+slugify("Clean Code: A Handbook") => "clean-code-a-handbook"
+slugify("already-a-slug") => "already-a-slug"
+slugify("") => ""
+slugify("!!!") => ""
+slugify("C++ & Rust 2024") => "c-rust-2024"
+median([3, 1, 2]) => 2
+median([4, 1, 3, 2]) => 2.5
+median([7]) => 7
+median([10, 2, 33]) => 10
+median([1, 2]) => 1.5
+((a) => { median(a); return a; })([3, 1, 2]) => [3, 1, 2]
+@hints
+For `slugify`, a regular expression such as `/[^a-z0-9]+/g` matches each run of characters that are not lower-case letters or digits.
+Bug one: `sort()` with no argument compares numbers as text, so 10 comes before 2. Give it `(a, b) => a - b`.
+Bug two: `sort()` changes the original array. Sort a copy made with `slice()`.
+Bug three: check the indexes used for an even-length list by hand on `[1, 2, 3, 4]`, and make sure `mid` is a whole number.
+
+#EXAM 18
+#Q What is a regression test?
+- A test that runs slowly
+* A test added so that a fixed bug cannot return unnoticed
+- A test of the user interface
+! It captures the bug and guards against it in future.
+#Q Which property makes a test unreliable?
+- It runs in a millisecond
+* It passes or fails depending on the order tests run in
+- It has a descriptive name
+! Tests must be independent and deterministic.
+#Q In the test pyramid, which kind of test should be most numerous?
+* Unit tests
+- Integration tests
+- End-to-end tests
+! They are fast and pinpoint failures.
+#Q What is a fake, in testing?
+- A test that always passes
+* A simple working substitute for a real dependency, such as an in-memory database
+- Invalid test data
+! Fakes let tests run quickly without the real system.
+#Q Your program worked last week and fails today. Which tool finds the commit that broke it most efficiently?
+- Reading every commit in order
+* git bisect
+- Reinstalling the language
+! Bisect performs a binary search through history.
+#Q Which name is best for a boolean that records whether a user has confirmed their email?
+- e
+- emailFlag2
+* isEmailVerified
+! It reads as a yes/no question and states the meaning.
+#Q What is the purpose of dependency injection?
+- To make programs smaller
+* To give code its collaborators from outside, so they can be replaced, especially in tests
+- To avoid using functions
+! Code that creates its own dependencies cannot easily be tested in isolation.
+#C js | Write `clamp(value, min, max)` that returns `value` limited to the range from `min` to `max` inclusive.
+@starter
+function clamp(value, min, max) {
+  return value;
+}
+@solution
+function clamp(value, min, max) {
+  if (value < min) return min;
+  if (value > max) return max;
+  return value;
+}
+@tests
+clamp(5, 0, 10) => 5
+clamp(-3, 0, 10) => 0
+clamp(42, 0, 10) => 10
+clamp(0, 0, 10) => 0
+clamp(10, 0, 10) => 10
+#W List the test cases you would write for a function `is_valid_password(text)` whose rules are: at least 8 characters, at least one digit, at least one letter. Explain why you chose each case.
++ Includes a typical valid password
++ Tests the length boundary (7 and 8 characters)
++ Tests missing digit and missing letter separately
++ Includes edge cases such as the empty string
++ Explains the reasoning (boundaries, one rule at a time)
+
+#PROJECT Tested utility library
+Write a small library of at least eight utility functions (text, numbers, dates or lists) with a complete automated test suite, using a real test framework for your language.
+@requirements
+At least eight functions, each with a clear single purpose
+Every function has tests for typical, edge, boundary and error cases
+The tests run with one command and all pass
+At least one function was written test-first, with the failing test committed before the implementation
+A linter or formatter is configured
+The README documents each function with an example
+@deliverables
+The repository with source, tests and configuration
+The output of the test run
+A coverage figure and one sentence on what it does and does not tell you
+@rubric
+The functions are correct and cleanly written | 30
+Tests are thorough and well named | 35
+Tooling (test command, linter) works | 15
+Documentation | 10
+Evidence of test-first development | 10
+
+#COURSE c208
+#LESSON From requirements to design | 12
+At junior level you are given a description of what is wanted and must turn it into working software. The step between is **design**, and skipping it is the usual cause of rewrites.
+
+### Requirements
+Write what the system must do as **user stories**: "As a shop owner, I can add a product so that customers can buy it." Each story needs **acceptance criteria**, the checks that prove it is done:
+
+- A product needs a name and a price above zero.
+- Duplicate names are rejected with a clear message.
+
+Separately, note the **non-functional requirements**: how fast, how many users, what must be secure, which devices.
+
+Ask questions early. An ambiguity resolved in conversation costs minutes. The same ambiguity discovered after building costs days.
+
+### A design in four parts
+1. **Data model.** The tables or objects and their relationships. Get this right first: it is the hardest thing to change later.
+2. **Operations.** What can be done to the data, by whom.
+3. **Interface.** Screens, commands or API endpoints, sketched roughly.
+4. **Structure.** Which code lives where.
+
+```diagram
+  +--------------------------------------+
+  |  interface  (pages, API, CLI)        |
+  +--------------------------------------+
+  |  logic      (rules, calculations)    |
+  +--------------------------------------+
+  |  data       (database, files)        |
+  +--------------------------------------+
+```
+
+Each layer talks only to the one below it. The rules of the business live in the logic layer and nowhere else.
+
+### Write it down, briefly
+A one-page design note with the data model, the list of operations and any decision you were unsure about. Share it before coding. Someone will spot a problem in five minutes that would have cost you a day.
+
+### Slice vertically
+Build one complete feature through all layers (add a product, see it listed) before starting the next. This proves the structure works and gives you something to show early.
+
+> In industry: Junior engineers are rarely judged on clever code. They are judged on whether they understood what was needed, asked good questions and delivered something that works.
+#Q What are acceptance criteria?
+- The price of the software
+* The specific checks that show a requirement has been met
+- The names of the developers
+! They make "done" unambiguous.
+#Q Which part of a design is hardest to change later, and so deserves the most care first?
+- The colour scheme
+* The data model
+- The file names
+! Everything else is built on the shape of the data.
+
+#LESSON Building a REST API | 14
+An **API** (application programming interface) lets programs talk to your program. A **web API** does so over HTTP, the same protocol browsers use. The most common style is **REST**.
+
+### Resources and methods
+A REST API exposes **resources** (things, named with nouns) at URLs, and uses the HTTP **method** to say what to do.
+
+| Method and path | Meaning |
+|---|---|
+| `GET /products` | list products |
+| `GET /products/42` | get one product |
+| `POST /products` | create a product |
+| `PUT /products/42` | replace product 42 |
+| `PATCH /products/42` | change part of it |
+| `DELETE /products/42` | delete it |
+
+The four basic operations, create, read, update and delete, are known as **CRUD**.
+
+### Requests and responses
+A request carries a method, a path, **headers** and often a JSON **body**. The response carries a **status code**, headers and usually a JSON body.
+
+```text
+POST /products
+Content-Type: application/json
+
+{ "name": "Lamp", "price": 18 }
+```
+
+```text
+201 Created
+
+{ "id": 43, "name": "Lamp", "price": 18 }
+```
+
+### Status codes
+| Range | Meaning | Common examples |
+|---|---|---|
+| 2xx | success | 200 OK, 201 Created, 204 No Content |
+| 4xx | the client made a mistake | 400 Bad Request, 401 Unauthorized, 403 Forbidden, 404 Not Found |
+| 5xx | the server failed | 500 Internal Server Error |
+
+Choose the code honestly. Returning 200 with an error message in the body breaks every tool that relies on status codes.
+
+### A handler
+In most frameworks a **handler** function is registered for a method and path:
+
+```js
+app.post("/products", (req, res) => {
+  const { name, price } = req.body;
+  if (!name || typeof price !== "number" || price <= 0) {
+    return res.status(400).json({ error: "name and a positive price are required" });
+  }
+  const product = store.add({ name, price });
+  res.status(201).json(product);
+});
+```
+
+### Validate everything
+Never trust what a client sends. Check types, ranges and required fields on the server, even if the web page also checks them, because anyone can send requests without using your page.
+
+### Stateless
+Each request should carry everything needed to handle it. The server does not rely on remembering earlier requests, which lets any server in a group handle any request.
+
+> In industry: Mobile apps, web front ends and other companies' systems all consume the same API. Designing clear, consistent APIs is a core skill, developed further in Stage 3.
+#Q Which HTTP method and path would create a new customer?
+- GET /customers
+* POST /customers
+- DELETE /customers
+! POST to the collection creates a new resource.
+#Q A client asks for a product that does not exist. Which status code is correct?
+- 200
+* 404
+- 500
+! 404 Not Found: the client asked for something that is not there.
+
+#LESSON Building authentication | 12
+Most applications need to know who is using them. **Authentication** is checking identity; **authorization** is deciding what that identity may do. Stage 3 has a full course on this. Here is what a junior engineer must get right.
+
+### Storing passwords
+**Never store a password.** Store a **hash** of it: the output of a one-way function from which the password cannot be recovered. At sign-in, hash what the user typed and compare.
+
+Use a function designed for passwords, **bcrypt**, **scrypt** or **Argon2**, through a well-known library. These are deliberately slow, which makes guessing billions of passwords impractical, and they add a random **salt** so identical passwords produce different hashes.
+
+```py
+hashed = bcrypt.hashpw(password.encode(), bcrypt.gensalt())      # at sign-up
+ok = bcrypt.checkpw(attempt.encode(), hashed)                    # at sign-in
+```
+
+> Warning: Do not invent your own scheme and do not use a general-purpose hash such as MD5 or SHA-256 for passwords. They are far too fast.
+
+### Remembering who is signed in
+HTTP is stateless, so after sign-in the server gives the browser a **session**: a long random identifier, stored in a **cookie**, that the browser sends back with every request. The server looks the identifier up to find the user.
+
+Set the cookie as `HttpOnly` (page scripts cannot read it), `Secure` (sent only over HTTPS) and `SameSite` (not sent on requests from other sites).
+
+### Sign-in rules
+- Give the same message, "wrong email or password", whichever was wrong, so an attacker cannot learn which emails are registered.
+- Limit repeated attempts.
+- Use HTTPS everywhere, or passwords travel in the clear.
+
+### Authorization
+Check permission **on the server, on every request**. Hiding a button in the page is not security.
+
+```js
+if (order.userId !== currentUser.id) return res.status(403).json({ error: "forbidden" });
+```
+
+Forgetting that ownership check, so that changing the number in `/orders/1001` shows someone else's order, is one of the most common real-world vulnerabilities.
+
+### Prefer not to build it
+For real products, use a proven authentication library or service. You build it here to understand what those tools do.
+#Q What should a server store instead of a user's password?
+- The password, encrypted with a key kept in the code
+* A salted hash from a password-hashing function such as bcrypt or Argon2
+- Nothing; passwords are not needed
+! A hash cannot be reversed, and a slow salted one resists guessing.
+#Q Where must authorization checks be performed?
+- In the web page's JavaScript only
+* On the server, for every request
+- In the database backup
+! The client can be bypassed entirely.
+
+#LESSON Building an inventory system | 12
+An inventory system tracks products and how many of each are in stock. It is a classic junior project because simple-sounding rules hide real design questions.
+
+### Requirements
+- Add, edit and remove products.
+- Record stock arriving and stock leaving.
+- Never let stock go below zero.
+- Warn when a product is running low.
+- Show a history of what happened.
+
+### The key design decision
+The obvious model has one `quantity` column that is increased and decreased. It works, but it loses history: you cannot tell *why* the number is 7.
+
+A better model records every **movement** and derives the quantity:
+
+```text
+products(id, name, sku, reorder_level)
+movements(id, product_id, change, reason, created_at)
+```
+
+A delivery of 20 is a movement of +20. A sale of 3 is −3. The current stock is `SUM(change)` for that product. You now have a full audit trail for free, and mistakes are corrected by adding a new movement, never by erasing the past. Recording events and deriving state from them is an idea that scales all the way to the event-sourced systems of Stage 4.
+
+### The rule that must never break
+"Stock is never negative" must be enforced in **one place**, in the logic layer:
+
+```js
+function removeStock(product, quantity) {
+  if (quantity <= 0) throw new Error("quantity must be positive");
+  if (quantity > currentStock(product)) throw new Error("insufficient stock");
+  recordMovement(product, -quantity, "sale");
+}
+```
+
+Every screen and every API endpoint goes through this function. If two separate pieces of code each implement the rule, one day they will disagree.
+
+### The subtle problem
+Two people sell the last item at the same instant. Both check the stock (1), both see enough, both record −1, and stock is now −1. The check and the change must happen as one indivisible step. Databases provide this through **transactions**, which Stage 3 explains. For now, be aware the problem exists.
+
+### Reports
+"Which products are below their reorder level?" is one query with a join, a group and a `HAVING`. Good data design makes reports easy.
+
+> Key idea: Put each business rule in exactly one function, and route everything through it.
+#Q What is the advantage of recording stock movements instead of only a quantity?
+- It uses less storage
+* The full history is kept, and the quantity can always be derived from it
+- It removes the need for a database
+! Derived state plus a log of events gives an audit trail.
+#Q Why should the "stock is never negative" rule live in one function?
+- Functions run faster than rules
+* If it is implemented in several places, the copies will eventually disagree
+- Databases cannot enforce rules
+! A single source of truth for each rule prevents inconsistency.
+
+#LESSON A multi-page web application | 12
+A **multi-page application** is a website where the server builds each page and the browser loads a new one for each step. It is the simplest architecture for web software and still a sound choice for many products.
+
+### The request cycle
+```diagram
+  browser                                   server
+     | --- GET /products ------------------> |
+     |                                       |  route -> handler
+     |                                       |  handler asks the logic layer
+     |                                       |  logic reads the database
+     |                                       |  handler fills an HTML template
+     | <-- 200 OK, an HTML page ------------ |
+```
+
+- A **router** maps each URL to a handler.
+- The handler calls the **logic layer** and passes the results to a **template**.
+- A **template** is an HTML file with placeholders that are filled with data.
+
+```html
+<h1>Products</h1>
+<ul>
+  {% for p in products %}
+    <li>{{ p.name }}: {{ p.price }}</li>
+  {% endfor %}
+</ul>
+```
+
+Template engines **escape** inserted values automatically, turning `<` into `&lt;`, so text supplied by users cannot become page code. Never switch that off for user-supplied data.
+
+### Forms
+A form sends the user's input in a `POST` request. The handler should:
+
+1. **Validate** the input on the server.
+2. If invalid, show the form again with the user's values and clear error messages.
+3. If valid, make the change, then **redirect** to another page.
+
+The redirect matters: without it, refreshing the page would send the form again and create a duplicate. This is the **post-redirect-get** pattern.
+
+### Shared layout
+Every page shares a header, navigation and footer. Define them once in a **layout** template that pages extend.
+
+### Organising the code
+```text
+app/
+  routes/        which URL goes to which handler
+  services/      the business logic
+  models/        database access
+  templates/     pages
+  static/        CSS, images, scripts
+tests/
+```
+
+### What you now have
+A router, handlers, a logic layer, data access, templates, sessions and tests. That is the architecture of most web applications, at any scale. Stage 3 deepens each part.
+
+> In industry: Frameworks such as Django, Rails, Laravel and Express provide these pieces. Knowing what each piece is for lets you learn any of them quickly.
+#Q What does a template engine's automatic escaping protect against?
+- Slow pages
+* User-supplied text being treated as HTML or script
+- Database failures
+! Escaping turns special characters into harmless text.
+#Q Why redirect after a successful form submission?
+- To make the site look faster
+* So that refreshing the page does not submit the form again
+- Because POST requests cannot return pages
+! This is the post-redirect-get pattern.
+
+#LAB js | Inventory logic with an audit trail
+Implement the logic layer of an inventory system as pure functions. A **movement** is an object `{ sku, change, reason }`. The whole state is an array of movements.
+
+- `stockOf(movements, sku)` returns the current stock of `sku`: the sum of its changes, or 0 if there are none.
+- `receive(movements, sku, quantity)` returns a **new** array with a movement of `+quantity` and reason `"delivery"` added. If `quantity` is not a positive whole number, throw an `Error`.
+- `sell(movements, sku, quantity)` returns a new array with a movement of `-quantity` and reason `"sale"` added. Throw an `Error` if `quantity` is not a positive whole number, or if there is not enough stock.
+- `lowStock(movements, level)` returns the SKUs whose current stock is **below** `level`, in alphabetical order. Only SKUs that appear in the movements are considered.
+
+Never change the array you are given.
+@starter
+function stockOf(movements, sku) {
+  return 0;
+}
+
+function receive(movements, sku, quantity) {
+  return movements;
+}
+
+function sell(movements, sku, quantity) {
+  return movements;
+}
+
+function lowStock(movements, level) {
+  return [];
+}
+@solution
+function stockOf(movements, sku) {
+  return movements.filter((m) => m.sku === sku).reduce((n, m) => n + m.change, 0);
+}
+
+function checkQuantity(quantity) {
+  if (!Number.isInteger(quantity) || quantity <= 0) throw new Error("quantity must be a positive whole number");
+}
+
+function receive(movements, sku, quantity) {
+  checkQuantity(quantity);
+  return movements.concat([{ sku, change: quantity, reason: "delivery" }]);
+}
+
+function sell(movements, sku, quantity) {
+  checkQuantity(quantity);
+  if (quantity > stockOf(movements, sku)) throw new Error("insufficient stock");
+  return movements.concat([{ sku, change: -quantity, reason: "sale" }]);
+}
+
+function lowStock(movements, level) {
+  const skus = Array.from(new Set(movements.map((m) => m.sku)));
+  return skus.filter((s) => stockOf(movements, s) < level).sort();
+}
+@tests
+stockOf([], "pen") => 0
+stockOf([{ sku: "pen", change: 5, reason: "delivery" }, { sku: "pen", change: -2, reason: "sale" }, { sku: "ink", change: 9, reason: "delivery" }], "pen") => 3
+receive([], "pen", 5) => [{"sku": "pen", "change": 5, "reason": "delivery"}]
+stockOf(sell(receive([], "pen", 5), "pen", 2), "pen") => 3
+sell(receive([], "pen", 5), "pen", 5).length => 2
+(() => { try { sell(receive([], "pen", 1), "pen", 2); return "no error"; } catch (e) { return "error"; } })() => "error"
+(() => { try { sell([], "pen", 1); return "no error"; } catch (e) { return "error"; } })() => "error"
+(() => { try { receive([], "pen", 0); return "no error"; } catch (e) { return "error"; } })() => "error"
+(() => { try { receive([], "pen", 1.5); return "no error"; } catch (e) { return "error"; } })() => "error"
+(() => { try { sell(receive([], "pen", 5), "pen", -1); return "no error"; } catch (e) { return "error"; } })() => "error"
+((m) => { receive(m, "pen", 5); return m.length; })([]) => 0
+lowStock(receive(receive(receive([], "pen", 2), "ink", 9), "cup", 1), 3) => ["cup", "pen"]
+lowStock([], 5) => []
+lowStock(sell(receive([], "pen", 4), "pen", 4), 1) => ["pen"]
+@hints
+`stockOf` is a `filter` for the SKU followed by a `reduce` that adds up `change`.
+Write one small helper that validates a quantity and use it in both `receive` and `sell`. `Number.isInteger` rejects decimals.
+`sell` must check the current stock before adding the movement. Use `stockOf`.
+For `lowStock`, collect the distinct SKUs with a `Set`, keep those whose stock is below the level, then sort.
+
+#EXAM 18
+#Q Which is a non-functional requirement?
+- Users can add a product
+* Pages load in under two seconds
+- Admins can delete a user
+! It describes a quality of the system, not a feature.
+#Q What does CRUD stand for?
+- Compile, run, update, debug
+* Create, read, update, delete
+- Copy, rename, upload, download
+! The four basic operations on stored data.
+#Q A client sends invalid JSON to your API. Which status code should you return?
+* 400
+- 200
+- 500
+! 4xx means the client's request was at fault.
+#Q Why are bcrypt and Argon2 preferred to SHA-256 for passwords?
+- They produce shorter output
+* They are deliberately slow and salted, which resists guessing
+- They can be reversed when a user forgets a password
+! Speed helps an attacker; password hashes should be costly to compute.
+#Q A user changes /orders/1001 to /orders/1002 in the address bar and sees another customer's order. What is missing?
+- A faster database
+* A server-side check that the order belongs to the signed-in user
+- A longer password
+! Authorization must be enforced for every request.
+#Q In the movements design, how is a mistaken entry corrected?
+- By deleting the row
+* By adding a new movement that reverses it
+- By editing the total
+! History is never erased; corrections are new events.
+#Q What does a router do in a web application?
+- Stores passwords
+* Maps each URL and method to the handler that deals with it
+- Compresses images
+! It is the entry point that dispatches requests.
+#W You are asked to add a "wish list" feature to an online shop. Write three user stories with acceptance criteria, sketch the data model changes, and list the API endpoints you would add.
++ Three user stories in the "As a ..., I can ..., so that ..." form or equivalent
++ Acceptance criteria that are specific and testable
++ A data model with a table linking users and products
++ Sensible REST endpoints with methods and paths
++ Mentions authorization (a user sees only their own list)
+
+#PROJECT Inventory management system
+Build a complete inventory management system: a database, a logic layer, and either a multi-page web interface or a REST API (or both), with sign-in.
+@requirements
+Users sign in; passwords are stored as salted hashes
+Products can be created, edited and removed
+Stock arrivals and removals are recorded as movements, and stock can never go negative
+A low-stock report is available
+Every business rule is enforced in the logic layer and covered by automated tests
+All input is validated on the server, and queries are parameterised
+The README explains how to set up and run the system
+@deliverables
+The repository
+The schema and an entity-relationship diagram
+The test run output
+A one-page design note describing the layers and two decisions you made
+@rubric
+Features work end to end | 30
+Business rules are centralised and tested | 25
+Security basics (hashing, authorization, validation, parameterised queries) | 20
+Code structure and readability | 15
+Documentation | 10

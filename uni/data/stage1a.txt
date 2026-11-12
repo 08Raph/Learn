@@ -1,0 +1,1761 @@
+#COURSE c101
+#LESSON What a computer actually does | 12
+A computer is a machine that follows instructions. That is all. It does not understand, guess or get tired. It takes **input**, follows a list of instructions called a **program**, and produces **output**.
+
+Think of a kitchen. The recipe is the program. The cook who follows it one step at a time is the **processor** (CPU). The counter where ingredients sit while cooking is **memory** (RAM): quick to reach, but cleared when you finish. The cupboard where food is kept for weeks is **storage** (a disk): slower to reach, but it keeps things when the power is off.
+
+```diagram
+ keyboard, mouse,          +-----------+          screen, speaker,
+ touch, network   ----->   |    CPU    |  ----->  printer, network
+     (input)               +-----------+              (output)
+                             ^       |
+                             |       v
+                       +----------------+      +-----------+
+                       |  memory (RAM)  | <--> |  storage  |
+                       +----------------+      +-----------+
+```
+
+The CPU repeats one tiny cycle billions of times a second: **fetch** the next instruction from memory, **decode** what it means, **execute** it. Each instruction is very small, such as "add these two numbers" or "copy this value there". Everything you see a computer do, from video to games, is built from enormous numbers of these small steps.
+
+> Key idea: A computer is fast and exact, not clever. If the instructions are wrong, it does the wrong thing perfectly.
+
+### Hardware and software
+**Hardware** is the part you can touch: the CPU, memory, disk, screen. **Software** is the instructions: the programs. The same hardware becomes a calculator, a piano or a map depending on which software runs.
+
+> In industry: Engineers still think in input, processing, output. When a system misbehaves, the first questions are "what went in?", "what came out?" and "what happened in between?".
+#Q A recipe is to a cook as a program is to what?
+- The screen
+* The processor (CPU)
+- The keyboard
+! The CPU is the part that follows the instructions, one step at a time.
+#Q You are typing an essay and the power goes out before you save. Why is the text lost?
+- Storage is erased when the power goes off
+* The text was only in memory (RAM), which needs power to hold data
+- The CPU deletes unsaved work
+! RAM is fast working space that is cleared without power. Saving copies the text to storage, which keeps it.
+
+#LESSON Bits, bytes and binary | 15
+Inside a computer everything is stored using tiny switches that are either **off** or **on**. We write off as 0 and on as 1. One such switch is a **bit**. Eight bits make a **byte**.
+
+Why only two values? Because it is easy to build a reliable switch with two states, and very hard to build one with ten.
+
+### Counting in binary
+We normally count in **decimal** (base 10): each place is worth ten times the one to its right: ones, tens, hundreds. **Binary** (base 2) works the same way, but each place is worth *two* times the one to its right: ones, twos, fours, eights.
+
+| Place value | 8 | 4 | 2 | 1 |
+|---|---|---|---|---|
+| Binary digits | 1 | 0 | 1 | 1 |
+
+So binary `1011` means 8 + 0 + 2 + 1 = **11**.
+
+To turn a decimal number into binary, keep dividing by 2 and write down the remainders. Read them from last to first:
+
+```text
+13 / 2 = 6 remainder 1
+ 6 / 2 = 3 remainder 0
+ 3 / 2 = 1 remainder 1
+ 1 / 2 = 0 remainder 1      -> read upward: 1101
+```
+
+With n bits you can make 2ⁿ different patterns. One byte (8 bits) gives 256 patterns, enough for the numbers 0 to 255.
+
+### Everything is numbers
+Text is stored as numbers too: each character has a code (in the common ASCII table, `A` is 65). A picture is a grid of numbers saying how much red, green and blue each dot has. Sound is a long list of numbers measuring air pressure thousands of times a second.
+
+> In industry: Limits you will meet come straight from bit counts. A 32-bit number tops out near 4.29 billion, which is why some old systems ran out of ID numbers or memory addresses.
+#Q What decimal number is binary 1010?
+- 5
+* 10
+- 12
+! 8 + 0 + 2 + 0 = 10.
+#Q How many different values can 4 bits represent?
+- 4
+- 8
+* 16
+! Each extra bit doubles the count: 2 × 2 × 2 × 2 = 16.
+
+#LESSON Hexadecimal | 10
+Binary is exact but long. `11111111` is hard to read and easy to mistype. Programmers shorten it with **hexadecimal** (hex), which is base 16.
+
+Base 16 needs sixteen digits. We use 0 to 9 and then the letters A to F for ten to fifteen:
+
+| Decimal | 0-9 | 10 | 11 | 12 | 13 | 14 | 15 |
+|---|---|---|---|---|---|---|---|
+| Hex | 0-9 | A | B | C | D | E | F |
+
+The useful trick: **one hex digit is exactly four bits**. So you can convert by chopping binary into groups of four.
+
+```text
+binary   1010 1111
+hex         A    F        -> AF
+```
+
+To read a hex number, each place is worth sixteen times the one to its right. `2F` is 2 × 16 + 15 = **47**. Two hex digits describe one byte, from `00` (0) to `FF` (255).
+
+Because hex and decimal can look alike, hex is usually marked with `0x` in code (`0x2F`) or `#` in web colours.
+
+### Where you will see it
+- **Colours** on web pages: `#FF0000` is full red, no green, no blue.
+- **Memory addresses** in error messages: `0x7ffe5c2a`.
+- **Raw data** when inspecting files or network traffic.
+
+> In industry: When a program crashes, the report often shows addresses and data in hex. Being able to read it is part of debugging at a low level.
+#Q What is hexadecimal F in decimal?
+- 10
+* 15
+- 16
+! A is 10, B is 11, and so on up to F, which is 15.
+#Q What is hex 1A in decimal?
+- 11
+* 26
+- 110
+! 1 × 16 + 10 = 26.
+
+#LESSON Operating systems | 12
+If programs talked to hardware directly, every program would need to know how to drive every kind of disk, screen and keyboard, and two programs running at once would fight over them. The **operating system** (OS) solves this. It is the program that runs all the other programs. Windows, macOS, Linux, Android and iOS are operating systems.
+
+The OS does four big jobs:
+
+1. **Runs programs and shares the CPU.** A running program is called a **process**. There are usually far more processes than CPU cores, so the OS lets each run for a few thousandths of a second and then switches. It happens so fast that everything seems to run at once.
+2. **Manages memory.** It gives each process its own area of memory and stops one process reading or damaging another's.
+3. **Organises storage into files and folders.** A disk is really one enormous row of numbered blocks. The **file system** turns that into named files in folders.
+4. **Talks to devices.** Small programs called **drivers** know how to operate each device, so applications do not have to.
+
+```diagram
+  +--------------------------------------+
+  |  applications (browser, game, editor)|
+  +--------------------------------------+
+  |          operating system            |   <- programs ask it for things
+  +--------------------------------------+
+  |  hardware (CPU, memory, disk, screen)|
+  +--------------------------------------+
+```
+
+A program asks the OS for a service ("open this file", "send this over the network") through a **system call**. The core of the OS that handles these requests is the **kernel**.
+
+> In industry: Almost all servers on the internet run Linux. You will study how operating systems work inside in Stage 3 and again, in depth, in Stage 5.
+#Q Why can many programs appear to run at the same time on one CPU core?
+- The CPU splits itself into pieces
+* The operating system switches between them very quickly
+- Each program runs only once per second
+! The OS gives each process a short turn and switches so fast that it looks simultaneous.
+#Q What does the file system do?
+- Speeds up the CPU
+- Connects the computer to the internet
+* Turns raw storage blocks into named files and folders
+! The disk is just numbered blocks; the file system provides names, folders and the record of which blocks belong to which file.
+
+#LESSON What software engineering is | 10
+**Programming** is writing instructions for a computer. **Software engineering** is everything needed to build software that many people can rely on for years: understanding what is needed, designing it, writing it, testing it, releasing it, and keeping it working as needs change.
+
+A useful comparison: anyone can build a shed. Building a bridge that thousands of people cross every day needs engineering, because the cost of getting it wrong is high and many people must work together.
+
+### The life of a piece of software
+1. **Requirements.** What problem are we solving, and for whom?
+2. **Design.** How will the parts fit together?
+3. **Implementation.** Writing the code.
+4. **Testing.** Checking it does what it should, and nothing it should not.
+5. **Deployment.** Putting it where users can reach it.
+6. **Maintenance.** Fixing bugs and adding features. This is where most of the time and money goes.
+
+These steps are not done once in order. Modern teams repeat them in small loops, releasing small improvements often and learning from each one.
+
+### What engineers actually do all day
+Less typing than you might expect. A lot of reading other people's code, talking with colleagues about what to build, finding out why something is broken, reviewing each other's work, and writing things down so the next person understands.
+
+> Key idea: Code is read far more often than it is written. Writing code that other people can understand is the central skill of the job.
+
+> In industry: Titles vary, but the path is usually junior, mid-level, senior, then staff or principal engineer, or a move into management. This university's six stages follow roughly that growth.
+#Q Which activity usually takes the most time and money over a program's life?
+- Writing the first version
+* Maintenance: fixing and changing it after release
+- Choosing a programming language
+! Most software lives for years and is changed constantly, so maintenance dominates the cost.
+#Q What best separates software engineering from simply programming?
+- Engineers use harder languages
+- Engineers type faster
+* Engineering covers designing, testing, releasing and maintaining software that people rely on
+! Programming is one part. Engineering is the whole discipline of building dependable software in teams.
+
+#LAB py | Binary and hex converters
+Write two functions.
+
+- `to_binary(n)` takes a whole number `n` (0 or greater) and returns its binary form as a string. `to_binary(5)` returns `"101"`. `to_binary(0)` returns `"0"`.
+- `hex_digit(n)` takes a number from 0 to 15 and returns the matching hex digit as a string: `"0"` to `"9"`, then `"A"` to `"F"`.
+
+Use the divide-by-two method from the lesson. Do not use Python's built-in `bin` or `hex`: the point is to do it yourself.
+@starter
+def to_binary(n):
+    # repeat: take n % 2, then n = n // 2
+    return ""
+
+
+def hex_digit(n):
+    return ""
+@solution
+def to_binary(n):
+    if n == 0:
+        return "0"
+    digits = ""
+    while n > 0:
+        digits = str(n % 2) + digits
+        n = n // 2
+    return digits
+
+
+def hex_digit(n):
+    return "0123456789ABCDEF"[n]
+@tests
+to_binary(5) => "101"
+to_binary(13) => "1101"
+to_binary(0) => "0"
+to_binary(1) => "1"
+to_binary(255) => "11111111"
+hex_digit(7) => "7"
+hex_digit(10) => "A"
+hex_digit(15) => "F"
+@hints
+The remainder `n % 2` is the last binary digit of n. Integer division `n // 2` removes that digit.
+Each new digit you find belongs on the **left** of the digits you already have.
+Zero is a special case: the loop never runs, so handle it before the loop.
+For `hex_digit`, a string containing all sixteen digits in order can be indexed with n.
+
+#EXAM 15
+#Q Which part of a computer keeps data when the power is off?
+- The CPU
+- Memory (RAM)
+* Storage (disk)
+! Storage is persistent. RAM is cleared without power.
+#Q What is binary 1111 in decimal?
+- 8
+* 15
+- 16
+! 8 + 4 + 2 + 1 = 15.
+#Q What is decimal 6 in binary?
+- 101
+* 110
+- 111
+! 4 + 2 + 0 = 6, written 110.
+#Q How many bits are in one byte?
+- 4
+* 8
+- 16
+! A byte is eight bits and can hold 256 different values.
+#Q What is hex FF in decimal?
+- 15
+- 30
+* 255
+! 15 × 16 + 15 = 255, the largest value of one byte.
+#Q A program wants to read a file. How does it get the data?
+- It moves the disk head itself
+* It asks the operating system through a system call
+- It asks the screen
+! Programs request services from the OS kernel rather than driving hardware directly.
+#Q What is a process?
+- A file on disk
+* A program that is currently running
+- A kind of CPU
+! The OS creates a process when it starts a program and shares CPU time between processes.
+#W Explain, to someone who has never used a computer, what happens between pressing a key and seeing the letter on the screen. Use the words input, CPU, memory, operating system and output.
++ Identifies the key press as input and the letter on screen as output
++ Says the operating system receives the key press from the keyboard hardware
++ Says a program running on the CPU decides what to do with it
++ Mentions the text being held in memory
++ Uses plain language a beginner could follow
+
+#PROJECT Number base converter
+Build a small program (in any language, though Python is recommended) that converts numbers between decimal, binary and hexadecimal.
+
+This is your first project, so keep it small and finish it. You may reuse your assignment functions.
+@requirements
+The user can enter a decimal number and see it in binary and in hex
+The user can enter a binary number and see it in decimal
+The program does not crash when the user types something that is not a number
+You wrote the conversion steps yourself rather than calling a built-in converter
+@deliverables
+The source code file
+A short note (five lines) saying how to run it and one thing you found hard
+@rubric
+It works for the cases in the requirements | 40
+The code is laid out clearly with sensible names | 30
+Bad input is handled without a crash | 20
+The note explains how to run it | 10
+
+#COURSE c102
+#LESSON Logic: true, false and how to combine them | 12
+Programs make decisions, and every decision comes down to a question with two possible answers: **true** or **false**. A value that can only be true or false is called a **boolean**, after George Boole, who worked out the mathematics of logic in the 1800s.
+
+You combine simple true/false statements into bigger ones with three operators.
+
+- **AND** is true only when *both* sides are true. "It is raining AND I am outside" is true only if both are.
+- **OR** is true when *at least one* side is true. In logic, OR includes the case where both are true.
+- **NOT** flips the value. NOT true is false.
+
+A **truth table** lists every combination:
+
+| A | B | A AND B | A OR B | NOT A |
+|---|---|---|---|---|
+| false | false | false | false | true |
+| false | true | false | true | true |
+| true | false | false | true | false |
+| true | true | true | true | false |
+
+### Comparisons make booleans
+Most booleans come from comparing things: is `age` greater than 17? Is `password` equal to the stored one? Each comparison gives true or false.
+
+A real rule: "You may enter if you have a ticket AND (you are 18 or older OR you are with an adult)." The brackets matter, exactly as in arithmetic.
+
+### A rule worth memorising
+**De Morgan's laws** tell you how NOT moves through AND and OR:
+
+- NOT (A AND B) is the same as (NOT A) OR (NOT B)
+- NOT (A OR B) is the same as (NOT A) AND (NOT B)
+
+"Not (hungry and tired)" means "not hungry, or not tired".
+
+> In industry: A large share of bugs are logic slips: AND where OR was meant, or a condition that is the wrong way round. Writing out the truth table for a tricky condition is a real professional technique.
+#Q When is "A AND B" true?
+- When A is true
+- When either A or B is true
+* Only when both A and B are true
+! AND needs both sides to be true.
+#Q A is true and B is false. What is "A OR B"?
+* true
+- false
+- It cannot be decided
+! OR is true when at least one side is true.
+
+#LESSON Algorithms and pseudocode | 14
+An **algorithm** is a list of steps that solves a problem. To be an algorithm the steps must be **clear** (no guessing what a step means), **in order**, and must **finish**.
+
+You already follow algorithms: a recipe, directions to a friend's house, the method you learned for long division.
+
+Before writing real code, engineers often write the steps in **pseudocode**: plain, structured language that is not tied to any programming language. Nobody runs pseudocode; it is for thinking.
+
+Problem: find the largest number in a list.
+
+```text
+set largest to the first number in the list
+for each remaining number in the list:
+    if the number is greater than largest:
+        set largest to that number
+report largest
+```
+
+Notice three building blocks. Every algorithm, however large, is made from just these:
+
+1. **Sequence**: do steps one after another.
+2. **Selection**: choose which steps to do (`if`).
+3. **Repetition**: do steps again and again (`for each`, `while`).
+
+### Checking an algorithm by hand
+Walk through it with a small example, tracking the values. This is called **tracing**. For the list 4, 9, 2:
+
+| Step | Number looked at | largest |
+|---|---|---|
+| start | 4 | 4 |
+| 1 | 9 | 9 |
+| 2 | 2 | 9 |
+
+Result: 9. Then try the awkward cases: a list with one number, a list where the largest comes first, a list with equal numbers. Does it still work?
+
+> Key idea: If you cannot explain the steps in plain language, you are not ready to write the code. Confused code comes from confused thinking.
+#Q Which of these is NOT required for something to be an algorithm?
+- The steps are clear
+- It finishes
+* It is written in a programming language
+! An algorithm is the idea of the steps. It can be written in plain language, pseudocode or a diagram.
+#Q What are the three building blocks of every algorithm?
+- Input, output, storage
+* Sequence, selection, repetition
+- Add, subtract, multiply
+! Steps in order, choices between steps, and repeated steps.
+
+#LESSON Flowcharts | 10
+A **flowchart** is an algorithm drawn as a picture. Some people find the shape of the logic easier to see this way, especially where the path splits.
+
+The standard shapes:
+
+| Shape | Meaning |
+|---|---|
+| Rounded box | Start or end |
+| Rectangle | A step to do |
+| Diamond | A yes/no question (a decision) |
+| Slanted box | Input or output |
+| Arrow | Which step comes next |
+
+Here is "is this number even or odd?" as a flowchart:
+
+```diagram
+        ( start )
+            |
+     / read number /
+            |
+            v
+   < remainder of        yes
+     number / 2 is 0? > ------> / say "even" / ---+
+            | no                                  |
+            v                                     v
+     / say "odd" / -----------------------------> ( end )
+```
+
+A loop appears as an arrow that goes **back up** to an earlier step. Here is counting down from 3:
+
+```diagram
+   ( start ) --> [ n = 3 ] --> < n > 0 ? > --no--> ( end )
+                                   | yes  ^
+                                   v      |
+                              / say n /   |
+                                   |      |
+                              [ n = n - 1 ]
+```
+
+### Flowchart or pseudocode?
+Use whichever makes the problem clearer. Flowcharts are good for decisions with several branches and for explaining to people who do not program. Pseudocode is quicker to write and closer to real code. Professionals use both, and many other kinds of diagram.
+
+> In industry: You will rarely draw formal flowcharts at work, but you will constantly sketch boxes and arrows on a whiteboard to agree on how something should behave before anyone writes code.
+#Q In a flowchart, what does a diamond shape mean?
+- The start of the algorithm
+* A decision with a yes/no answer
+- An output
+! Diamonds hold questions, and have one arrow leaving for each answer.
+#Q How does a loop appear in a flowchart?
+- As a larger box
+- As a dotted line
+* As an arrow going back to an earlier step
+! Repetition is drawn by returning to a step that has already been done.
+
+#LESSON Breaking big problems into small ones | 12
+The most important problem-solving skill in programming is **decomposition**: splitting a problem you cannot solve into smaller problems you can.
+
+"Make a quiz game" is too big to start on. Split it:
+
+```diagram
+                    quiz game
+        +---------------+----------------+
+   load the         ask one            show the
+   questions        question           final score
+                +------+------+
+            show the   read the   check the
+            question   answer     answer
+```
+
+Each box at the bottom is small enough to write. Solve them one at a time, test each, then join them together.
+
+### Four habits that help
+1. **Understand the problem first.** Restate it in your own words. What goes in? What should come out? Work two or three examples by hand.
+2. **Solve a simpler version.** Cannot handle a whole list? Handle two numbers. Cannot handle any size of board? Handle 3 by 3.
+3. **Look for a pattern** you have seen before. Many problems are an old problem wearing a new coat: finding a largest value, counting things, searching.
+4. **Ignore detail that does not matter yet.** This is **abstraction**. When planning the quiz you do not care what colour the buttons are.
+
+### When you are stuck
+Say the problem out loud, step by step, to a person or even to a rubber duck on your desk. Explaining forces you to notice the step you skipped. This is a real technique with a real name: **rubber duck debugging**.
+
+> In industry: A senior engineer's first move on a large task is to break it into pieces that can each be built, tested and reviewed separately, often by different people.
+#Q What is decomposition?
+- Deleting code that is not needed
+* Splitting a large problem into smaller, solvable problems
+- Making a program run faster
+! You solve the small pieces one at a time and then combine them.
+#Q You cannot work out how to sort a list of 1,000 names. What is a good next step?
+- Give up and search for the answer
+- Start typing code and hope
+* Work out by hand how you would sort three names, and look for the pattern
+! Solving a smaller version reveals the steps you can then generalise.
+
+#LESSON The mathematics programmers use most | 12
+You do not need advanced mathematics to begin programming. You need a handful of ideas, used constantly.
+
+### Order of operations
+Multiplication and division happen before addition and subtraction. `2 + 3 * 4` is 14, not 20. Use brackets whenever you want a different order or want to make it obvious: `(2 + 3) * 4` is 20.
+
+### Integer division and remainder
+Dividing 17 by 5 gives 3 with 2 left over. Programming gives you both parts separately:
+
+- **Integer division** keeps the whole part: 17 divided by 5 is 3.
+- The **remainder** (called **modulo**, written `%`) keeps what is left: `17 % 5` is 2.
+
+Modulo is one of the most useful tools you will learn:
+
+| Question | How modulo answers it |
+|---|---|
+| Is n even? | `n % 2` is 0 |
+| Is n divisible by 7? | `n % 7` is 0 |
+| What is the last digit of n? | `n % 10` |
+| What hour is it 30 hours after 9 o'clock? | `(9 + 30) % 24` is 15 |
+
+That last one shows modulo "wrapping around", like a clock.
+
+### Powers
+`2 ** 10` (2 to the power 10) is 1024. Powers of two appear everywhere because of binary: 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024.
+
+### Whole numbers and decimals
+Computers store whole numbers (**integers**) exactly. Numbers with a decimal point (**floating-point** numbers) are stored approximately, because most decimals have no exact binary form. That is why a computer may tell you `0.1 + 0.2` is `0.30000000000000004`.
+
+> Warning: Never use floating-point numbers for money. Store amounts as whole numbers of cents.
+
+> In industry: The floating-point surprise above is not a bug in any language. It follows from the IEEE 754 standard that nearly all hardware uses.
+#Q What is 17 % 5?
+* 2
+- 3
+- 3.4
+! 17 = 3 × 5 + 2, so the remainder is 2.
+#Q Which test tells you whether a whole number n is even?
+- n / 2 is 0
+* n % 2 is 0
+- n % 2 is 1
+! An even number leaves no remainder when divided by 2.
+
+#LAB py | Three small algorithms
+Turn three plain-language algorithms into Python functions.
+
+- `largest(numbers)` returns the largest number in a non-empty list. Do not use the built-in `max`.
+- `is_even(n)` returns `True` if `n` is even and `False` otherwise.
+- `count_multiples(limit, k)` returns how many whole numbers from 1 up to and including `limit` are divisible by `k`. For example `count_multiples(10, 3)` is 3 (3, 6 and 9).
+
+Trace each one by hand on a small example before you submit.
+@starter
+def largest(numbers):
+    return 0
+
+
+def is_even(n):
+    return False
+
+
+def count_multiples(limit, k):
+    return 0
+@solution
+def largest(numbers):
+    best = numbers[0]
+    for n in numbers:
+        if n > best:
+            best = n
+    return best
+
+
+def is_even(n):
+    return n % 2 == 0
+
+
+def count_multiples(limit, k):
+    count = 0
+    for n in range(1, limit + 1):
+        if n % k == 0:
+            count += 1
+    return count
+@tests
+largest([4, 9, 2]) => 9
+largest([7]) => 7
+largest([-5, -2, -9]) => -2
+largest([3, 3, 3]) => 3
+is_even(10) => true
+is_even(7) => false
+is_even(0) => true
+count_multiples(10, 3) => 3
+count_multiples(10, 20) => 0
+count_multiples(12, 4) => 3
+@hints
+For `largest`, start by assuming the first number is the largest, then look at each number in turn.
+Starting `best` at 0 breaks on a list of negative numbers. Start with a number from the list.
+For `count_multiples`, loop over 1 to `limit` and use `%` to test divisibility. Remember that `range(1, limit)` stops before `limit`.
+
+#EXAM 15
+#Q A is false and B is true. What is "A AND B"?
+- true
+* false
+- It depends
+! AND is true only if both sides are true.
+#Q What is NOT (true OR false)?
+- true
+* false
+- true OR false
+! The inside is true, and NOT true is false.
+#Q By De Morgan's law, NOT (A AND B) equals what?
+- (NOT A) AND (NOT B)
+* (NOT A) OR (NOT B)
+- A OR B
+! NOT turns AND into OR and negates each side.
+#Q Which word describes walking through an algorithm by hand with example values?
+- Compiling
+* Tracing
+- Deploying
+! Tracing tracks the values step by step to check the logic.
+#Q What is 23 % 10?
+- 2
+* 3
+- 2.3
+! 23 = 2 × 10 + 3. Modulo 10 gives the last digit.
+#Q What is 2 + 3 * 4?
+* 14
+- 20
+- 24
+! Multiplication first: 3 × 4 = 12, then 2 + 12.
+#Q Why might a computer report that 0.1 + 0.2 is not exactly 0.3?
+- The CPU makes mistakes
+- The language has a bug
+* Most decimals cannot be stored exactly in binary floating point
+! Floating-point numbers are approximations.
+#W Write an algorithm in pseudocode that decides whether a year is a leap year. (A year is a leap year if it is divisible by 4, except that years divisible by 100 are not, unless they are also divisible by 400.) Then trace it for the years 2024, 1900 and 2000.
++ The steps are clear and in order
++ Divisibility is tested with remainder (modulo)
++ The 100 and 400 exceptions are handled correctly
++ All three years are traced with the right results (leap, not leap, leap)
++ The pseudocode uses sequence and selection clearly
+
+#PROJECT Algorithm design notebook
+Design, but do not yet code, algorithms for five everyday problems. For each, write pseudocode, draw a flowchart, and trace it on at least two examples including one awkward case.
+
+Suggested problems: making change with the fewest coins; finding the two largest numbers in a list; checking whether a word is a palindrome; converting 24-hour time to 12-hour time; deciding the winner of rock-paper-scissors.
+@requirements
+Five different problems are solved
+Each has pseudocode using only sequence, selection and repetition
+Each has a flowchart with the standard shapes
+Each is traced on two or more examples, including an edge case
+@deliverables
+One document (text, PDF or photos of paper) containing all five designs
+A sentence for each problem saying what the edge case showed you
+@rubric
+The algorithms are correct | 40
+Pseudocode is clear enough for someone else to follow | 25
+Flowcharts match the pseudocode | 15
+Traces include meaningful edge cases | 20
+
+#COURSE c103
+#LESSON Your first program: values and variables | 14
+Time to write real code. We use **Python** because it reads almost like English and lets you focus on ideas rather than punctuation.
+
+The traditional first program prints a greeting:
+
+```py
+print("Hello, world!")
+```
+
+`print` is a **function**: a named action. The text in quotes is a **string**. Run it and the words appear.
+
+### Variables
+A **variable** is a name that refers to a value, so you can use the value again later. You create one with `=`, which means "make this name refer to this value":
+
+```py
+name = "Ada"
+age = 36
+print(name)
+print(age + 1)
+```
+
+Read `age = 36` as "age becomes 36", not "age equals 36". The right side is worked out first, then the name on the left is attached to the result. That is why this makes sense:
+
+```py
+score = 10
+score = score + 5     # work out 10 + 5, then score becomes 15
+```
+
+### Naming
+Names can use letters, digits and underscores, cannot start with a digit, and are case-sensitive (`total` and `Total` are different). Python style is lowercase words joined by underscores: `total_price`. Choose names that say what the value *means*: `seconds_left` is better than `x`.
+
+### Comments
+Anything after `#` on a line is a **comment**. Python ignores it. Comments are notes for people.
+
+> Key idea: A program runs from top to bottom, one line at a time. A variable has no value until the line that creates it has run.
+
+> In industry: Naming is treated as a serious skill. A good name removes the need for a comment; a misleading one causes bugs.
+#TRY py | Create a variable `planet` holding the text Earth and a variable `moons` holding the number 1.
+@starter
+# create the two variables below
+
+@solution
+planet = "Earth"
+moons = 1
+@tests
+planet => "Earth"
+moons => 1
+#Q What does `x = 5` mean in Python?
+- x is equal to 5, as a fact
+* Make the name x refer to the value 5
+- Compare x with 5
+! `=` is assignment. Comparison is written `==`.
+#Q What is printed?
+a = 2
+a = a + 3
+print(a)
+- 2
+- 3
+* 5
+! The right side is worked out first (2 + 3), then a becomes 5.
+
+#LESSON Types of data | 14
+Every value has a **type**, which says what kind of thing it is and what you can do with it. Python's basic types:
+
+| Type | Name | Examples |
+|---|---|---|
+| Whole number | `int` | `7`, `-3`, `0` |
+| Decimal number | `float` | `3.14`, `-0.5`, `2.0` |
+| Text | `str` | `"hello"`, `'A'`, `""` |
+| True or false | `bool` | `True`, `False` |
+
+You can ask for a value's type:
+
+```py
+print(type(7))        # <class 'int'>
+print(type("7"))      # <class 'str'>
+```
+
+Look closely at those two. `7` is a number. `"7"` is a piece of text that happens to contain a digit. They behave differently:
+
+```py
+print(7 + 7)          # 14
+print("7" + "7")      # 77   (joining text)
+```
+
+Mixing them is an error, because Python will not guess what you meant:
+
+```py
+print("Age: " + 36)   # TypeError
+```
+
+### Converting between types
+Use the type's name as a function:
+
+```py
+int("42")      # the number 42
+str(42)        # the text "42"
+float("3.5")   # 3.5
+int(3.9)       # 3  (cuts off the decimal part, does not round)
+```
+
+So the fix above is `print("Age: " + str(36))`.
+
+A cleaner way to mix text and values is an **f-string**: put `f` before the quote and write expressions in curly brackets.
+
+```py
+name = "Ada"
+age = 36
+print(f"{name} is {age} years old")
+```
+
+> In industry: Python and JavaScript check types while the program runs (**dynamic typing**). Java, C and TypeScript check before it runs (**static typing**). You will use both, and Stage 2 compares them.
+#TRY py | Make `total` hold the number 12 by converting the two strings and adding them.
+@starter
+a = "5"
+b = "7"
+total = a + b
+@solution
+a = "5"
+b = "7"
+total = int(a) + int(b)
+@tests
+total => 12
+#Q What is the type of "42"?
+- int
+* str
+- float
+! The quotes make it text, even though the characters are digits.
+#Q What does int(3.9) give?
+- 4
+* 3
+- 3.9
+! `int` cuts off the decimal part. It does not round.
+
+#LESSON Operators and expressions | 12
+An **expression** is anything that produces a value: `3 + 4`, `age * 2`, `len(name)`. **Operators** are the symbols that combine values.
+
+### Arithmetic
+| Operator | Meaning | Example | Result |
+|---|---|---|---|
+| `+` `-` `*` | add, subtract, multiply | `3 * 4` | `12` |
+| `/` | divide (always gives a float) | `7 / 2` | `3.5` |
+| `//` | integer division | `7 // 2` | `3` |
+| `%` | remainder | `7 % 2` | `1` |
+| `**` | power | `2 ** 3` | `8` |
+
+### Comparison (the result is True or False)
+`==` equal, `!=` not equal, `<` less than, `>` greater than, `<=` and `>=`.
+
+```py
+print(5 > 3)        # True
+print(5 == 5.0)     # True
+print("a" == "A")   # False: case matters
+```
+
+> Warning: `=` assigns, `==` compares. Mixing them up is the most common beginner mistake in every language.
+
+### Logical
+`and`, `or`, `not` combine booleans, exactly as in the logic lesson.
+
+```py
+age = 20
+has_ticket = True
+print(age >= 18 and has_ticket)     # True
+```
+
+### Shortcuts
+`x += 1` means `x = x + 1`. There are matching forms `-=`, `*=`, `/=`.
+
+### Strings have operators too
+`+` joins strings and `*` repeats them: `"ab" * 3` is `"ababab"`.
+
+### Precedence
+Python follows the usual order: brackets, powers, multiply and divide, add and subtract, comparisons, `not`, `and`, `or`. When in doubt, add brackets. They cost nothing and make your intention clear.
+#TRY py | A rectangle is 7 wide and 4 high. Set `area` and `perimeter` using expressions with `width` and `height`.
+@starter
+width = 7
+height = 4
+area = 0
+perimeter = 0
+@solution
+width = 7
+height = 4
+area = width * height
+perimeter = 2 * (width + height)
+@tests
+area => 28
+perimeter => 22
+#Q What is 7 // 2 in Python?
+- 3.5
+* 3
+- 4
+! `//` is integer division: it keeps the whole part.
+#Q Which operator tests whether two values are equal?
+- =
+* ==
+- ===
+! One equals sign assigns. Two compare.
+
+#LESSON Input and output | 10
+Programs become useful when they respond to a person. **Output** shows information; **input** reads it.
+
+### Output with print
+`print` can take several values separated by commas. It puts a space between them and a new line at the end:
+
+```py
+print("Total:", 12, "items")     # Total: 12 items
+```
+
+Inside a string, `\n` means "new line" and `\t` means "tab".
+
+### Input
+`input` shows a prompt, waits for the person to type and press Enter, and gives back what they typed:
+
+```py
+name = input("What is your name? ")
+print(f"Hello, {name}!")
+```
+
+> Warning: `input` always gives you a **string**, even if the person types digits.
+
+So this goes wrong:
+
+```py
+age = input("Age? ")       # the user types 20
+print(age + 1)             # TypeError: cannot add str and int
+```
+
+Convert first:
+
+```py
+age = int(input("Age? "))
+print(age + 1)             # 21
+```
+
+### A complete small program
+
+```py
+price = float(input("Price of one item: "))
+quantity = int(input("How many? "))
+total = price * quantity
+print(f"Total: {total:.2f}")
+```
+
+The `:.2f` inside the f-string means "show two digits after the decimal point".
+
+### The shape of most programs
+**Input, process, output.** Read what you need, compute, show the result. Keeping those three parts separate makes programs much easier to test, as you will see when you learn functions.
+
+> In industry: Real programs get input from many places besides a keyboard: files, databases, web requests, sensors. The same rule holds for all of them: input arrives as raw text or bytes and must be checked and converted before you trust it.
+#Q A user types 8 in answer to `n = input("Number? ")`. What is the type of n?
+- int
+* str
+- float
+! `input` always returns a string. Convert it with `int()` if you need a number.
+#Q What does print("A", "B") show?
+- AB
+* A B
+- A,B
+! `print` separates its arguments with a space by default.
+
+#LESSON Making decisions with if | 14
+An `if` statement runs some code only when a condition is true.
+
+```py
+temperature = 31
+if temperature > 30:
+    print("It is hot")
+    print("Drink water")
+print("Done")
+```
+
+Two details matter enormously in Python:
+
+1. The line ends with a **colon**.
+2. The lines that belong to the `if` are **indented** (four spaces). Indentation is how Python knows which lines are inside. `print("Done")` is not indented, so it always runs.
+
+### if, elif, else
+Use `else` for "otherwise", and `elif` (short for "else if") for more choices. Python checks them in order and runs the **first** one that is true, then skips the rest.
+
+```py
+score = 72
+if score >= 90:
+    grade = "A"
+elif score >= 80:
+    grade = "B"
+elif score >= 70:
+    grade = "C"
+else:
+    grade = "F"
+print(grade)        # C
+```
+
+Order matters. If you tested `score >= 70` first, a score of 95 would get a C.
+
+### Combining conditions
+
+```py
+if age >= 18 and has_ticket:
+    print("Welcome")
+```
+
+### Nesting
+An `if` can sit inside another `if`. Each level is indented further. More than two or three levels becomes hard to read, which is a sign the logic should be simplified.
+
+### Truthiness
+Python treats some values as false in a condition: `0`, `""` (empty string), empty lists, and `None`. Everything else counts as true. So `if name:` means "if name is not empty".
+
+> In industry: A common review comment is "this condition is hard to follow". Giving a complicated condition a name, such as `is_eligible = age >= 18 and has_ticket`, makes the `if` read like a sentence.
+#TRY py | Write `sign(n)` that returns "positive", "negative" or "zero".
+@starter
+def sign(n):
+    return ""
+@solution
+def sign(n):
+    if n > 0:
+        return "positive"
+    elif n < 0:
+        return "negative"
+    else:
+        return "zero"
+@tests
+sign(5) => "positive"
+sign(-3) => "negative"
+sign(0) => "zero"
+#Q How does Python know which lines belong to an if statement?
+- Curly brackets
+* Indentation
+- A blank line
+! The indented block after the colon belongs to the `if`.
+#Q In an if / elif / else chain, how many branches run?
+* Exactly one
+- All whose conditions are true
+- At least two
+! Python runs the first branch whose condition is true and skips the rest.
+
+#LESSON Repeating with loops | 16
+A **loop** runs the same lines many times. Python has two kinds.
+
+### for: once per item
+Use `for` when you know what you are stepping through.
+
+```py
+for name in ["Ada", "Alan", "Grace"]:
+    print("Hello", name)
+```
+
+To repeat a number of times, use `range`:
+
+```py
+for i in range(5):
+    print(i)            # 0 1 2 3 4
+```
+
+`range(5)` starts at 0 and **stops before** 5. `range(1, 6)` gives 1 to 5. `range(0, 10, 2)` counts in twos.
+
+### while: as long as a condition holds
+Use `while` when you do not know in advance how many times.
+
+```py
+n = 10
+while n > 0:
+    print(n)
+    n = n - 3
+```
+
+Something inside a `while` loop must change so the condition eventually becomes false. If nothing does, you have an **infinite loop** and the program never ends.
+
+### The accumulator pattern
+The most common loop of all: start with an empty result, add to it each time round.
+
+```py
+total = 0
+for n in [4, 9, 2]:
+    total = total + n
+print(total)            # 15
+```
+
+The same shape counts things (start at 0, add 1), finds a largest value, or builds a string.
+
+### break and continue
+`break` leaves the loop immediately. `continue` skips to the next time round.
+
+### Off-by-one errors
+The classic loop bug is running one time too many or too few, usually from forgetting that `range` stops before its end. Test with the smallest cases: zero items, one item.
+
+> In industry: Loops are where programs spend their time. In Stage 2 you will learn to measure how the number of loop steps grows as the data grows, which decides whether a program is fast or unusable.
+#TRY py | Write `sum_to(n)` that returns 1 + 2 + ... + n using a loop.
+@starter
+def sum_to(n):
+    total = 0
+    return total
+@solution
+def sum_to(n):
+    total = 0
+    for i in range(1, n + 1):
+        total += i
+    return total
+@tests
+sum_to(5) => 15
+sum_to(1) => 1
+sum_to(0) => 0
+sum_to(100) => 5050
+#Q What numbers does range(3) produce?
+- 1, 2, 3
+* 0, 1, 2
+- 0, 1, 2, 3
+! `range(n)` starts at 0 and stops before n.
+#Q What makes a while loop run forever?
+- Having too many lines inside it
+* Its condition never becomes false
+- Using a variable named n
+! Something in the loop must move the condition toward false.
+
+#LAB py | Loops and decisions
+Write three functions using `if` and loops.
+
+- `fizzbuzz(n)` returns `"FizzBuzz"` if `n` is divisible by both 3 and 5, `"Fizz"` if only by 3, `"Buzz"` if only by 5, and otherwise the number as a string, for example `"7"`.
+- `count_vowels(text)` returns how many of the letters a, e, i, o, u (in either case) appear in `text`.
+- `factorial(n)` returns n × (n−1) × … × 1. By definition `factorial(0)` is 1.
+@starter
+def fizzbuzz(n):
+    return ""
+
+
+def count_vowels(text):
+    return 0
+
+
+def factorial(n):
+    return 1
+@solution
+def fizzbuzz(n):
+    if n % 15 == 0:
+        return "FizzBuzz"
+    elif n % 3 == 0:
+        return "Fizz"
+    elif n % 5 == 0:
+        return "Buzz"
+    return str(n)
+
+
+def count_vowels(text):
+    count = 0
+    for ch in text:
+        if ch.lower() in "aeiou":
+            count += 1
+    return count
+
+
+def factorial(n):
+    result = 1
+    for i in range(2, n + 1):
+        result *= i
+    return result
+@tests
+fizzbuzz(15) => "FizzBuzz"
+fizzbuzz(9) => "Fizz"
+fizzbuzz(10) => "Buzz"
+fizzbuzz(7) => "7"
+fizzbuzz(30) => "FizzBuzz"
+count_vowels("hello") => 2
+count_vowels("SKY") => 0
+count_vowels("Education") => 5
+count_vowels("") => 0
+factorial(5) => 120
+factorial(0) => 1
+factorial(1) => 1
+@hints
+In `fizzbuzz`, test the "both" case first. If you test 3 first, 15 will stop there.
+A `for` loop over a string gives you one character at a time.
+`ch.lower()` gives the lower-case form of a character, so you only need to compare with lower-case vowels.
+For `factorial`, use the accumulator pattern but start at 1 and multiply.
+
+#EXAM 20
+#Q What is printed?
+x = 4
+x = x * 2
+print(x)
+- 4
+* 8
+- 42
+! x becomes 4 × 2 = 8.
+#Q Which is a valid, well-styled Python variable name?
+- 2nd_place
+* second_place
+- second place
+! Names cannot start with a digit or contain spaces.
+#Q What is the result of "3" + "4"?
+- 7
+* "34"
+- An error
+! `+` joins strings. These are text, not numbers.
+#Q What is 10 % 3?
+* 1
+- 3
+- 3.33
+! 10 = 3 × 3 + 1.
+#Q What does this print?
+n = 7
+if n > 10:
+    print("big")
+elif n > 5:
+    print("medium")
+else:
+    print("small")
+- big
+* medium
+- small
+! 7 is not greater than 10 but is greater than 5, so the elif branch runs.
+#Q How many times does the loop body run?
+for i in range(2, 6):
+    print(i)
+- 6
+- 5
+* 4
+! range(2, 6) gives 2, 3, 4, 5.
+#Q What is the value of total afterwards?
+total = 0
+for n in [1, 2, 3]:
+    total += n
+- 3
+* 6
+- 123
+! The accumulator adds 1, then 2, then 3.
+#Q Why does `age = input("Age? ")` followed by `age + 1` fail?
+- input cannot read numbers
+* input returns a string, and a string cannot be added to a number
+- age is a reserved word
+! Convert first with int(input(...)).
+#C py | Write `countdown(n)` that returns a list of the numbers from n down to 1. `countdown(3)` returns `[3, 2, 1]` and `countdown(0)` returns an empty list.
+@starter
+def countdown(n):
+    result = []
+    return result
+@solution
+def countdown(n):
+    result = []
+    while n > 0:
+        result.append(n)
+        n -= 1
+    return result
+@tests
+countdown(3) => [3, 2, 1]
+countdown(1) => [1]
+countdown(0) => []
+countdown(5) => [5, 4, 3, 2, 1]
+#W Explain the difference between a for loop and a while loop, and give one situation where each is the better choice.
++ States that a for loop steps through a known sequence or count
++ States that a while loop repeats as long as a condition is true
++ Gives a suitable example for a for loop
++ Gives a suitable example for a while loop where the count is not known in advance
++ Mentions the risk of an infinite loop with while
+
+#PROJECT Number guessing game
+Write a game in Python. The computer picks a secret number from 1 to 100 and the player guesses until correct. After each guess the program says "too high" or "too low". At the end it reports how many guesses were needed.
+
+Use `import random` and `random.randint(1, 100)` to pick the number.
+@requirements
+The secret number is chosen at random each time
+The player can keep guessing until correct
+The program says too high, too low or correct after every guess
+The number of guesses is counted and shown
+Typing something that is not a number does not crash the game
+@deliverables
+The source code
+A note describing how you tested it
+@rubric
+The game works as described | 40
+The loop and conditions are written clearly | 25
+Invalid input is handled | 20
+The testing note shows real thought | 15
+
+#COURSE c104
+#LESSON Functions | 15
+A **function** is a named block of code that does one job. You have used functions already (`print`, `input`, `int`). Now you will write your own.
+
+```py
+def greet(name):
+    message = "Hello, " + name + "!"
+    return message
+
+print(greet("Ada"))       # Hello, Ada!
+print(greet("Alan"))      # Hello, Alan!
+```
+
+The parts:
+
+- `def` starts the definition; `greet` is the name.
+- `name` is a **parameter**: a variable that receives a value when the function is called.
+- The indented lines are the **body**.
+- `return` hands a result back to whoever called the function, and ends the function.
+
+Defining a function does not run it. It runs when you **call** it by writing its name with brackets. The value you pass in (`"Ada"`) is the **argument**.
+
+### return is not print
+This catches almost everyone. `print` shows text on the screen. `return` gives a value back to the program so it can be used.
+
+```py
+def double(n):
+    return n * 2
+
+result = double(4) + 1     # 9: the returned value is used in more maths
+```
+
+A function with no `return` gives back the special value `None`.
+
+### Why functions matter
+1. **Reuse.** Write once, call many times.
+2. **Naming.** `average(scores)` tells the reader what happens without the detail.
+3. **Testing.** A function that takes inputs and returns an output can be checked on its own.
+4. **Decomposition.** Each small problem from your plan becomes one function.
+
+### Several parameters, and defaults
+
+```py
+def power(base, exponent=2):
+    return base ** exponent
+
+power(3)        # 9   (exponent uses its default)
+power(2, 5)     # 32
+```
+
+> Key idea: A good function does one thing, and its name says what that thing is.
+#TRY py | Write `area(width, height)` that returns the area of a rectangle.
+@starter
+def area(width, height):
+    pass
+@solution
+def area(width, height):
+    return width * height
+@tests
+area(3, 4) => 12
+area(5, 5) => 25
+area(0, 9) => 0
+#Q What is the difference between print and return?
+- There is none
+* print shows text on screen; return gives a value back to the caller
+- return shows text on screen; print gives a value back
+! A returned value can be stored and used. Printed text cannot.
+#Q What does a function give back if it has no return statement?
+- 0
+- An error
+* None
+! `None` is Python's value for "nothing".
+
+#LESSON Scope: where variables live | 10
+Variables created inside a function exist only while that function runs. They are **local** to it. This is called **scope**.
+
+```py
+def add_tax(price):
+    tax = price * 0.13
+    return price + tax
+
+print(add_tax(100))    # 113.0
+print(tax)             # NameError: tax is not defined
+```
+
+`tax` belongs to `add_tax`. When the function returns, `tax` is gone. Two different functions can both use a variable called `total` without interfering with each other. That is the whole point: you can write and understand each function on its own.
+
+A variable created outside every function is **global**. Functions can read it:
+
+```py
+RATE = 0.13
+
+def add_tax(price):
+    return price + price * RATE
+```
+
+Reading a global constant like this is fine. *Changing* global variables from inside functions is a habit to avoid, because then the result of a function depends on hidden state and on what ran before, and the program becomes hard to reason about.
+
+> Key idea: Give a function everything it needs through its parameters, and get everything back through its return value. Then you can understand it by reading only its own lines.
+
+### How a call works
+Each time a function is called, Python creates a fresh workspace (a **stack frame**) holding its parameters and local variables. When the function returns, that workspace is thrown away. This is why each call starts clean.
+
+```diagram
+  calling add_tax(100)
+  +--------------------------+
+  | add_tax frame            |
+  |   price = 100            |   <- exists only during the call
+  |   tax   = 13.0           |
+  +--------------------------+
+  | main program             |
+  |   RATE = 0.13            |
+  +--------------------------+
+```
+
+> In industry: Functions that depend only on their inputs are called **pure**. They are the easiest code to test and to trust, and experienced engineers push as much logic as possible into them.
+#Q A variable is created inside a function. Where can it be used?
+* Only inside that function
+- Anywhere in the program
+- Only in other functions
+! It is local, and disappears when the function returns.
+#Q Why is changing global variables from inside functions discouraged?
+- It is slower
+- Python forbids it
+* The function's behaviour then depends on hidden state, which makes programs hard to understand
+! Parameters in, return value out, keeps each function understandable on its own.
+
+#LESSON Lists | 15
+A **list** holds many values in order. It is Python's version of what most languages call an array.
+
+```py
+scores = [72, 85, 90]
+print(scores[0])        # 72
+print(len(scores))      # 3
+```
+
+Each position has a number called an **index**, and **indexes start at 0**. A list of 3 items has indexes 0, 1 and 2. Asking for `scores[3]` is an `IndexError`. Negative indexes count from the end: `scores[-1]` is the last item.
+
+### Changing a list
+Lists are **mutable**: they can be changed in place.
+
+```py
+scores.append(64)       # add to the end
+scores[0] = 75          # replace an item
+scores.remove(90)       # remove the first 90
+last = scores.pop()     # remove and return the last item
+```
+
+### Looping
+
+```py
+for s in scores:
+    print(s)
+
+for i in range(len(scores)):          # when you need the position
+    print(i, scores[i])
+```
+
+### Slicing
+`scores[1:3]` gives a new list with items at index 1 and 2 (it stops before 3). `scores[:2]` is the first two; `scores[2:]` is everything from index 2.
+
+### Useful built-ins
+`sum(scores)`, `min(scores)`, `max(scores)`, `sorted(scores)`, and `x in scores`, which is `True` if x is in the list.
+
+### One list, two names
+A variable holds a reference to a list, not a copy of it.
+
+```py
+a = [1, 2, 3]
+b = a            # b refers to the SAME list
+b.append(4)
+print(a)         # [1, 2, 3, 4]
+```
+
+To get a separate copy, write `b = a.copy()`.
+
+> In industry: "It changed and I did not touch it" is very often two names for one list. Understanding references early saves hours of confusion later.
+#TRY py | Write `average(numbers)` that returns the mean of a non-empty list.
+@starter
+def average(numbers):
+    return 0
+@solution
+def average(numbers):
+    return sum(numbers) / len(numbers)
+@tests
+average([2, 4, 6]) => 4
+average([10]) => 10
+average([1, 2]) => 1.5
+#Q What is the index of the first item in a list?
+* 0
+- 1
+- -1
+! Indexes start at 0.
+#Q After `a = [1, 2]`, `b = a` and `b.append(3)`, what is a?
+- [1, 2]
+* [1, 2, 3]
+- An error
+! a and b are two names for the same list.
+
+#LESSON Strings in depth | 12
+A string is a sequence of characters, and much of what works on lists works on strings too.
+
+```py
+word = "Python"
+print(word[0])        # P
+print(word[-1])       # n
+print(word[0:3])      # Pyt
+print(len(word))      # 6
+for ch in word:
+    print(ch)
+```
+
+One big difference: strings are **immutable**. You cannot change a character in place. Methods that seem to change a string actually return a *new* one:
+
+```py
+name = "ada"
+name.upper()           # makes "ADA" and then throws it away
+name = name.upper()    # keeps it
+```
+
+### Methods you will use constantly
+
+| Method | What it does | Example | Result |
+|---|---|---|---|
+| `lower()`, `upper()` | change case | `"Hi".lower()` | `"hi"` |
+| `strip()` | remove spaces from both ends | `"  hi ".strip()` | `"hi"` |
+| `replace(a, b)` | swap every a for b | `"cat".replace("c", "b")` | `"bat"` |
+| `split()` | break into a list of words | `"a b c".split()` | `["a", "b", "c"]` |
+| `join(list)` | glue a list into a string | `"-".join(["a", "b"])` | `"a-b"` |
+| `find(s)` | index of s, or -1 | `"hello".find("l")` | `2` |
+| `startswith(s)` | True or False | `"hello".startswith("he")` | `True` |
+
+And `"ell" in "hello"` is `True`.
+
+### Cleaning input
+Text typed by people is messy: stray spaces, mixed capitals. A standard first step is to normalise it:
+
+```py
+answer = input("Continue? ").strip().lower()
+if answer == "yes":
+    print("Continuing")
+```
+
+Methods can be chained like this because each returns a new string.
+
+### Building strings in a loop
+
+```py
+result = ""
+for ch in "hello":
+    result = ch + result
+print(result)             # olleh
+```
+
+> In industry: A large part of real programming is text processing: reading files, cleaning user input, parsing data from other systems. These few methods do most of that work.
+#TRY py | Write `initials(full_name)` that returns the first letter of each word, in capitals. "ada lovelace" gives "AL".
+@starter
+def initials(full_name):
+    return ""
+@solution
+def initials(full_name):
+    result = ""
+    for word in full_name.split():
+        result += word[0].upper()
+    return result
+@tests
+initials("ada lovelace") => "AL"
+initials("Grace Brewster Hopper") => "GBH"
+initials("turing") => "T"
+#Q After `s = "abc"` and `s.upper()`, what is s?
+* "abc"
+- "ABC"
+- An error
+! Strings are immutable. `upper()` returns a new string, which was not stored.
+#Q What does "a,b,c".split(",") give?
+- "abc"
+* ["a", "b", "c"]
+- ("a", "b", "c")
+! `split` breaks the string at each separator and returns a list.
+
+#LESSON Dictionaries | 12
+A list finds things by position. A **dictionary** finds things by **key**, like looking up a word to find its meaning.
+
+```py
+ages = {"Ada": 36, "Alan": 41}
+print(ages["Ada"])        # 36
+ages["Grace"] = 85        # add a new pair
+ages["Ada"] = 37          # change a value
+print(len(ages))          # 3
+```
+
+Each entry is a **key: value** pair. Keys must be unique; values can be anything, including lists or other dictionaries.
+
+Looking up a key that is not there is a `KeyError`. Two safe ways to check:
+
+```py
+if "Linus" in ages:
+    print(ages["Linus"])
+
+print(ages.get("Linus", 0))     # 0, the default you chose
+```
+
+### Looping
+
+```py
+for name in ages:                    # keys
+    print(name, ages[name])
+
+for name, age in ages.items():       # keys and values together
+    print(name, age)
+```
+
+### The counting pattern
+Dictionaries are perfect for counting how often things occur.
+
+```py
+counts = {}
+for ch in "banana":
+    counts[ch] = counts.get(ch, 0) + 1
+print(counts)        # {'b': 1, 'a': 3, 'n': 2}
+```
+
+### Structured data
+A dictionary can describe one thing with named fields, and a list of dictionaries describes many:
+
+```py
+books = [
+    {"title": "Dune", "year": 1965},
+    {"title": "Emma", "year": 1815},
+]
+for book in books:
+    print(book["title"])
+```
+
+This shape, lists of records with named fields, is how most data moves between programs. The format called **JSON** that web services exchange looks almost exactly like it.
+
+> In industry: Dictionary lookup is extremely fast no matter how many entries there are. Stage 2 explains why (the hash table) and when that makes a dictionary the right tool.
+#TRY py | Write `word_count(text)` that returns a dictionary mapping each word to how many times it appears.
+@starter
+def word_count(text):
+    counts = {}
+    return counts
+@solution
+def word_count(text):
+    counts = {}
+    for word in text.split():
+        counts[word] = counts.get(word, 0) + 1
+    return counts
+@tests
+word_count("a b a") => {"a": 2, "b": 1}
+word_count("") => {}
+word_count("go go go") => {"go": 3}
+#Q How do you look up a value in a dictionary?
+- By its position number
+* By its key
+- By its type
+! Dictionaries map keys to values.
+#Q What does ages.get("Zoe", 0) return if "Zoe" is not a key?
+- A KeyError
+- None
+* 0
+! `get` returns the default you supply instead of raising an error.
+
+#LESSON Debugging: finding your own mistakes | 14
+Every programmer writes bugs, every day. The skill is not avoiding them completely; it is finding them quickly. **Debugging** is detective work, and it can be learned.
+
+### Three kinds of error
+1. **Syntax errors.** The code breaks the language's grammar, so it will not start. The message names a line. The real mistake is often on that line or the one just before (a missing bracket or colon).
+2. **Runtime errors.** The program starts, then stops with an error: `NameError`, `TypeError`, `IndexError`, `KeyError`, `ZeroDivisionError`.
+3. **Logic errors.** The program runs and gives the wrong answer. No message. These are the hard ones.
+
+### Read the error message
+Python tells you the **kind** of error, a **description**, and the **line number**. Beginners skip it; professionals read it first. Read the last line, which says what went wrong, then find the line number in your own code.
+
+### A method that works
+1. **Reproduce it.** Find an input that causes the problem every time.
+2. **State what you expected and what happened.** Exactly.
+3. **Form a guess** about the cause.
+4. **Test the guess.** The simplest tool is `print`: show the values of variables at key points and compare them with what you believed they were.
+5. **Fix the cause**, not the symptom, then run the failing input again, and a few others.
+
+```py
+def average(numbers):
+    total = 0
+    for n in numbers:
+        total = n               # bug
+    print("total is", total)    # debugging print reveals it
+    return total / len(numbers)
+```
+
+### Halve the search
+If you do not know where the problem is, check the values halfway through. If they are right there, the bug is later; if wrong, earlier. Repeat. This finds a bug in a thousand lines in about ten checks.
+
+> Key idea: When a program misbehaves, something you believe about it is false. Debugging is finding out which belief.
+
+> In industry: Teams keep a failing example as an automated test after fixing a bug, so the same bug can never return unnoticed. You will learn to write such tests in Stage 2.
+#Q A program runs without any error message but gives the wrong answer. What kind of error is this?
+- Syntax error
+- Runtime error
+* Logic error
+! The code is valid and runs, but the steps are wrong.
+#Q What is the first thing to do with an error message?
+- Ignore it and re-run the program
+* Read the last line and the line number it names
+- Rewrite the whole function
+! The message tells you the kind of error and where it surfaced.
+
+#LAB py | A small text statistics library
+Write four functions that work together.
+
+- `clean(text)` returns `text` in lower case with spaces removed from both ends.
+- `longest_word(text)` returns the longest word in `text`. If several are equally long, return the first. For an empty string return `""`.
+- `letter_counts(text)` returns a dictionary counting each letter (a to z only, after lower-casing). Ignore spaces, digits and punctuation.
+- `is_palindrome(text)` returns `True` if the letters of `text` read the same backwards, ignoring case and spaces. `"Never odd or even"` is a palindrome.
+@starter
+def clean(text):
+    return text
+
+
+def longest_word(text):
+    return ""
+
+
+def letter_counts(text):
+    return {}
+
+
+def is_palindrome(text):
+    return False
+@solution
+def clean(text):
+    return text.strip().lower()
+
+
+def longest_word(text):
+    best = ""
+    for word in text.split():
+        if len(word) > len(best):
+            best = word
+    return best
+
+
+def letter_counts(text):
+    counts = {}
+    for ch in text.lower():
+        if ch in "abcdefghijklmnopqrstuvwxyz":
+            counts[ch] = counts.get(ch, 0) + 1
+    return counts
+
+
+def is_palindrome(text):
+    letters = ""
+    for ch in text.lower():
+        if ch != " ":
+            letters += ch
+    return letters == letters[::-1]
+@tests
+clean("  Hello World ") => "hello world"
+clean("ABC") => "abc"
+longest_word("the quick brown fox") => "quick"
+longest_word("a bb cc") => "bb"
+longest_word("") => ""
+letter_counts("Aab") => {"a": 2, "b": 1}
+letter_counts("a1 a!") => {"a": 2}
+letter_counts("") => {}
+is_palindrome("level") => true
+is_palindrome("Never odd or even") => true
+is_palindrome("python") => false
+is_palindrome("") => true
+@hints
+`strip()` and `lower()` each return a new string, so you can chain them.
+For `longest_word`, keep the best word so far and replace it only when you find a strictly longer one. That keeps the first of equal-length words.
+For `letter_counts`, use the counting pattern with `get(ch, 0) + 1`, and test `ch in "abc...z"` before counting.
+For `is_palindrome`, first build a string of only the characters you care about, then compare it with its reverse. `s[::-1]` reverses a string.
+
+#EXAM 20
+#Q What does this print?
+def f(x):
+    return x + 1
+print(f(f(2)))
+- 3
+* 4
+- 5
+! The inner call returns 3; the outer call returns 4.
+#Q What is wrong with this function?
+def double(n):
+    print(n * 2)
+- Nothing
+* It prints the result instead of returning it, so callers cannot use the value
+- n is not defined
+! Without `return`, the function gives back None.
+#Q What is scores[-1] for scores = [5, 8, 2]?
+- 5
+- 8
+* 2
+! A negative index counts from the end.
+#Q What does [10, 20, 30, 40][1:3] give?
+- [10, 20]
+* [20, 30]
+- [20, 30, 40]
+! A slice includes the start index and stops before the end index.
+#Q What is "Hello".lower().find("l")?
+- 1
+* 2
+- 3
+! Lower-casing gives "hello"; the first "l" is at index 2.
+#Q Which holds key: value pairs?
+- A list
+- A string
+* A dictionary
+! Dictionaries map keys to values.
+#Q A variable defined inside a function is used outside it. What happens?
+* A NameError
+- It prints None
+- It works normally
+! Local variables do not exist outside their function.
+#Q What is a good first step when a program gives a wrong answer with no error?
+- Rewrite it from scratch
+* Print intermediate values to compare what you believed with what is true
+- Add more comments
+! Observation finds the false belief that is causing the bug.
+#C py | Write `unique(items)` that returns a new list with duplicates removed, keeping the first occurrence of each item in its original order. `unique([3, 1, 3, 2, 1])` returns `[3, 1, 2]`.
+@starter
+def unique(items):
+    result = []
+    return result
+@solution
+def unique(items):
+    result = []
+    for item in items:
+        if item not in result:
+            result.append(item)
+    return result
+@tests
+unique([3, 1, 3, 2, 1]) => [3, 1, 2]
+unique([]) => []
+unique([5, 5, 5]) => [5]
+unique(["a", "b", "a"]) => ["a", "b"]
+#W Describe the method you would follow to find a bug in a 200-line program that gives the wrong total. Be specific about each step.
++ Reproduces the bug with a specific input
++ States the expected and the actual result
++ Forms a hypothesis about the cause
++ Uses prints or inspection to observe values
++ Narrows the search by checking halfway
++ Fixes the cause and re-tests
+
+#PROJECT Calculator
+Build a calculator in Python that reads an expression such as `12 * 4` from the user and prints the result. It should keep running until the user types `quit`.
+
+Structure it with functions: one that reads and splits the input, one that performs the calculation, one that formats the answer. Keep input and output out of the calculating function so it could be tested on its own.
+@requirements
+Addition, subtraction, multiplication and division all work
+It keeps asking for calculations until the user types quit
+Dividing by zero shows a message instead of crashing
+Bad input (letters, a missing number) shows a message instead of crashing
+The calculation itself is in a function that takes values and returns a result, with no print or input inside it
+@deliverables
+The source code
+A list of at least eight test cases you tried, with expected and actual results
+@rubric
+All four operations work | 30
+Errors are handled without crashing | 25
+The code is split into well-named functions | 25
+Test cases cover normal and edge cases | 20

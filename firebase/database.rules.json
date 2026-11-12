@@ -1,0 +1,155 @@
+{
+  "rules": {
+    ".read": false,
+    ".write": false,
+    "duel": {
+      "ping": { ".read": true },
+
+      "admins": {
+        "$uid": { ".read": "auth != null && auth.uid === $uid" }
+      },
+      "owners": {
+        "$pid": {
+          ".read": "auth != null",
+          ".write": "auth != null && !data.exists() && newData.val() === auth.uid",
+          ".validate": "$pid.matches(/^u[a-z0-9]{6,24}$/)"
+        }
+      },
+      "uids": {
+        "$uid": {
+          ".read": "auth != null && auth.uid === $uid",
+          ".write": "auth != null && auth.uid === $uid && !data.exists() && newData.isString() && root.child('duel/owners').child(newData.val()).val() === auth.uid"
+        }
+      },
+
+      "names": {
+        "$key": {
+          ".read": "auth != null",
+          ".write": "auth != null && ((!data.exists() && newData.val() === root.child('duel/uids').child(auth.uid).val()) || (data.val() === root.child('duel/uids').child(auth.uid).val() && !newData.exists()))",
+          ".validate": "$key.length <= 40 && newData.isString()"
+        }
+      },
+      "presence": {
+        ".read": "auth != null",
+        "$pid": {
+          ".write": "auth != null && root.child('duel/uids').child(auth.uid).val() === $pid",
+          ".validate": "newData.child('n').isString() && newData.child('n').val().length <= 24"
+        }
+      },
+      "lb": {
+        "$mode": {
+          ".read": "auth != null",
+          "$pid": {
+            ".write": "auth != null && root.child('duel/uids').child(auth.uid).val() === $pid",
+            ".validate": "newData.child('n').isString() && newData.child('n').val().length <= 24 && newData.child('r').isNumber() && newData.child('r').val() >= 0 && newData.child('r').val() <= 10000 && newData.child('w').isNumber() && newData.child('w').val() >= 0 && newData.child('l').isNumber() && newData.child('l').val() >= 0 && newData.child('d').isNumber() && newData.child('d').val() >= 0"
+          }
+        }
+      },
+
+      "fl": {
+        "$pid": {
+          ".read": "auth != null && root.child('duel/uids').child(auth.uid).val() === $pid",
+          "$other": {
+            ".write": "auth != null && (root.child('duel/uids').child(auth.uid).val() === $pid || root.child('duel/uids').child(auth.uid).val() === $other)"
+          }
+        }
+      },
+      "frq": {
+        "$pid": {
+          ".read": "auth != null && root.child('duel/uids').child(auth.uid).val() === $pid",
+          "$from": {
+            ".write": "auth != null && (root.child('duel/uids').child(auth.uid).val() === $pid || root.child('duel/uids').child(auth.uid).val() === $from)"
+          }
+        }
+      },
+      "inv": {
+        "$pid": {
+          ".read": "auth != null && root.child('duel/uids').child(auth.uid).val() === $pid",
+          "$from": {
+            ".write": "auth != null && (root.child('duel/uids').child(auth.uid).val() === $pid || root.child('duel/uids').child(auth.uid).val() === $from)"
+          }
+        }
+      },
+      "inbox": {
+        "$pid": {
+          ".read": "auth != null && root.child('duel/uids').child(auth.uid).val() === $pid",
+          ".write": "auth != null && (root.child('duel/uids').child(auth.uid).val() === $pid || (newData.exists() && newData.hasChildren(['mid', 'at']) && root.child('duel/uids').child(auth.uid).exists()))"
+        }
+      },
+
+      "codes": {
+        ".read": "auth != null && root.child('duel/admins').child(auth.uid).val() === true",
+        "$code": {
+          ".read": "auth != null",
+          ".write": "auth != null && (root.child('duel/admins').child(auth.uid).val() === true || (!data.exists() && newData.isString() && newData.val() === root.child('duel/uids').child(auth.uid).val()) || (data.isString() && data.val() === root.child('duel/uids').child(auth.uid).val() && !newData.exists()))",
+          ".validate": "$code.length <= 40",
+          "u": {
+            "$pid": {
+              ".write": "auth != null && root.child('duel/uids').child(auth.uid).val() === $pid && !data.exists() && newData.val() === 1 && data.parent().parent().child('r').exists() && (!data.parent().parent().child('exp').exists() || data.parent().parent().child('exp').val() === 0 || data.parent().parent().child('exp').val() > now)"
+            }
+          }
+        }
+      },
+
+      "queue": {
+        "$key": {
+          ".read": "auth != null",
+          "$pid": {
+            ".write": "auth != null && (root.child('duel/uids').child(auth.uid).val() === $pid || (!newData.exists() && root.child('duel/uids').child(auth.uid).exists()))"
+          }
+        }
+      },
+      "party": {
+        "$leader": {
+          ".read": "auth != null",
+          ".write": "auth != null && root.child('duel/uids').child(auth.uid).val() === $leader",
+          "m": {
+            "$pid": {
+              ".write": "auth != null && root.child('duel/uids').child(auth.uid).val() === $pid"
+            }
+          }
+        }
+      },
+      "rooms": {
+        "$code": {
+          ".read": "auth != null",
+          ".write": "auth != null && ((!data.exists() && newData.child('h').val() === root.child('duel/uids').child(auth.uid).val()) || data.child('h').val() === root.child('duel/uids').child(auth.uid).val())",
+          "g": {
+            "$pid": {
+              ".write": "auth != null && root.child('duel/uids').child(auth.uid).val() === $pid && data.parent().parent().child('h').exists()"
+            }
+          },
+          "tm": {
+            ".write": "auth != null && data.parent().child('g').child(root.child('duel/uids').child(auth.uid).val()).exists()"
+          }
+        }
+      },
+      "matches": {
+        "$mid": {
+          ".read": "auth != null",
+          ".write": "auth != null && ((!data.exists() && newData.child('pl').child(root.child('duel/uids').child(auth.uid).val()).exists()) || (data.child('pl').child(root.child('duel/uids').child(auth.uid).val()).exists() && !newData.exists()))",
+          "ff": { "$pid": { ".write": "auth != null && root.child('duel/uids').child(auth.uid).val() === $pid && data.parent().parent().child('pl').child($pid).exists()" } },
+          "hb": { "$pid": { ".write": "auth != null && root.child('duel/uids').child(auth.uid).val() === $pid && data.parent().parent().child('pl').child($pid).exists()" } },
+          "done": { "$pid": { ".write": "auth != null && root.child('duel/uids').child(auth.uid).val() === $pid && data.parent().parent().child('pl').child($pid).exists()" } },
+          "a": { "$pid": { ".write": "auth != null && root.child('duel/uids').child(auth.uid).val() === $pid && data.parent().parent().child('pl').child($pid).exists()" } }
+        }
+      },
+      "shopPick": {
+        "$k": {
+          ".read": "auth != null",
+          ".write": "auth != null && (root.child('duel/admins').child(auth.uid).val() === true || (!data.exists() && root.child('duel/uids').child(auth.uid).exists()))"
+        }
+      },
+
+      "audit": {
+        ".read": "auth != null && root.child('duel/admins').child(auth.uid).val() === true",
+        "$id": {
+          ".write": "auth != null && !data.exists() && newData.child('by').val() === auth.uid",
+          ".validate": "newData.child('a').isString() && newData.child('a').val().length <= 40"
+        }
+      },
+
+      "$other": { ".read": false, ".write": false }
+    }
+  }
+}
