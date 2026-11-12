@@ -1,0 +1,45 @@
+name: Import Learn v3.1 release
+on:
+  push:
+    paths:
+      - "Learn_v3.1_complete.zip"
+permissions:
+  contents: write
+jobs:
+  replace-repository:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - name: Validate and extract release
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f Learn_v3.1_complete.zip
+          unzip -t Learn_v3.1_complete.zip
+          mkdir -p /tmp/learn-release
+          unzip -q Learn_v3.1_complete.zip -d /tmp/learn-release
+          test -f /tmp/learn-release/index.html
+          test -d /tmp/learn-release/uni
+      - name: Replace repository contents with release
+        shell: bash
+        run: |
+          set -euo pipefail
+          rsync -a --delete \
+            --exclude='.git/' \
+            --exclude='.github/' \
+            --exclude='Learn_v3.1_complete.zip' \
+            /tmp/learn-release/ ./
+          rm -f Learn_v3.1_complete.zip
+          rm -f .github/workflows/import-learn-release.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "No file changes detected."
+            exit 0
+          fi
+          git commit -m "Replace repository with Learn v3.1 complete release"
+          git push
