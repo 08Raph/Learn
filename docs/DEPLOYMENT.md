@@ -1,4 +1,4 @@
-# Deploying Learn 4.0
+# Deploying Learn 4.4
 
 The site is static files. There is no build step and nothing to install.
 
@@ -18,10 +18,14 @@ from your repository.
 - **Local:** `python3 -m http.server 8000` in this folder, then open `http://localhost:8000/`.
 
 ## After uploading
-1. Open the site and reload once. The service worker (`learn-v4.0`) replaces the old cache; returning
+1. Open the site and reload once. The service worker (`learn-v4.4`) replaces the old cache; returning
    visitors get the new version on their second visit.
-2. Open the patch notes from the home page and confirm version 4.0.
-3. Open Quiz once: the question bank downloads (about 320 KB compressed) and is kept for offline use.
+2. Open the patch notes from the home page and confirm version 4.4.
+   4.4 replaces `ranked_extra.json` again (1.6 MB) and the course files in `uni/data/`: upload both.
+   4.3 replaces `ranked_extra.json` (now 1.2 MB): upload it, or quizzes keep the old repeated questions.
+   New in 4.2: upload `uni/realpy.js` and `uni/realpy-worker.js`. Then do the real-Python check in `docs/TESTING.md`.
+   New in 4.1: upload `uni/uni-tools.js` and `uni/gitsim.js` with the rest of the `uni` folder.
+3. Open Quiz once: the question bank downloads (about 140 KB compressed) and is kept for offline use.
 4. Open 🎓 University > Labs > Practice studio > Language environment check and run it.
 
 Existing users keep their progress. The save format only gained optional fields.

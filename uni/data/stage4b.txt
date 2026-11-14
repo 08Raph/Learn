@@ -810,6 +810,24 @@ No scanner finds these: a negative quantity that produces a refund, a discount c
 ### Input validation
 Validate at every trust boundary: type, length, range and format, against an **allow-list** of what is acceptable. Validation reduces risk but does not replace context-specific output encoding or parameterisation.
 
+### Worked example
+A login form builds its SQL by joining strings. See the injection, then the fix.
+
+```text
+Vulnerable:
+  query = "SELECT * FROM users WHERE name = '" + name + "' AND pw = '" + pw + "'"
+Attacker types name:   admin' --
+Query becomes:
+  SELECT * FROM users WHERE name = 'admin' --' AND pw = '...'
+  → everything after -- is a comment; the password check disappears.
+
+Fixed (parameterised):
+  cursor.execute("SELECT * FROM users WHERE name = %s", (name,))
+  then compare the stored password hash with a slow hash function.
+```
+
+With parameters, the database receives the input as data, never as SQL code, so no quoting trick can change the query.
+
 > Key idea: Injection, broken authorisation and trusting the client account for most real breaches. Parameterise, encode on output, and check ownership on the server.
 #Q What is the root cause shared by SQL injection, command injection and XSS?
 - Weak passwords
@@ -885,6 +903,21 @@ Publish a way for researchers to report vulnerabilities and respond constructive
 Security works when it is everyone's job: engineers who model threats, reviewers who ask "what if this input is hostile?", and an organisation in which reporting a mistake is safe.
 
 > In industry: Several of the largest breaches of recent years began not with a clever exploit but with a leaked credential, an unpatched dependency or a compromised build step.
+### Worked example
+An automated scan reports that a library your app depends on has a critical vulnerability. A sensible response:
+
+```text
+1. Triage   Is the vulnerable function reachable in our code? (yes, via image upload)
+2. Contain  Temporarily disable image upload behind a flag.
+3. Fix      Upgrade the library 2.3.1 → 2.3.4; run the full test suite.
+4. Release  Ship the patch; re-enable uploads.
+5. Verify   Re-run the scanner; check logs for exploitation attempts.
+6. Learn    Pin versions with a lockfile, enable automatic update PRs,
+            and keep a software bill of materials (SBOM).
+```
+
+Knowing what you depend on, and having a practised path from alert to deployed fix, matters more than any single tool.
+
 #Q A developer accidentally commits an API key and immediately deletes it in a new commit. What must happen?
 - Nothing; the key is gone
 * The key must be revoked and replaced, because it remains in the repository history and may already have been copied
@@ -1609,6 +1642,21 @@ The goal is not unanimous agreement. It is a decision made with the relevant kno
 ### After approval
 The document is a plan, not a contract. When reality differs, update it or note where the implementation diverged. A design document that describes a system that was never built is worse than none.
 
+### Worked example
+A short design document for adding image thumbnails to an existing app.
+
+```text
+Title: Thumbnails for uploaded images            Status: draft for review
+Context:  Pages load full 3 MB images; mobile users wait 6+ seconds.
+Goals:    Thumbnails ≤ 50 KB within 30 s of upload. Non-goal: video.
+Options:  A) resize on upload in the web server  B) background worker  C) CDN service
+Decision: B. Uploads stay fast; failures can be retried; cost stays low.
+Risks:    Worker backlog at peak → alert when the queue exceeds 1,000 jobs.
+Rollout:  Generate for new uploads; backfill old images overnight.
+```
+
+A design document records the problem, the options considered and why one was chosen, so reviewers can challenge the reasoning before code exists.
+
 > Key idea: A design document is a tool for making a decision well. Its most valuable sections are the non-goals, the alternatives and the trade-offs.
 #Q Why include non-goals in a design document?
 - To make the document longer
@@ -1843,6 +1891,21 @@ The review is most useful as a checklist during design, not as a gate the week b
 ### Proportion
 A prototype for ten internal users does not need all of this. Match the rigour to the consequences of failure. But decide deliberately what you are skipping and write it down.
 
+### Worked example
+Before launching a new payment service, the team walks through a production-readiness checklist.
+
+```text
+[x] Health check endpoint and alert if it fails for 2 minutes
+[x] Dashboards: request rate, error rate, p95 latency
+[x] Logs are structured and contain no card numbers
+[x] Load tested at 3× expected peak
+[x] Rollback tested: previous version restored in under 5 minutes
+[ ] Runbook for "payment provider is down"     ← blocking: write it first
+[x] On-call rota and escalation contacts
+```
+
+A checklist turns "it works on my machine" into evidence that the service can be watched, recovered and supported at three in the morning.
+
 > Key idea: Production readiness is mostly about the unhappy paths: what happens when things are slow, full, down or hostile.
 #Q Why must every queue and input in a production service have a limit?
 - Limits make code shorter
@@ -1914,6 +1977,22 @@ Look back honestly.
 
 ### The portfolio
 A finished advanced project is evidence of ability. Make it legible: a clear README, the architecture diagram, the design document, the measured results and a short video. Someone should grasp what you built and why it is good in three minutes.
+
+### Worked example
+A five-minute capstone demonstration, followed by a written reflection.
+
+```text
+Demo plan:  problem (30 s) → live run of the main flow (2 min) →
+            architecture diagram (1 min) → one hard decision (1 min) → limits (30 s)
+Backup:     a recorded video in case the network fails.
+
+Reflection:
+  Went well:  automated tests caught three regressions before release.
+  Went badly: I underestimated authentication by a week.
+  Next time:  build the riskiest part first and time-box spikes to one day.
+```
+
+Rehearsed demos with a fallback avoid live failures; honest reflection on estimates is what turns a project into experience.
 
 > Key idea: Scope down early, back every claim with evidence, and be candid about limitations. That is what senior engineering looks like.
 #Q Why build a thin end-to-end version first?

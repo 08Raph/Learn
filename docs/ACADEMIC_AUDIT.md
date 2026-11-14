@@ -1,4 +1,4 @@
-# Academic audit of the University curriculum (v4.0)
+# Academic audit of the University curriculum (v4.2)
 
 **Method.** The catalogue (52 courses, 255 lessons) was compared, area by area, with the published shape of
 undergraduate and master's computer-science and software-engineering programmes: the ACM/IEEE computing
@@ -14,7 +14,7 @@ spends ten to fourteen weeks on what one course here covers in five or six lesso
 | Programming fundamentals | SEU 101–108 | Strong | — |
 | Data structures and algorithms | 202, 203, 301, 504 | Strong; proofs of correctness, amortised analysis, flow, DP, approximation | Computational geometry, advanced string structures in depth |
 | Discrete mathematics | 501 | Good: logic, proof, induction, counting, graphs, number theory | Generating functions; formal probability belongs to 502 |
-| Calculus and linear algebra | 502 (lessons 4–6); **new electives MAT 101 and MAT 102** | Improved: each subject now has its own four-lesson course with a tested lab, examination and project | Still introductions. A university gives each a full semester with proofs and problem sets; vector spaces, multivariable integration and proofs are outlined only |
+| Calculus and linear algebra | 502 (lessons 4–6); **new electives MAT 101 and MAT 102** | Improved: each subject has its own course with a tested lab, examination and project, extended in 4.1 to six lessons (differential equations, probability with calculus, bases and orthogonality, least squares) | Still introductions. A university gives each a full semester with proofs and problem sets; vector spaces, multivariable integration and proofs are outlined only |
 | Probability and statistics | 502 (lessons 1–3) | Adequate for ML and experiments | Continuous distributions and estimation theory in depth |
 | Complexity and computability | 503 | Good: automata, undecidability proof, NP-completeness | Space complexity, randomised classes only named |
 | Programming languages, compilers | 406, 508 | Good: lexing to code generation, semantics, type soundness | No full compiler back end is built |
@@ -32,17 +32,34 @@ spends ten to fourteen weeks on what one course here covers in five or six lesso
 | Professional engineering | 603, 604 | Strong | — |
 | Computer graphics | **GDV 102** | New: rasterisation, transformations, the 3D pipeline, lighting; a software-renderer project | No GPU or shader practice; ray tracing described only |
 | Game development | GDV 101, **GDV 102, GDV 103** | Adequate introduction: loop, graphics, AI, pathfinding, physics response, animation, optimisation | No commercial engine, audio, multiplayer networking or game design |
-| Human-computer interaction | **HCI 101** | New: principles, human factors with Fitts and Hick, design process, accessibility, evaluation, ethics | A four-lesson introduction; no supervised user studies |
+| Human-computer interaction | **HCI 101** | New: principles, human factors with Fitts and Hick, design process, accessibility, evaluation, ethics | A six-lesson introduction (since 4.1); no supervised user studies |
 | Numerical methods | **NUM 101** | New: floating point, roots, differentiation and integration, linear systems, ODEs | Interpolation, optimisation and eigenvalue algorithms not covered |
 | Mobile development | MOB 101, **MOB 102, MOB 103** | Adequate conceptual coverage of both platforms, architecture, data, networking, security and release | Graded labs are platform-independent logic in JavaScript; no native app is built or run on this site |
 | Not covered | — | — | Natural-language processing, computer vision, signal processing, hardware description languages, bioinformatics as subjects in their own right |
+
+## Changes made in 4.4
+- Every lesson now contains a worked example. 65 lessons, mostly in Stages 4–6 and the electives, had only
+  prose; each gained a short example shown step by step (a calculation, a plan, a table or a before-and-after
+  fix) with a sentence on what it shows. The content validator now enforces this.
+
+## Changes made in 4.2
+- The six remaining department electives (GDV 102/103, CEN 102/103, MOB 102/103) extended from four to six
+  lessons. Two drafted lessons were replaced before release because they repeated GDV 101 and MOB 101.
+- The open Python lab can run real CPython (Pyodide), so students can use the full standard library.
+
+## Changes made in 4.1
+- MAT 101, MAT 102, NUM 101 and HCI 101 extended from four to six lessons, with two new examination questions each
+  (interpolation and splines, optimisation and Monte Carlo, forms and errors, information architecture).
+- Practice that a university gives through tutorials and labs, now available here: spaced review of missed
+  questions, a Git and terminal simulator with graded tasks, and timed mock interviews.
+- Still not equivalent to a semester course: no proofs-based problem sets, and the electives remain shorter.
 
 ## Changes made in 4.0
 - **Ten new electives** in the thin departments and the named gaps (see the table). Each has four
   substantive lessons with knowledge checks, a tested programming assignment, an examination of six
   multiple-choice questions and a written question with a rubric, and a project with requirements,
   deliverables and a rubric. Every reference solution passes and every starter fails in the real grader.
-- **Honest size.** These are four-lesson introductions of roughly six study hours each, not semester
+- **Honest size.** These are six-lesson introductions (since 4.2) of roughly eight study hours each, not semester
   courses. Department pages say so. They do not count toward the 52 courses, the six stages or graduation.
 - **Practical work:** algorithm visualiser and a practice studio of 27 exercises across six skills.
 - **Projects and capstones:** every project page now shows objectives, five milestones built from its own

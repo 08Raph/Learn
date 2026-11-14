@@ -29,16 +29,27 @@
     if (!isObj(S.uni)) S.uni = {};
     const u = S.uni;
     // sanitize: a restored backup is untrusted input
-    ['lessons', 'labs', 'exams', 'projects', 'videos', 'missed', 'scratch', 'tries', 'certs', 'bm', 'goal', 'cv', 'arena', 'iv', 'studio'].forEach((k) => { if (!isObj(u[k])) u[k] = {}; });
+    ['lessons', 'labs', 'exams', 'projects', 'videos', 'missed', 'scratch', 'tries', 'certs', 'bm', 'goal', 'cv', 'arena', 'iv', 'studio', 'srs', 'git', 'mock'].forEach((k) => { if (!isObj(u[k])) u[k] = {}; });
     if (!Array.isArray(u.days)) u.days = [];
     u.days = u.days.filter((d) => typeof d === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(d)).slice(-2000);
     u.time = Math.max(0, Math.min(1e9, Math.floor(+u.time || 0)));
     if (!Array.isArray(u.last)) u.last = null;
+    if (u.pyEngine !== 'real' && u.pyEngine !== 'teach') u.pyEngine = 'teach';
+    if (!isObj(u.notes)) u.notes = {};
+    Object.keys(u.notes).forEach((k) => { const n = u.notes[k]; if (!/^[a-z0-9]+:\d+$/.test(k) || !isObj(n) || typeof n.t !== 'string' || !n.t.trim()) delete u.notes[k]; else { n.t = n.t.slice(0, 5000); if (typeof n.at !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(n.at)) n.at = ''; } });
     if (typeof u.name !== 'string') u.name = '';
     u.name = u.name.slice(0, 60);
     return u;
   }
   const save = () => A.save();
+  /* review scheduling (4.1): a missed question comes back after 1 day; each correct review moves it to the next
+     box (3 days, then 7 days); a correct answer at 7 days retires it as mastered. A new miss starts it again. */
+  const SRS_GAP = [1, 3, 7];
+  const addDays = (n) => { const d = new Date(); d.setDate(d.getDate() + n); return A.dayStr(d); };
+  function srsMiss(key) { if (typeof key !== 'string' || !/^[a-z0-9]+:(x\d+|\d+:\d+)$/.test(key)) return; const u = st(); if (Object.keys(u.srs).length > 3000 && !u.srs[key]) return; u.srs[key] = { b: 0, due: addDays(SRS_GAP[0]), n: ((u.srs[key] || {}).n || 0) + 1, at: A.dayStr(new Date()) }; }
+  function srsAnswer(key, ok) { const u = st(), r = u.srs[key]; if (!r) return; if (!ok) { r.b = 0; r.due = addDays(SRS_GAP[0]); r.n = (r.n || 0) + 1; } else if (r.b >= 2) { r.b = 3; r.due = ''; } else { r.b = (r.b || 0) + 1; r.due = addDays(SRS_GAP[r.b]); } r.at = A.dayStr(new Date()); save(); }
+  function srsSync() { const u = st(); Object.keys(u.missed).forEach((k) => { if (!u.srs[k] && /^[a-z0-9]+:(x\d+|\d+:\d+)$/.test(k)) u.srs[k] = { b: 0, due: A.dayStr(new Date()), n: +u.missed[k] || 1, at: A.dayStr(new Date()) }; }); Object.keys(u.srs).forEach((k) => { const r = u.srs[k]; if (!r || typeof r !== 'object' || ![0, 1, 2, 3].includes(r.b) || (r.b < 3 && !/^\d{4}-\d{2}-\d{2}$/.test(r.due))) delete u.srs[k]; }); }
+  function srsCounts() { srsSync(); const u = st(), today = A.dayStr(new Date()); let due = 0, later = 0, mastered = 0; Object.keys(u.srs).forEach((k) => { const r = u.srs[k]; if (r.b === 3) mastered++; else if (r.due <= today) due++; else later++; }); return { due, later, mastered }; }
   function markStudy() { const u = st(); const d = A.dayStr(new Date()); if (!u.days.includes(d)) u.days.push(d); A.markDay(); }
   function streak() {
     const set = new Set(st().days); const d = new Date(); let n = 0;
@@ -236,7 +247,7 @@
   const fmtTime = (s) => { const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60); return h ? h + ' h ' + m + ' min' : m + ' min'; };
 
   /* ---------- 4. shell + views ---------- */
-  const NAV = [['', '🏛', 'Home'], ['dashboard', '📊', 'Dashboard'], ['study', '🎯', 'My study'], ['departments', '🏫', 'Departments'], ['courses', '📚', 'Courses'], ['videos', '🎬', 'Videos'], ['labs', '🧪', 'Labs'], ['exams', '📝', 'Exams'], ['projects', '🗂', 'Projects'], ['career', '💼', 'Career'], ['professor', '🤖', 'AI Professor'], ['transcript', '🎓', 'Transcript']];
+  const NAV = [['', '🏛', 'Home'], ['dashboard', '📊', 'Dashboard'], ['study', '🎯', 'My study'], ['review', '🔁', 'Review'], ['departments', '🏫', 'Departments'], ['courses', '📚', 'Courses'], ['videos', '🎬', 'Videos'], ['labs', '🧪', 'Labs'], ['exams', '📝', 'Exams'], ['projects', '🗂', 'Projects'], ['career', '💼', 'Career'], ['professor', '🤖', 'AI Professor'], ['transcript', '🎓', 'Transcript']];
   const href = (path) => '#/uni' + (path && path.length ? '/' + path.join('/') : '');
   const link = (path, html, cls, extra) => '<a class="' + (cls || '') + '" href="' + href(path) + '"' + (extra || '') + '>' + html + '</a>';
   function shell(active, inner, crumbs) {
@@ -280,6 +291,7 @@
       '<section class="card u-dcard ud-main"><h2>Welcome back' + (u.name ? ', ' + E(u.name) : '') + '</h2>' + (nx ? '<p class="pill">Current course</p><h3>' + E(nx.code + ' · ' + nx.title) + '</h3>' + bar(coursePct(nx)) + '<p class="ud-next">Next: ' + E(nextStep(nx).label) + '</p>' + link(nextStep(nx).path, 'Continue →', 'btn primary') : '<p>You have completed every course that is currently unlocked.</p>') + '</section>' +
       '<section class="card u-dcard">' + ring(o.pct, 'Overall completion') + '<p class="ud-cap">Overall completion</p></section>' +
       '<section class="card u-dcard"><div class="ud-stat"><b>Stage ' + cs + '</b><small>' + E(stageById(cs).title) + '</small></div><div class="ud-stat"><b>🔥 ' + streak() + '</b><small>day study streak</small></div><div class="ud-stat"><b>' + fmtTime(u.time) + '</b><small>total study time</small></div></section>' +
+      (function () { const sc = srsCounts(); return sc.due + sc.later + sc.mastered ? '<section class="card u-dcard"><div class="ud-stat"><b>🔁 ' + sc.due + '</b><small>question' + (sc.due === 1 ? '' : 's') + ' due for review</small></div>' + link(['review'], sc.due ? 'Review now →' : 'Open review', 'btn small' + (sc.due ? ' primary' : '')) + '</section>' : ''; })() +
       '<section class="card u-dcard ud-grid4"><div><b>' + o.done + '</b><small>courses completed</small></div><div><b>' + inprog.length + '</b><small>in progress</small></div><div><b>' + o.lesDone + '</b><small>lessons done</small></div><div><b>' + examN + '</b><small>exam attempts</small></div><div><b>' + projs + '</b><small>projects submitted</small></div><div><b>' + vids + '</b><small>videos watched</small></div></section>' +
       '</div>';
     h += '<h2 class="u-h2">Degree-style progress</h2><div class="card"><ol class="u-track">' + CAT.stages.map((s) => { const ct = coursesOf(s.id).length, cd = stageCoursesDone(s.id); return '<li class="' + (stageComplete(s.id) ? 'done' : stageUnlocked(s.id) ? 'open' : 'locked') + '"><span>' + s.id + '</span><b>' + E(s.level) + '</b><small>' + cd + '/' + ct + ' courses' + (finalPassed(s.id) ? ' · final ✓' : '') + '</small></li>'; }).join('') + '</ol></div>';
@@ -344,7 +356,7 @@
       '<div class="card"><h3>📝 Course examination</h3><p>' + (data.exam ? data.exam.items.length + ' questions · about ' + data.exam.min + ' minutes · pass mark ' + PASS + '%' : '') + '</p><p class="pill">' + (at.length ? at.length + ' attempt' + (at.length === 1 ? '' : 's') + ' · best ' + bestOf(c.id) + '%' + (examPassed(c) ? ' · passed ✓' : '') : lessonsDone(c) === c.n ? 'Ready to sit' : 'Opens when every lesson is complete') + '</p>' + (un && lessonsDone(c) === c.n ? link(['course', c.id, 'exam'], examPassed(c) ? 'Retake' : 'Sit the examination', 'btn small') : '') + '</div>' +
       (data.project ? '<div class="card"><h3>🗂 Course project</h3><p>' + E(data.project.title) + '</p><p class="pill">' + (projectDone(c) ? 'Submitted ✓ · self-assessed ' + projectPct(c) + '%' : 'Build it, then submit your evidence') + '</p>' + (un ? link(['course', c.id, 'project'], projectDone(c) ? 'View submission' : 'Open project brief', 'btn small') : '') + '</div>' : '') + '</div>';
     const vids = (window.UNI_VIDEOS || []).filter((v) => (v.courses || []).includes(c.id));
-    h += '<div class="u-cols"><section><h2 class="u-h2">Further reading</h2><ul class="u-refs">' + (c.refs || []).map((r) => '<li>' + (r[1] ? '<a href="' + E(r[1]) + '" target="_blank" rel="noopener noreferrer">' + E(r[0]) + '</a>' : E(r[0])) + (r[2] ? '<small>' + E(r[2]) + '</small>' : '') + '</li>').join('') + '</ul></section><section><h2 class="u-h2">Help and video</h2><ul class="u-list"><li>' + link(['professor', c.id], '<b>🤖 Ask the AI Professor about this course</b><small>Explanations, hints and revision questions</small>') + '</li><li>' + link(['videos', 'c-' + c.id], '<b>🎬 Related video lectures</b><small>' + (U.videosLoaded ? vids.length + ' available' : 'Open the video centre') + '</small>') + '</li></ul></section></div>';
+    h += '<div class="u-cols"><section><h2 class="u-h2">Further reading</h2><ul class="u-refs">' + (c.refs || []).map((r) => '<li>' + (r[1] ? '<a href="' + E(r[1]) + '" target="_blank" rel="noopener noreferrer">' + E(r[0]) + '</a>' : E(r[0])) + (r[2] ? '<small>' + E(r[2]) + '</small>' : '') + '</li>').join('') + '</ul></section><section><h2 class="u-h2">Help and video</h2><ul class="u-list">' + (c.id === 'c107' || c.id === 'c206' ? '<li>' + link(['terminal'], '<b>⌨️ Practise in the Git and terminal simulator</b><small>Graded tasks that run in this page, offline</small>') + '</li>' : '') + '<li>' + link(['professor', c.id], '<b>🤖 Ask the AI Professor about this course</b><small>Explanations, hints and revision questions</small>') + '</li><li>' + link(['videos', 'c-' + c.id], '<b>🎬 Related video lectures</b><small>' + (U.videosLoaded ? vids.length + ' available' : 'Open the video centre') + '</small>') + '</li></ul></section></div>';
     shell('courses', h, crumbs);
   };
 
@@ -360,7 +372,7 @@
       $$('.u-opt', fs).forEach((b) => b.addEventListener('click', () => {
         const right = +b.dataset.o === q.a; const why = $('.u-why', fs);
         if (right) { b.classList.add('right'); $$('.u-opt', fs).forEach((x) => { x.disabled = true; }); why.innerHTML = '<b class="good">Correct.</b> ' + inline(q.why); ok[qi] = true; if (ok.every(Boolean)) onAll(); }
-        else { b.classList.add('wrong'); b.disabled = true; why.innerHTML = '<b class="bad">Not quite.</b> Think it through and try another option.'; if (missKey) { const u = st(); const k = missKey + ':' + qi; u.missed[k] = (u.missed[k] || 0) + 1; save(); } }
+        else { b.classList.add('wrong'); b.disabled = true; why.innerHTML = '<b class="bad">Not quite.</b> Think it through and try another option.'; if (missKey) { const u = st(); const k = missKey + ':' + qi; u.missed[k] = (u.missed[k] || 0) + 1; srsMiss(k); save(); } }
       })); });
     if (!qs.length) onAll();
   }
@@ -375,8 +387,10 @@
       (vids.length ? '<aside class="u-vidnote">🎬 Prefer to watch? ' + vids.map((v) => link(['videos', v.id], E(v.title))).join(' · ') + '</aside>' : '') +
       (l.try ? '<section class="u-try" aria-label="Interactive exercise"><h2>🧪 Try it yourself</h2><p>' + inline(l.try.prompt) + '</p>' + (A.STATIC_LANGS.includes(l.try.lang) ? '<p class="pill">Optional exercise: this language runs on an online service, so it is not required to complete the lesson and is never marked as passed unless it really ran.</p>' : '') + '<div id="uTry"></div></section>' : '') +
       (l.quiz.length ? '<section class="u-check" aria-label="Knowledge check"><h2>Knowledge check</h2><p class="pill">Answer every question correctly to complete the lesson. Wrong answers are recorded for your revision list, not held against your grade.</p>' + quizHtml(l.quiz) + '</section>' : '') +
+      '<section class="u-notes card" aria-label="My notes"><h2>📝 My notes</h2><label for="uNote" class="u-fine">Private notes for this lesson. Saved on this device as you type, included in backups, and searchable on the ' + link(['notes'], 'My notes') + ' page.</label><textarea id="uNote" maxlength="5000" placeholder="What did you learn? What is still unclear? An example in your own words.">' + E((st().notes[lkey(c.id, i)] || {}).t || '') + '</textarea><p class="u-fine" id="uNoteMsg" aria-live="polite"></p></section>' +
       '<p class="u-bmrow"><button type="button" class="btn small" id="uBm" aria-pressed="' + (st().bm[lkey(c.id, i)] ? 'true' : 'false') + '">' + (st().bm[lkey(c.id, i)] ? '★ Bookmarked' : '☆ Bookmark this lesson') + '</button></p><div class="u-lfoot"><div id="uDone" aria-live="polite">' + (done ? '<span class="u-donebadge">✓ Lesson complete</span>' : '') + '</div><div class="u-lnav">' + (i > 0 ? link(['course', c.id, 'lesson', String(i - 1)], '← Previous', 'btn small') : '') + link(['professor', c.id, String(i)], '🤖 Ask the professor', 'btn small') + '<span id="uNext">' + (done ? nextLink(c, data, i) : '') + '</span></div></div></article>';
     shell('courses', h, crumbs);
+    { let nt = null; const ta = $('#uNote'), nm = $('#uNoteMsg'); ta.addEventListener('input', () => { nm.textContent = ''; clearTimeout(nt); nt = setTimeout(() => { const s2 = st(), k = lkey(c.id, i), v = ta.value.slice(0, 5000); if (v.trim()) { if (!s2.notes[k] && Object.keys(s2.notes).length >= 1000) { nm.textContent = 'Note limit reached (1,000 lessons).'; return; } s2.notes[k] = { t: v, at: A.dayStr(new Date()) }; } else delete s2.notes[k]; save(); nm.textContent = v.trim() ? 'Saved' : 'Note removed'; }, 600); }); }
     $('#uBm').addEventListener('click', (e) => { const s2 = st(), k = lkey(c.id, i); if (s2.bm[k]) delete s2.bm[k]; else { if (Object.keys(s2.bm).length >= 200) return A.toast('Bookmark limit reached (200).'); s2.bm[k] = A.dayStr(new Date()); } save(); e.currentTarget.setAttribute('aria-pressed', s2.bm[k] ? 'true' : 'false'); e.currentTarget.textContent = s2.bm[k] ? '★ Bookmarked' : '☆ Bookmark this lesson'; });
     const finish = () => {
       if (lessonDone(c.id, i)) return; const u2 = st(); u2.lessons[lkey(c.id, i)] = A.dayStr(new Date()); markStudy(); const xp = A.addXp(5); save();
@@ -414,7 +428,7 @@
     const crumbs = [['University', []], ['Videos', ['videos']], [v.title]];
     let h = '<article class="u-video"><header><p class="u-eyebrow">' + E(v.source) + ' · Stage ' + v.stage + ' · ' + E(v.level) + (v.lang ? ' · ' + E(v.lang) : '') + '</p><h1>' + E(v.title) + '</h1><p class="pill">' + E(v.dur) + (u.videos[v.id] ? ' · watched ✓' : '') + '</p></header>' +
       '<div class="uv-player" id="uvPlayer"><button type="button" class="uv-load" id="uvLoad"><span aria-hidden="true">▶</span><b>Load video from ' + E(v.host || 'YouTube') + '</b><small>The player is only contacted when you press this button.</small></button></div>' +
-      '<p class="u-fine">If the player does not appear, the video may be unavailable in your region or you may be offline. <a href="' + E(v.url) + '" target="_blank" rel="noopener noreferrer">Open it on ' + E(v.host || 'YouTube') + '</a>' + (v.alt ? ' or use the <a href="' + E(v.alt) + '" target="_blank" rel="noopener noreferrer">course page with transcripts and notes</a>' : '') + '. The written lesson below covers the same material.</p>' +
+      '<p class="u-fine">If the player does not appear, the video may be unavailable in your region or you may be offline. <a href="' + E(v.url) + '" target="_blank" rel="noopener noreferrer">Open it on ' + E(v.host || 'YouTube') + '</a>' + (v.alt ? ' or use the <a href="' + E(v.alt) + '" target="_blank" rel="noopener noreferrer">course page with transcripts and notes</a>' : '') + '. The written lesson below covers the same material.' + (v.idChecked && /^\d{4}-\d{2}-\d{2}$/.test(v.idChecked) ? ' The video ID and title were last matched against public listings on ' + E(v.idChecked) + '; that check does not prove the video still plays.' : '') + '</p>' +
       '<div class="u-cols"><section><h2 class="u-h2">About this lecture</h2><p>' + E(v.desc) + '</p><h3>Learning objectives</h3><ul class="u-out">' + (v.obj || []).map((x) => '<li>' + E(x) + '</li>').join('') + '</ul>' + (v.chapters && v.chapters.length ? '<h3>Chapters</h3><ul class="u-chap">' + v.chapters.map((ch) => '<li><code>' + E(ch[0]) + '</code> ' + E(ch[1]) + '</li>').join('') + '</ul>' : '') + '<p class="u-fine">Captions: ' + E(v.captions || 'available in the player (CC button) where the publisher provides them') + '. Licence and credit: ' + E(v.credit || v.source) + '.</p></section>' +
       '<section><h2 class="u-h2">Study with it</h2><ul class="u-list">' + (rel ? '<li>' + link(['course', rel.split(':')[0], 'lesson', rel.split(':')[1]], '<b>📖 Related written lesson</b><small>' + (c ? E(c.code + ' ' + c.title) : '') + '</small>') + '</li>' : c ? '<li>' + link(['course', c.id], '<b>📖 Related course</b><small>' + E(c.code + ' ' + c.title) + '</small>') + '</li>' : '') + (c && c.lab ? '<li>' + link(['course', c.id, 'lab'], '<b>🧪 Practical exercise</b><small>The course programming assignment</small>') + '</li>' : '') + '</ul>' +
       (v.quiz && v.quiz.length ? '<div class="u-check"><h3>Quiz after watching</h3>' + quizHtml(v.quiz) + '</div>' : '') + '<div id="uvDone" aria-live="polite">' + (u.videos[v.id] ? '<span class="u-donebadge">✓ Marked as watched</span>' : '<button class="btn primary" id="uvMark" type="button"' + (v.quiz && v.quiz.length ? ' disabled' : '') + '>Mark as completed</button>' + (v.quiz && v.quiz.length ? '<p class="pill">Answer the quiz to enable this.</p>' : '')) + '</div></section></div></article>';
@@ -442,16 +456,21 @@
   U.views.departments = viaMod('uni-campus', 'departments', 'Departments');
   U.views.career = viaMod('uni-campus', 'career', 'Career centre');
   U.views.study = viaMod('uni-campus', 'study', 'My study');
+  U.views.notes = async function (path) { const crumbs = [['University', []], ['My study', ['study']], ['My notes']]; loading('study', crumbs); try { await loadMod('uni-campus'); } catch (e) { shell('study', offlineHtml('This section could not be loaded.'), crumbs); return bindRetry(); } if (U.path !== path) return; return U.lazy.notes(path); };
   U.views.transcript = viaMod('uni-assess', 'transcript', 'Transcript and certificates');
   U.views.professor = viaMod('uni-professor', 'professor', 'AI Professor');
   const studioView = (key, name) => async function (path) { const crumbs = [['University', []], ['Laboratories', ['labs']], [name]]; loading('labs', crumbs); try { await loadMod('uni-studio'); } catch (e) { shell('labs', offlineHtml('This section could not be loaded.'), crumbs); return bindRetry(); } if (U.path !== path) return; return U.studio[key](path); };
   U.views.visual = studioView('visual', 'Algorithm visualiser');
+  const toolView = (key, active, crumbs) => async function (path) { loading(active, crumbs); try { await loadMod('uni-tools'); } catch (e) { shell(active, offlineHtml('This section could not be loaded.'), crumbs); return bindRetry(); } if (U.path !== path) return; return U.tools[key](path); };
+  U.views.review = toolView('review', 'review', [['University', []], ['Review']]);
+  U.views.terminal = toolView('terminal', 'labs', [['University', []], ['Laboratories', ['labs']], ['Git and terminal simulator']]);
+  U.views.portfolio = toolView('portfolio', 'projects', [['University', []], ['Projects', ['projects']], ['Portfolio']]);
   U.views.practice = studioView('practice', 'Practice studio');
 
   /* ---------- public surface ---------- */
-  Object.assign(U, { $, $$, E, md, inline, st, save, shell, link, href, ring, bar, courseCard, quizHtml, bindQuiz, qText, loadCourse, loadFile, loadMod, ensureVideos, markStudy, lkey, viaMod, streak, fmtTime, offlineHtml, bindRetry, loading,
+  Object.assign(U, { srsMiss, srsAnswer, srsSync, srsCounts, addDays, $, $$, E, md, inline, st, save, shell, link, href, ring, bar, courseCard, quizHtml, bindQuiz, qText, loadCourse, loadFile, loadMod, ensureVideos, markStudy, lkey, viaMod, streak, fmtTime, offlineHtml, bindRetry, loading,
     courseById, stageById, coursesOf, lessonDone, lessonsDone, labPassed, attempts, bestOf, examPassed, projectDone, projectPct, courseDone, coursePct, courseGrade, labReq, letter, finalId, finalPassed, stageUnlocked, stageComplete, stageCoursesDone, courseUnlocked, whyLocked, currentStage, overall, nextUp, nextStep, gradReqs, parseCourseFile, PASS, FINAL_PASS });
-  U.init = async function (api) { A = api; U.api = api; st(); startClock(); U.ready = true; };
+  U.init = async function (api) { A = api; U.api = api; window.LEARN_UNI_VER = api.ver; st(); startClock(); U.ready = true; };
   U.render = function (path) {
     U.path = path = path || []; const v = U.views[path[0] || ''] || U.views[''];
     try { const r = v(path); if (r && r.catch) r.catch((e) => { console.error(e); shell(path[0] || '', offlineHtml('Something went wrong while opening this page: ' + (e && e.message ? e.message : 'unknown error')), [['University', []]]); bindRetry(); }); }

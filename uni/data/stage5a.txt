@@ -55,6 +55,21 @@ Assume the claim is false and derive an impossibility.
 ### Writing proofs
 State what is to be proved. Name your method. Justify each step. Define every symbol. End clearly. A proof is written for a sceptical reader.
 
+### Worked example
+Prove that the sum of the first n odd numbers is n² by induction.
+
+```text
+Claim P(n): 1 + 3 + 5 + ... + (2n − 1) = n²
+
+Base case n = 1:   1 = 1²                                   ✓
+Inductive step:    assume P(k): 1 + 3 + ... + (2k − 1) = k²
+  Then 1 + 3 + ... + (2k − 1) + (2k + 1) = k² + 2k + 1 = (k + 1)²
+  So P(k) implies P(k + 1).                                ✓
+By induction, P(n) holds for every n ≥ 1.                   ∎
+```
+
+Every induction proof has the same two obligations: a true starting point, and a step that carries truth from one case to the next.
+
 > Key idea: Evidence from examples suggests; only a proof establishes. A single counterexample refutes.
 #Q When is the implication P → Q false?
 - When P is false
@@ -345,6 +360,23 @@ A **matching** is a set of edges with no shared vertices: assigning tasks to wor
 
 ### Why the theory matters
 A theorem tells you what to look for. Knowing that "tree" means "connected with n − 1 edges" gives you a constant-time sanity check. Knowing the even-degree condition turns a search problem into a count.
+
+### Worked example
+Five towns and the roads between them form a graph. Use it to answer two practical questions.
+
+```text
+Vertices: A B C D E
+Edges:    A–B 4, A–C 2, B–C 1, B–D 5, C–D 8, D–E 3
+
+Degrees:  A 2, B 3, C 3, D 3, E 1  → sum 12 = 2 × 6 edges ✓ (handshake lemma)
+
+Shortest A → E (Dijkstra):
+  A 0 → C 2 → B 3 → D 8 → E 11      path A–C–B–D–E, length 11
+Cheapest network linking all towns (minimum spanning tree):
+  B–C 1, A–C 2, D–E 3, B–D 5        total 11
+```
+
+The same graph answers different questions: shortest paths minimise one trip, while a spanning tree minimises the total cost of connecting everything.
 
 > Key idea: Many hard-looking questions about networks have clean characterisations. Find the theorem before writing the search.
 #Q A connected graph has 10 vertices and no cycles. How many edges does it have?
@@ -2078,6 +2110,23 @@ These often work very well and offer no proof. Measure them on realistic instanc
 - An **online** algorithm must decide without knowing future input. Its **competitive ratio** compares it with the best possible in hindsight. Cache-eviction policies are analysed this way.
 - A **streaming** algorithm sees each item once and uses memory far smaller than the input.
 
+### Worked example
+Vertex cover is NP-hard, but a simple algorithm is guaranteed to be within a factor of 2 of the best answer.
+
+```text
+Graph edges: (1,2) (1,3) (2,4) (3,4) (4,5)
+
+Repeat: pick any uncovered edge, add BOTH endpoints, remove covered edges.
+  pick (1,2) → cover {1,2}; remaining (3,4) (4,5)
+  pick (3,4) → cover {1,2,3,4}; remaining none
+
+Result size 4. The optimum here is {1,4} = size 2.
+Guarantee: the picked edges share no endpoints, and any cover needs one
+endpoint of each, so OPT ≥ 2 and our answer (2 per edge) ≤ 2 × OPT.
+```
+
+Approximation algorithms trade optimality for speed with a proof of how far from optimal they can be.
+
 > Key idea: Faced with a hard problem, decide what you can relax: optimality (approximate), certainty (randomise) or generality (special cases and parameters).
 #Q What does a 2-approximation algorithm for a minimisation problem guarantee?
 - A solution within 2 units of the optimum
@@ -2140,6 +2189,23 @@ A complete argument has three parts:
 Sometimes you can prove that no algorithm does better. Comparison sorting needs Ω(n log n). Searching a sorted array by comparisons needs Ω(log n). **Adversary arguments** imagine an opponent who answers each query so as to keep the algorithm uncertain as long as possible. A matching upper and lower bound means the problem is solved, in the asymptotic sense.
 
 > In industry: The ability to recognise "this is a matching problem", "this is a shortest path on a product graph" or "this is NP-hard, so approximate" is worth more than memorising any single algorithm.
+### Worked example
+Find the pattern ABAB in the text ABABCABAB using the KMP prefix function.
+
+```text
+Pattern:  A B A B
+prefix π:  0 0 1 2      (longest proper prefix that is also a suffix)
+
+Text: A B A B C A B A B
+      match 4 chars → found at index 0; fall back to π[3] = 2
+      C mismatches; fall back to π[1] = 0; C mismatches again → move on
+      A B A B → found at index 5
+
+Each text character is examined a constant number of times: O(n + m).
+```
+
+The prefix function lets KMP reuse what it already matched instead of starting again, which turns the naive O(n·m) search into linear time.
+
 #Q What does the KMP failure table allow the algorithm to avoid?
 - Reading the pattern
 * Re-examining text characters after a mismatch

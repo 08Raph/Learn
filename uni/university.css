@@ -168,7 +168,7 @@
 .u-cvprev h2 { font-size: 12.5px; text-transform: uppercase; letter-spacing: .08em; border-bottom: 1px solid var(--border); padding-bottom: 3px; margin: 16px 0 6px; }
 .u-cvprev .cv-contact { color: var(--muted); margin: 4px 0; font-size: 14px; }
 .u-cvprev .cv-item p { margin: 2px 0 8px; font-size: 14px; }
-.u-check { display: flex; gap: 8px; align-items: center; margin: 8px 0; font-size: 14px; }
+label.u-check { display: flex; gap: 8px; align-items: center; margin: 8px 0; font-size: 14px; }
 .uni select { font: inherit; padding: 8px 10px; border-radius: 10px; border: 1px solid var(--border); background: var(--surface); color: var(--text); margin-top: 4px; display: block; }
 .u-ivq { margin: 10px 0; padding: 12px 16px; }
 .u-ivq summary { cursor: pointer; font-weight: 600; }
@@ -231,3 +231,67 @@
 #evTable td.good { color: #1f8a52; font-weight: 600; }
 #evTable td.bad { color: #c9302c; font-weight: 600; }
 .u-studnav { margin-top: 18px; }
+
+/* ===== 4.1: Git and terminal simulator ===== */
+.tsim { border: 1.5px solid var(--border); border-radius: 14px; overflow: hidden; margin: 14px 0; background: var(--out-bg); }
+.tsim-out { font-family: var(--mono); font-size: 14px; line-height: 1.5; color: var(--out-text); padding: 12px 14px; height: 340px; overflow: auto; white-space: pre-wrap; word-break: break-word; }
+.tsim-out .cmd { color: #9fb4ff; }
+.tsim-out .err { color: #ffb4ac; }
+.tsim-out .ok { color: #7ee2b4; font-weight: 600; }
+.tsim-in { display: flex; gap: 8px; align-items: center; padding: 8px 10px; border-top: 1px solid #2a3358; background: #0b1020; flex-wrap: wrap; }
+.tsim-prompt { font-family: var(--mono); font-size: 13px; color: #9fb4ff; white-space: nowrap; max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
+.tsim-in input { flex: 1; min-width: 160px; font-family: var(--mono); font-size: 16px; background: transparent; color: #f2f5ff; border: 1px solid #2a3358; border-radius: 8px; padding: 9px 10px; min-height: 44px; }
+.tsim-in input:focus-visible { outline: 3px solid #8fa3ff; outline-offset: 1px; }
+.tsim-keys { display: flex; gap: 6px; flex-wrap: wrap; padding: 6px 10px 10px; background: #0b1020; }
+.tsim-keys .btn { min-height: 40px; padding: 0 12px; font-family: var(--mono); font-size: 15px; background: #161c35; color: #e8ecf9; border-color: #2a3358; }
+.tsim-edit { padding: 10px; background: var(--surface); border-top: 1px solid var(--border); display: grid; gap: 8px; }
+.tsim-edit[hidden] { display: none; }
+.tsim-edit textarea { font-family: var(--mono); font-size: 15px; width: 100%; border: 1.5px solid var(--border); border-radius: 8px; padding: 8px; background: var(--code-bg); color: var(--text); }
+.ts-checks ul { list-style: none; padding: 0; margin: 8px 0 0; display: grid; gap: 4px; }
+.ts-checks li { color: var(--muted); }
+.ts-checks li.ok { color: var(--good); font-weight: 600; }
+
+/* ===== 4.1: mock interview ===== */
+.mk-bar { position: sticky; top: 0; z-index: 5; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; background: var(--surface); border: 1.5px solid var(--border); border-radius: 12px; padding: 8px 14px; margin-bottom: 14px; }
+.mk-bar b { font-family: var(--mono); font-size: 22px; min-width: 70px; }
+.mk-bar b.low { color: var(--bad); }
+.mk-bar span { flex: 1; color: var(--muted); }
+.mk-ans { margin: 8px 0 12px; padding: 10px 14px; border-left: 4px solid var(--border); background: var(--surface2); border-radius: 0 8px 8px 0; }
+
+/* ===== 4.1: portfolio ===== */
+.pf-page { background: var(--surface); border: 1.5px solid var(--border); border-radius: 14px; padding: 24px 28px; margin: 16px 0; }
+.pf-head h1 { font-size: 30px; }
+.pf-sub { font-size: 18px; color: var(--muted); margin: 4px 0; }
+.pf-sec h2 { font-size: 20px; border-bottom: 1px solid var(--border); padding-bottom: 4px; margin: 26px 0 10px; }
+.pf-off { opacity: .35; }
+.pf-stats { list-style: none; padding: 0; display: flex; flex-wrap: wrap; gap: 8px 22px; margin: 0; }
+.pf-proj { border: 1px solid var(--border); border-radius: 10px; padding: 10px 16px; margin: 12px 0; }
+.pf-proj h3 { font-size: 18px; }
+.pf-meta, .pf-note { color: var(--muted); font-size: 14px; }
+.pf-table { border-collapse: collapse; width: 100%; }
+.pf-table td, .pf-table th { border-bottom: 1px solid var(--border); padding: 6px 8px; text-align: left; }
+@media (max-width: 600px) { .pf-page { padding: 16px; } .tsim-out { height: 280px; font-size: 13px; } }
+@media print {
+  body.pf-printing .no-print, body.pf-printing .u-nav, body.pf-printing .top, body.pf-printing .u-crumbs, body.pf-printing .u-foot { display: none !important; }
+  body.pf-printing .pf-page { border: 0; padding: 0; margin: 0; }
+  body.pf-printing .pf-off { display: none !important; }
+  body.pf-printing a { color: #000; }
+}
+
+/* ===== 4.2: real Python engine switch, lesson notes ===== */
+.u-eng { display: inline-flex; align-items: center; gap: 6px; font-size: 14px; color: var(--muted); }
+.u-eng select { font: inherit; min-height: 40px; border-radius: 10px; border: 1.5px solid var(--border); background: var(--surface); color: var(--text); padding: 0 8px; }
+.u-stdin { display: grid; gap: 4px; font-size: 14px; color: var(--muted); margin: 6px 0; }
+.u-stdin[hidden] { display: none; }
+.u-stdin textarea { font-family: var(--mono); font-size: 15px; border: 1.5px solid var(--border); border-radius: 8px; padding: 6px 8px; background: var(--code-bg); color: var(--text); }
+.u-notes { margin: 18px 0; }
+.u-notes textarea { width: 100%; min-height: 110px; font: inherit; font-size: 16px; border: 1.5px solid var(--border); border-radius: 10px; padding: 10px; background: var(--surface); color: var(--text); }
+.u-notelist li { list-style: none; }
+.u-noteitem { border: 1.5px solid var(--border); border-radius: 12px; padding: 10px 14px; margin: 10px 0; background: var(--surface); }
+.u-noteitem p { white-space: pre-wrap; margin: 6px 0 0; }
+.u-noteitem mark { background: var(--mark); color: #141a33; border-radius: 3px; }
+
+/* ===== 4.3: tap targets (audit) ===== */
+.u-crumbs a{display:inline-block;padding:9px 4px;margin:-9px -4px;border-radius:6px}
+.u-crumbs{margin-top:10px}
+.uni summary{min-height:44px;padding-top:10px;padding-bottom:10px;box-sizing:border-box;cursor:pointer}

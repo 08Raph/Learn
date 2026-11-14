@@ -284,6 +284,123 @@ Choose by team skills, required platform features and budget. There is no univer
 - Background threads use less battery
 ! A frozen interface may be reported as "not responding".
 
+#LESSON Navigation, lifecycle and state | 13
+### Apps do not own their own lives
+A desktop program runs until you close it. A mobile app is started, paused, hidden and killed by the operating system, often without warning, to save memory and battery. Designing for that is a core mobile skill.
+
+### Lifecycle
+Both platforms move each screen through states:
+
+- **Android:** an Activity is created, started (visible), resumed (in front, receiving input), then paused, stopped and possibly destroyed. Rotating the device destroys and recreates the Activity by default.
+- **iOS:** the app is active, inactive (an incoming call), in the background (a few seconds to finish work) or suspended (frozen in memory), and a suspended app can be terminated at any time.
+
+Respond to these events: pause video and animations when hidden, stop location updates you no longer need, and save unsaved work when moving to the background.
+
+### Process death
+The surprising case: the user switches to the camera, the system kills your app to free memory, and later the user comes back. The OS shows your app as if it never left, so it must **restore** where the user was: the screen, scroll position and text typed into a form.
+
+- Android: `onSaveInstanceState` and `SavedStateHandle` in a ViewModel store small pieces of state that survive process death.
+- iOS: state restoration APIs and SwiftUI's `@SceneStorage` do the same.
+
+Keep only small identifiers there (which item was open), not large data; reload the data from the local database.
+
+### Navigation
+Apps are stacks of screens. Pushing a screen adds it to the **back stack**; going back pops it. Tabs give each section its own stack. Good navigation means:
+
+- Back always does what users expect, including the Android system back gesture.
+- Deep links, such as a notification that opens a specific order, build a sensible back stack behind the target screen, so back leads somewhere reasonable rather than out of the app.
+- Navigation is described in one place (a navigation graph or router), not scattered through screens.
+
+### Where state should live
+UI state that a screen needs should live in a **ViewModel** (or an observable model in SwiftUI) that outlives rotations, not in the view itself. Data that must outlive the app lives in storage. Mixing these up causes the classic bugs: forms that empty when the phone rotates, and screens that show stale data after returning.
+
+### Worked example
+Restoring a half-written message after the system kills the app.
+
+```text
+User types a long message → switches to the camera → system kills the app.
+Before: onSaveInstanceState / SceneStorage stored:
+          screen = "compose", draftId = 88
+Draft text itself was saved to the local database every 2 seconds.
+User returns: app restarts, reads screen + draftId, loads draft 88 from the
+database, and shows the compose screen exactly as it was.
+```
+
+Store tiny identifiers for restoration and keep real data in storage; then process death becomes invisible to the user.
+
+> Key idea: The OS controls the app's lifecycle and may kill it at any time. Save small UI state for restoration, keep data in storage, design a predictable back stack, and keep screen state in a model that survives recreation.
+#Q On Android, what happens to an Activity by default when the device is rotated?
+- Nothing
+* It is destroyed and recreated
+- The app is uninstalled
+! Configuration changes recreate the Activity unless state is kept elsewhere.
+#Q What is process death?
+- A crash caused by a bug
+* The system killing a background app to free memory, after which the app must restore its state when reopened
+- Uninstalling the app
+! The user expects to return to where they were.
+#Q A notification opens order 42 deep inside the app. What should the back button do there?
+- Close the app immediately
+* Go back through a sensible stack, such as the orders list
+- Nothing
+! Deep links should build a reasonable back stack.
+
+#LESSON Cross-platform approaches | 12
+### Two platforms, one team
+Writing separate Kotlin and Swift apps gives the best platform fit but roughly doubles the work. Several approaches share code instead. None is free; each trades something.
+
+### The main options
+- **Native (Kotlin and Swift):** full access to every platform feature on day one, the best performance and platform feel. Two codebases, two skill sets.
+- **React Native:** JavaScript or TypeScript with React. Components map to real native views, so apps look native. Large ecosystem; performance-sensitive parts may need native modules.
+- **Flutter:** Dart, with its own rendering engine that draws every pixel. Consistent look across platforms and smooth animation; the app does not use native widgets, so matching platform conventions takes care, and app size is larger.
+- **Kotlin Multiplatform:** shares business logic (networking, storage, rules) written in Kotlin, while each platform keeps a native UI. Less sharing, but no compromise on the interface.
+- **Progressive web apps (PWAs):** a website that can be installed, work offline with a service worker and, on newer systems, send notifications. One codebase and no app store, but limited access to device features, especially on iOS.
+
+### How to choose
+Ask:
+
+1. Which device features do you need: Bluetooth, background location, widgets, payments? Check each approach's support.
+2. How important is platform feel and performance (games, heavy animation, camera)?
+3. What does the team already know?
+4. How long will the app live, and who maintains the bridges and plugins it depends on?
+
+A content or form-based business app is often well served by React Native, Flutter or a PWA. An app central to a platform experience, or one depending on new OS features, often justifies native. Many companies mix: native shells with shared logic, or native screens inside a cross-platform app.
+
+### What does not change
+Whatever the approach, you still need the platform knowledge from earlier lessons: lifecycles, permissions, store review, accessibility, offline behaviour and release processes. A cross-platform framework hides the differences only until something goes wrong.
+
+### Worked example
+Choosing an approach for a new app with a weighted decision matrix.
+
+```text
+Criteria (weight)        Native  React Native  Flutter  PWA
+Needs Bluetooth LE (3)      5         3          3      1
+Team knows TypeScript (2)   2         5          2      5
+UI consistency (1)          3         4          5      4
+Time to first release (2)   2         4          4      5
+Weighted total             27        33         27     27
+Decision: React Native, with a native Bluetooth module.
+```
+
+Writing down the criteria and weights makes the trade-off explicit and easy to revisit if the requirements change.
+
+> Key idea: Native gives the best fit at twice the work; React Native and Flutter share UI code with different trade-offs; Kotlin Multiplatform shares logic but not UI; PWAs avoid app stores but have limited device access. Choose by features, feel, team and lifetime.
+#Q Which approach draws every pixel with its own rendering engine rather than using native widgets?
+- React Native
+* Flutter
+- Kotlin Multiplatform
+! Flutter renders its own widgets, which gives consistency across platforms.
+#Q What does Kotlin Multiplatform usually share between Android and iOS?
+- The entire user interface
+* Business logic such as networking, storage and rules, with native UIs on each platform
+- Nothing
+! It shares logic while keeping native interfaces.
+#Q What is a main limitation of a progressive web app compared with a native app?
+- It cannot work offline
+* More limited access to device features, especially on iOS
+- It must be written in Dart
+! PWAs can work offline but cannot reach every native API.
+
 #LAB js | Mobile UI and architecture logic
 Implement the platform-independent logic behind a mobile screen.
 
@@ -435,6 +552,16 @@ Handle `granted` and `deniedForever` first in `permissionNext`, because they nev
 * So a fake can be supplied in tests and the view model does not depend on concrete data sources
 - Because view models cannot create objects
 ! This is dependency injection.
+#Q Where should a screen's UI state live so it survives rotation?
+- In global variables
+* In a ViewModel or observable model that outlives the view
+- In the layout file
+! Views are recreated; the model survives.
+#Q Which approach keeps native user interfaces while sharing business logic?
+- Flutter
+* Kotlin Multiplatform
+- A progressive web app
+! Logic is shared in Kotlin; UIs stay native.
 #W You are asked to build a notes app for both Android and iOS with a small team. Describe the architecture you would use on a screen that lists notes, how state survives rotation and the process being killed, how the screen behaves offline, and how you would decide between two native apps and a cross-platform approach.
 + A view model exposing one immutable UI state; the view sends events and renders state
 + State kept in the view model for rotation and in saved state or local storage for process death
@@ -627,6 +754,20 @@ A typical app is mostly third-party libraries, each able to do anything the app 
 ### A checklist
 The **OWASP Mobile Application Security** project publishes a verification standard and a testing guide. Use them as a checklist before release.
 
+### Worked example
+Storing a login token securely on a phone.
+
+```text
+Wrong:  SharedPreferences / UserDefaults in plain text → readable from backups
+        or on a rooted device.
+Right:  Android Keystore / iOS Keychain hold the key; the token is encrypted with it.
+Also:   short-lived access token (15 min) + refresh token
+        certificate pinning only if you can update pins safely
+        never ship API secrets in the app: anyone can extract them
+```
+
+Platform key stores protect secrets with hardware, while short-lived tokens limit the damage if one leaks; anything inside the app binary is public.
+
 > Key idea: Assume the attacker holds the device and can read the app. Keep secrets out of it, enforce rules on the server, store tokens securely, and treat every incoming link as untrusted.
 #Q Why must an app never contain a privileged API key?
 - It makes the app larger
@@ -679,6 +820,20 @@ Do not log personal data in any of them.
 ### Continuous integration and delivery
 On every change, automation builds the app, runs the tests and static analysis, and produces a signed build for testers. Releasing becomes routine, which makes releases small, which makes them safe.
 
+### Worked example
+A release pipeline for a mobile app.
+
+```text
+On every pull request:   unit tests · lint · UI tests on 2 emulators
+On merge to main:        build signed beta → TestFlight / internal testing track
+Before release:          manual check on 3 real devices; accessibility pass
+Release:                 staged rollout 1% → 10% → 50% → 100% over a week
+Watch:                   crash-free users ≥ 99.5%; stop the rollout if it drops
+Remember:                users keep old versions for months; the API must support them
+```
+
+Staged rollouts limit the damage of a bad build, and because you cannot force updates, server APIs must stay backward compatible.
+
 > Key idea: A mobile release is hard to take back. Test the logic heavily and the critical journeys on real devices, roll out in stages, and watch crash rates.
 #Q Which is the newer version: 1.9.0 or 1.10.0?
 - 1.9.0
@@ -690,6 +845,133 @@ On every change, automation builds the app, runs the tests and static analysis, 
 * To expose a new version to a small share of users first, limiting the damage if it is faulty
 - To avoid store review
 ! Problems are caught before most users receive the update.
+
+#LESSON Push notifications and background work | 12
+### How a push reaches the phone
+An app cannot keep its own connection open to your server all day: that would drain the battery. Instead, each platform runs one shared, efficient connection to its own service:
+
+- **APNs** (Apple Push Notification service) for iOS.
+- **FCM** (Firebase Cloud Messaging) for Android.
+
+The flow:
+
+1. The app asks the OS to register for notifications and receives a **device token**.
+2. The app sends that token to your server, linked to the signed-in user.
+3. When something happens, your server sends a message with the token to APNs or FCM.
+4. The platform service delivers it to the device, where the OS shows it or wakes the app.
+
+Tokens change (reinstalls, restores, new devices), so the app should send the current token at every launch, and the server should delete tokens that the service reports as invalid.
+
+### Permission and respect
+On iOS, and on Android 13 and later, the app must ask permission before showing notifications, and many users say no. Ask **in context**, after explaining the benefit ("Get a message when your order ships"), not on first launch. Let users choose categories (Android **notification channels** make this a system feature), and never send marketing disguised as alerts: it is the fastest way to be switched off or uninstalled.
+
+### Kinds of message
+- **Visible notifications** carry a title and body that the OS displays even if the app is not running.
+- **Data or silent pushes** carry only data and ask the app to wake briefly in the background, for example to sync new messages. Platforms throttle them and may not deliver them at all when the battery is low; never rely on them for anything critical.
+
+Keep sensitive content out of notification text, which appears on the lock screen. "You have a new message" is safer than the message itself.
+
+### Background work
+Beyond pushes, apps often need to do work later: upload photos, sync, clean caches. Both platforms restrict background execution to protect battery:
+
+- **Android:** WorkManager schedules deferrable work with conditions such as "on Wi-Fi and charging", and survives restarts.
+- **iOS:** BackgroundTasks lets the system choose a good moment for refresh or processing tasks; time is limited and not guaranteed.
+
+Design for the work to be **interrupted and resumed**, keep it idempotent, and never assume exactly when it will run.
+
+### Worked example
+The journey of one push notification.
+
+```text
+1. App starts → registers → receives device token "f3a9..." from FCM/APNs.
+2. App sends the token to your server with the user ID.
+3. A new message for that user arrives on the server.
+4. Server → FCM/APNs: { token: "f3a9...", title: "New message", data: { chat: 77 } }
+5. Platform delivers it; the OS shows the notification.
+6. User taps it → app opens chat 77 (a deep link).
+7. If FCM/APNs reports the token invalid, the server deletes it.
+```
+
+Your server never talks to the phone directly; it talks to the platform service using a token that can change and must be refreshed.
+
+> Key idea: Pushes go from your server through APNs or FCM to a device token. Ask for permission in context, keep lock-screen text discreet, treat silent pushes as hints, and schedule background work with the system so it can be delayed or interrupted safely.
+#Q What does your server need in order to send a push notification to one device?
+- The phone's IP address
+* The device token the app registered and sent to the server
+- The user's password
+! APNs and FCM deliver by device token.
+#Q When is the best time to ask for notification permission?
+- Immediately on first launch
+* In context, after explaining what the user will get
+- Never; it is granted automatically everywhere
+! Users agree more often when they understand the benefit.
+#Q Why should a silent (data-only) push never carry critical work?
+- It is always encrypted
+* Platforms throttle and may drop them, especially on low battery
+- It cannot contain data
+! Delivery of background pushes is best effort.
+
+#LESSON Performance and accessibility on mobile | 12
+### The frame budget
+At 60 frames a second, each frame has about **16 milliseconds** for everything: handling input, running your code, laying out and drawing. On 120 Hz screens it is about 8 ms. Miss the budget and scrolling stutters, which users call **jank**.
+
+Keep the main (UI) thread free:
+
+- Do network requests, database queries, image decoding and heavy calculation on background threads or coroutines.
+- Recycle list rows (RecyclerView, LazyColumn, UITableView, List) instead of creating thousands of views.
+- Load images at the size they are displayed, and cache them.
+- Measure with the profilers in Android Studio and Xcode rather than guessing.
+
+### Start-up time
+Users judge an app in its first seconds. Do the minimum before showing the first screen: defer analytics, prefetching and non-essential setup until after it appears, and show cached content immediately.
+
+### Battery and data
+- Background work is restricted on both platforms; use the system schedulers (WorkManager on Android, BackgroundTasks on iOS) so the OS can batch work efficiently.
+- GPS, the radio and the screen are the big consumers: ask for location only as precisely and as often as needed.
+- Respect metered connections: large downloads on Wi-Fi, smaller images on mobile data.
+
+### Accessibility
+Mobile platforms have strong built-in assistive technology, and apps must cooperate with it:
+
+- **Screen readers** (TalkBack on Android, VoiceOver on iOS) read each element aloud. Give icons and image buttons a text **label**, such as "Delete message" rather than "button".
+- **Dynamic type:** users enlarge text in system settings. Layouts must grow with it, not truncate or overlap.
+- **Touch targets** of at least about 44 to 48 points square, with space between them.
+- **Contrast** of at least 4.5:1 for normal text, and never colour alone to convey meaning.
+- Support **reduced motion** and do not rely on gestures that have no button alternative.
+
+Test by actually turning on the screen reader and the largest text size and using the app. It takes minutes and finds most problems.
+
+### Worked example
+Fixing a janky scrolling list.
+
+```text
+Profiler: frames take 35 ms while scrolling (budget 16 ms).
+Cause 1:  each row decodes a 4000×3000 photo on the main thread.
+          → decode a 200×200 thumbnail on a background thread; cache it.
+Cause 2:  rows are created for all 2,000 items.
+          → use a recycling list (RecyclerView / LazyColumn / List).
+After:    frames 9 ms; scrolling smooth.
+Accessibility: each row has a label "Photo from 12 March, 3 comments".
+```
+
+Measure first, move heavy work off the main thread, and draw only what is visible; label rows so screen-reader users get the same information.
+
+> Key idea: Keep each frame within about 16 ms by moving work off the main thread, start quickly, let the system schedule background work, and make the app usable with a screen reader, large text and clear touch targets.
+#Q At 60 frames per second, roughly how long does each frame have?
+- 1 ms
+* About 16 ms
+- 100 ms
+! 1000 ms / 60 ≈ 16.7 ms.
+#Q Where should a large image be decoded?
+- On the main thread, so it is ready sooner
+* On a background thread, keeping the main thread free for drawing and input
+- On the server only
+! Work on the main thread causes jank.
+#Q What should an icon-only delete button provide for screen reader users?
+- Nothing; the icon is enough
+* A text label such as "Delete message"
+- A louder click sound
+! Screen readers read the label aloud.
 
 #LAB js | Mobile data, networking and release logic
 Implement the logic that keeps a mobile app reliable.
@@ -876,6 +1158,16 @@ For the deep link, remove the `https://` prefix, then find the earliest `/`, `?`
 * The stores and devices use it to tell which build is newer
 - To change the app's name
 ! An update must have a higher number than the installed build.
+#Q Where should an app get permission to show notifications?
+- From the server
+* From the user, asked by the operating system, ideally in context
+- From APNs automatically
+! iOS and Android 13+ require the user's permission.
+#Q Why should background work use WorkManager or BackgroundTasks?
+- They run code faster
+* The system can schedule and batch work efficiently for battery
+- They avoid the need for permissions
+! The OS knows the best moments to run deferred work.
 #W Your team is about to release version 2.0 of a mobile app that changes the local database schema and the sign-in flow. Describe how you would test the release, how you would roll it out, what you would monitor, and what you would do if the crash rate rose after release.
 + Tests migrations from every older schema version using real or realistic databases
 + Unit tests for logic plus UI tests of the critical journeys on a chosen device matrix and poor network conditions
@@ -955,6 +1247,20 @@ A good error message says what happened in plain words, why, and what to do next
 
 ### You are not the user
 Designers and programmers know how the system works, so everything looks obvious to them. That knowledge cannot be switched off. The only way to learn whether a design works is to **watch real users try to use it**.
+
+### Worked example
+A heuristic evaluation of a checkout page against Nielsen's principles.
+
+```text
+Problem                                   Heuristic                     Severity
+No progress indicator during payment      Visibility of system status   3
+"Proceed" vs "Continue" mean different    Consistency and standards     2
+Card error says "Error 402"               Help users recover from errors 4
+Discount code field clears on error       User control and freedom      3
+Fix first: the error message (severity 4) and the progress indicator.
+```
+
+Heuristics give a quick, cheap checklist; rating severity decides what to fix first.
 
 > Key idea: Usability is effectiveness, efficiency and satisfaction for real users. Make actions visible, give feedback, prevent errors, and test with people who are not you.
 #Q What is a signifier?
@@ -1084,6 +1390,20 @@ Design work runs slightly ahead of development: research and prototypes for the 
 ### Ethics of research
 People who take part must give **informed consent**, may stop at any time, and must have their data protected and anonymised. Research with children or vulnerable people needs extra care and usually formal approval.
 
+### Worked example
+One cycle of user-centred design for a library booking app.
+
+```text
+Research:  5 interviews → students book rooms on their phones while walking.
+Define:    "Book a free room in under 30 seconds, one-handed."
+Ideate:    3 sketches; pick "nearest free room" as the first screen.
+Prototype: clickable mock-up in a design tool.
+Test:      5 students; 4 succeed; 1 confused by the time picker.
+Iterate:   replace the time picker with "30 min / 1 h / 2 h" buttons; test again.
+```
+
+Short cycles of observing real users and changing the design catch problems before any code is written.
+
 > Key idea: Understand users, prototype cheaply, test with real people, and iterate. Five users, thinking aloud, will find most of the serious problems.
 #Q During a usability test, a participant struggles to find a button. What should the observer do?
 - Point to it at once
@@ -1165,6 +1485,128 @@ These damage trust and are increasingly unlawful. Design for the user's real goa
 * Making a subscription easy to start and deliberately hard to cancel
 - A visible focus indicator
 ! It works against the user's own intentions.
+
+#LESSON Forms, feedback and errors | 12
+### Forms are conversations
+Sign-up, checkout and settings screens are where users meet a system's demands most directly, and where many give up. A good form asks only what it needs, in the order a person expects, in plain language.
+
+### Labels and inputs
+- Every field needs a **visible label** that stays visible while typing. Placeholder text disappears as soon as you type, so it cannot replace a label, and it is often too faint to read.
+- Put labels **above** fields on small screens so they are not cut off.
+- Use the right **input type** so phones show the right keyboard: email, telephone, number, date.
+- Group related fields, and mark which are **optional** rather than starring everything.
+- Do not ask for the same information twice, and do not split one value, like a phone number, into several boxes.
+
+### Validation and error messages
+Check input at a sensible moment: when the user leaves a field or submits, not on every keystroke while they are still typing. When something is wrong:
+
+- Say **what** went wrong and **how to fix it**: "Enter a date like 14/03/2026", not "Invalid input".
+- Show the message **next to the field**, and also in a summary at the top for long forms.
+- Do not rely on colour alone; add text or an icon, for colour-blind users and screen readers.
+- Keep everything the user typed. Clearing a form on error is one of the most frustrating things software can do.
+
+### Response time and feedback
+Classic guidance from Nielsen sets three limits:
+
+- About **0.1 seconds** feels instantaneous: no feedback needed beyond the result.
+- About **1 second** keeps the user's train of thought, though they notice the delay.
+- About **10 seconds** is the limit of attention; longer operations need a progress indicator and ideally a way to cancel.
+
+Show a **determinate** progress bar when you know how much is left and a spinner only when you do not. Acknowledge every action immediately, even if the work continues in the background.
+
+### Preventing and undoing errors
+Prevention beats messages: disable a Pay button until required fields are valid, offer choices instead of free text where possible, and use sensible defaults.
+
+For destructive actions, **undo** is usually better than a confirmation dialog. People learn to click "Yes, I'm sure" without reading, but an undo after the fact works every time. Keep confirmations for actions that truly cannot be undone, and make the button say what it does: "Delete 3 files", not "OK".
+
+### Worked example
+Rewriting a failing sign-up form.
+
+```text
+Before                                    After
+Placeholder-only fields                   Visible labels above each field
+Errors only after submit, at the top      Check each field when the user leaves it
+"Invalid input"                           "Password needs at least 12 characters"
+Form clears on error                      Everything typed is kept
+Submit button always enabled              Button explains what is still missing
+Result in testing: completion 61% → 88%.
+```
+
+Most form problems come from hidden instructions and unhelpful errors; fixing them is cheap and has a large effect.
+
+> Key idea: Label every field visibly, validate at the right moment, and write errors that say how to fix the problem. Give feedback within the 0.1, 1 and 10 second limits, and prefer undo to "Are you sure?".
+#Q Why is placeholder text a poor replacement for a label?
+- It cannot contain spaces
+* It disappears when the user starts typing and is often too faint to read
+- Screen readers always ignore labels
+! The user loses the instruction exactly when they need it.
+#Q An export takes about 30 seconds. What feedback is most appropriate?
+- None; the user will wait
+* A progress indicator, ideally showing how much is left, with a way to cancel
+- A message only when it fails
+! Beyond about 10 seconds people need to see progress.
+#Q Which error message is best?
+- Invalid input
+- Error 422
+* Enter a date in the format DD/MM/YYYY, for example 14/03/2026
+! It says what is wrong and how to fix it.
+
+#LESSON Information architecture and navigation | 12
+### Where things live
+**Information architecture** (IA) is the organisation and labelling of content so people can find things and understand where they are. A product can have excellent screens and still fail if users cannot work out which menu holds the setting they need.
+
+### Mental models
+Users arrive with a **mental model**, their own idea of how things are grouped. Problems appear when the site is organised by the company's internal structure ("Departments", "Divisions") instead of by the user's tasks ("Pay a bill", "Report a problem"). Good IA starts from what people are trying to do and the words they use for it.
+
+### Card sorting and tree testing
+Two cheap research methods shape and check an IA:
+
+- In **card sorting**, participants group cards, each naming a piece of content, into piles that make sense to them, and often name the piles. Open sorts let them invent groups; closed sorts use groups you supply. The results show which items people expect together and what they call the groups.
+- In **tree testing**, participants see only the menu hierarchy, with no visual design, and are asked where they would look for something. The success rate and the paths taken show which labels mislead.
+
+### Navigation patterns
+- **Global navigation** (a top bar or tab bar) gives constant access to the main sections. On phones a bottom tab bar with three to five items is easy to reach with a thumb.
+- **Local navigation** moves within a section.
+- **Breadcrumbs** show the path from the home page and let users climb back up a level.
+- **Search** suits large or unpredictable content and users who know exactly what they want; browsing suits people still exploring. Most sites need both.
+- Hidden "hamburger" menus save space but reduce how often people use the items inside them. Keep the most important destinations visible.
+
+### Wayfinding
+At every moment users should be able to answer three questions: Where am I? Where can I go? How do I get back? Clear page titles, a highlighted current section, consistent placement of navigation, and predictable link text ("Billing settings" rather than "Click here") answer them.
+
+### Labels
+Labels are the most visible part of an IA. Use the users' words, keep them short and distinct, and avoid jargon and clever names. Two menu items whose meanings overlap ("Resources" and "Help") will send people to the wrong one half the time.
+
+### Worked example
+Reading the results of a tree test on a council website.
+
+```text
+Task: "Where would you report a broken streetlight?"
+Expected path:  Home › Roads and transport › Report a problem
+Success rate:   38%
+Common wrong first click: "Contact us" (41%)
+Change:         add "Report a problem" to the top-level menu and to "Contact us"
+Re-test:        success rate 81%
+```
+
+Tree tests isolate the labels and structure, so a low success rate points directly at the menu, not the visual design.
+
+> Key idea: Organise content around users' tasks and words, test the structure with card sorting and tree testing, and make sure every screen answers where am I, where can I go and how do I get back.
+#Q What does a tree test measure?
+- How attractive the visual design is
+* Whether people can find items using only the menu hierarchy and labels
+- How fast the server responds
+! It tests the structure and labels with the visual design removed.
+#Q A site's menu mirrors the company's internal departments. What is the most likely problem?
+- It will load slowly
+* Users think in terms of their tasks, so they cannot guess which department holds what they need
+- Search engines cannot index it
+! IA should follow users' mental models, not the organisation chart.
+#Q What do breadcrumbs help with?
+- Saving form data
+* Showing where the user is in the hierarchy and moving back up a level
+- Loading pages faster
+! They answer "where am I?" and "how do I get back?".
 
 #LAB js | Usability by numbers
 Implement the measures used to evaluate an interface.
@@ -1338,6 +1780,16 @@ For `klm`, keep the times in an object and add `times[op] || 0` for each charact
 * It is about average; SUS scores are not percentages
 - It failed
 ! The scale runs from 0 to 100 with a mean near 68.
+#Q A user is about to delete a document. Which design usually protects them best?
+- A confirmation dialog with OK and Cancel
+* Performing the delete with a clear Undo option
+- Hiding the delete button
+! People click through confirmations without reading; undo works after the fact.
+#Q In card sorting, what do participants do?
+- Rate the colours of a design
+* Group cards naming pieces of content into categories that make sense to them
+- Test the speed of a menu
+! The groups reveal users' mental models.
 #W A hospital asks you to redesign the screen nurses use to record medication given to patients. Describe how you would find out what is wrong with the current screen, how you would design and test the replacement, which human factors matter most in this setting, and one ethical or safety point you must attend to.
 + Research in context: observing and interviewing nurses at work, not relying on opinion
 + Low-cost prototypes tested with representative users performing realistic tasks, thinking aloud, over several iterations

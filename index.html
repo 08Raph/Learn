@@ -37,7 +37,7 @@
   --bg: #eef2f9; --surface: #ffffff; --surface2: #f6f8fd; --text: #141a33; --muted: #5a6385; --border: #d5dcec;
   --accent: #2437d6; --accent-ink: #ffffff; --mark: #ffe14d; --good: #0f7a55; --good-bg: #dff4ea; --bad: #b8302a; --bad-bg: #fbe4e1;
   --code-bg: #f7f9fe; --grid: rgba(36,55,214,.06); --out-bg: #0f1426; --out-text: #dfe6ff;
-  --t-kw: #a626a4; --t-str: #0b7d4b; --t-num: #b25b00; --t-com: #7b839f; --t-fn: #1d4ed8; --t-pp: #9a3412;
+  --t-kw: #a626a4; --t-str: #0b7d4b; --t-num: #b25b00; --t-com: #5f6785; --t-fn: #1d4ed8; --t-pp: #9a3412;
   --head: "Bricolage Grotesque", system-ui, -apple-system, "Segoe UI", sans-serif;
   --mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
   color-scheme: light; box-sizing: border-box;
@@ -68,6 +68,7 @@ code { font-family: var(--mono); font-size: .88em; background: var(--code-bg); b
 .top .grow { flex: 1; }
 .btn { font-family: var(--head); font-weight: 700; font-size: 16px; border-radius: 12px; padding: 0 16px; min-height: 44px; cursor: pointer; border: 1.5px solid var(--border); background: var(--surface); color: var(--text); touch-action: manipulation; }
 .btn:hover { border-color: var(--accent); }
+#app summary { min-height: 44px; padding-top: 10px; padding-bottom: 10px; box-sizing: border-box; cursor: pointer; }
 .btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
 .btn.small { min-height: 38px; font-size: 14px; padding: 0 12px; }
 .btn:disabled { opacity: .45; cursor: default; }
@@ -155,7 +156,7 @@ details.stdin textarea { width: 100%; min-height: 64px; font-family: var(--mono)
 @media (prefers-reduced-motion: reduce) { .bar > div, .lcard { transition: none; } }
 
 /* ===== v3 additions ===== */
-:root { --beg: #12805c; --mid: #2437d6; --prc: #c2410c; --code-size: 15px; --lh: calc(var(--code-size) * 1.5); }
+:root { --beg: #0f7350; --mid: #2437d6; --prc: #c2410c; --code-size: 15px; --lh: calc(var(--code-size) * 1.5); }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --beg: #5fd6a4; --mid: #8fa3ff; --prc: #ffb86b; } }
 :root[data-theme="dark"] { --beg: #5fd6a4; --mid: #8fa3ff; --prc: #ffb86b; }
 .t-beginner { --tc: var(--beg); } .t-intermediate { --tc: var(--mid); } .t-pro { --tc: var(--prc); }
@@ -187,7 +188,7 @@ details.stdin textarea { width: 100%; min-height: 64px; font-family: var(--mono)
 .ach { background: var(--surface); border: 1.5px dashed var(--border); border-radius: 14px; padding: 12px; display: flex; flex-direction: column; gap: 2px; opacity: .55; filter: grayscale(1); }
 .achg { margin: 8px 0; } .achg > summary { cursor: pointer; font-weight: 700; padding: 8px 4px; list-style: none; } .achg > summary::-webkit-details-marker { display: none; }
 .achd { display: inline-block; padding: 2px 10px; border-radius: 999px; background: var(--dc, #888); color: #fff; font-size: 12.5px; margin-right: 6px; }
-.achx { display: inline-block; align-self: flex-start; margin-top: 6px; padding: 1px 8px; border-radius: 999px; border: 1.5px solid var(--dc, #888); color: var(--dc, #888); font-size: 11.5px; font-weight: 800; }
+.achx { display: inline-block; align-self: flex-start; margin-top: 6px; padding: 1px 8px; border-radius: 999px; border: 1.5px solid var(--dc, #888); color: var(--text); font-size: 11.5px; font-weight: 800; }
 .achp { display: block; height: 6px; border-radius: 6px; background: var(--border); margin-top: 6px; overflow: hidden; } .achp i { display: block; height: 100%; background: var(--accent); border-radius: 6px; } .achn { margin-top: 2px; }
 .ach.on { opacity: 1; filter: none; border-style: solid; border-color: var(--mark); background: linear-gradient(180deg, var(--surface), var(--surface2)); }
 .ach .ic { font-size: 26px; line-height: 1.1; } .ach b { font-family: var(--head); } .ach small { color: var(--muted); font-size: 12.5px; line-height: 1.3; }
@@ -458,11 +459,11 @@ details.backup textarea { width: 100%; min-height: 70px; margin-top: 8px; font-f
 .tsim-title{margin-left:8px;font-size:12px;color:#8b98ad;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .tsim-out{padding:10px 12px}
 .tsim-line{white-space:pre-wrap;word-break:break-word}
-.tsim-line.err{color:#ff7b72}.tsim-line.hint{color:#6e7a8e}
+.tsim-line.err{color:#ff7b72}.tsim-line.hint{color:#8b96a8}
 .tsim-row{display:flex;align-items:center}
 .tsim-ps1{flex:none;white-space:pre}
 .tsim-ps1 .u{color:#7ee787}.tsim-ps1 .p{color:#79c0ff}
-.tsim-in{flex:1;min-width:0;background:transparent;border:0;outline:0;color:inherit;font:inherit;caret-color:#7ee787;padding:0;margin:0}
+.tsim-in{flex:1;min-width:0;min-height:40px;background:transparent;border:0;outline:0;color:inherit;font:inherit;caret-color:#7ee787;padding:8px 0;margin:0}
 @media (pointer:coarse){.tsim{font-size:16px}}
 </style>
 </head>
@@ -10182,11 +10183,11 @@ const LANGS = {
   cpp: { key: 'cpp', name: 'C++', short: 'C++', file: 'main.cpp', lessons: LESSONS_CPP, color: '#7a4fd1', blurb: 'C with classes, strings and containers. Powers games, browsers and high-speed software.', comment: '//' },
   ts: { key: 'ts', name: 'TypeScript', short: 'TS', file: 'main.ts', lessons: LESSONS_TS, color: '#3178c6', blurb: 'JavaScript with types. The compiler catches mistakes before your code runs. Loved by big teams.', comment: '//' },
   cs: { key: 'cs', name: 'C#', short: 'C#', file: 'Program.cs', lessons: LESSONS_CS, color: '#68217a', blurb: 'Microsoft\'s modern language for apps, websites and Unity games. Clean, safe and powerful.', comment: '//' },
-  sql: { key: 'sql', name: 'SQL', short: 'SQL', file: 'query.sql', lessons: LESSONS_SQL, color: '#0d8f8f', blurb: 'The language of data. Ask questions of real tables: filter, group, join and change data.', comment: '--' },
+  sql: { key: 'sql', name: 'SQL', short: 'SQL', file: 'query.sql', lessons: LESSONS_SQL, color: '#0b7a7a', blurb: 'The language of data. Ask questions of real tables: filter, group, join and change data.', comment: '--' },
   java: { key: 'java', name: 'Java', short: 'Java', file: 'Main.java', lessons: LESSONS_JAVA, color: '#e76f00', blurb: 'Popular for Android, backend services, and large applications.', comment: '//' },
   go: { key: 'go', name: 'Go', short: 'Go', file: 'main.go', lessons: LESSONS_GO, color: '#00add8', blurb: 'Simple and fast; popular for cloud services, networking, and command-line tools.', comment: '//' },
   rust: { key: 'rust', name: 'Rust', short: 'Rust', file: 'main.rs', lessons: LESSONS_RUST, color: '#ce422b', blurb: 'Systems programming with performance and compile-time memory safety.', comment: '//' },
-  php: { key: 'php', name: 'PHP', short: 'PHP', file: 'index.php', lessons: LESSONS_PHP, color: '#777bb4', blurb: 'A server-side language widely used to build websites and APIs.', comment: '//' },
+  php: { key: 'php', name: 'PHP', short: 'PHP', file: 'index.php', lessons: LESSONS_PHP, color: '#5f63a0', blurb: 'A server-side language widely used to build websites and APIs.', comment: '//' },
   ruby: { key: 'ruby', name: 'Ruby', short: 'Ruby', file: 'main.rb', lessons: LESSONS_RUBY, color: '#cc342d', blurb: 'A readable language popular for scripting and Ruby on Rails.', comment: '#' },
   swift: { key: 'swift', name: 'Swift', short: 'Swift', file: 'main.swift', lessons: LESSONS_SWIFT, color: '#f05138', blurb: 'Apple-platform development for iOS, macOS, and more.', comment: '//' },
   kotlin: { key: 'kotlin', name: 'Kotlin', short: 'Kotlin', file: 'Main.kt', lessons: LESSONS_KOTLIN, color: '#7f52ff', blurb: 'A modern language used for Android and server-side development.', comment: '//' },
@@ -11618,13 +11619,27 @@ const HEAD = {
   c: '#include <stdio.h>\n#include <stdlib.h>\n#include <string.h>\n#include <math.h>\n\n',
   cpp: '#include <iostream>\n#include <string>\n#include <vector>\n#include <map>\n#include <algorithm>\nusing namespace std;\n\n',
 };
+/* 4.3: bank questions put the real question in a leading comment ("// Which keyword declares a class?"), followed by
+   any code it needs (unrelated filler was removed from ranked_extra.json). Show the comment as the question and the
+   rest as code. Labels like "Predict the output" and "Find the bug" become the heading. */
+function quizShow(lang, q) { const r = quizShow0(lang, q); r.ask = r.ask.charAt(0).toUpperCase() + r.ask.slice(1); return r; }
+function quizShow0(lang, q) {
+  const code = String((q && q.code) || ''); const lines = code.split('\n'); const m = /^\s*(?:\/\/|#|--)\s*(.+?)\s*$/.exec(lines[0] || ''); const rest = lines.slice(1).join('\n').replace(/^\s*\n|\s+$/g, '');
+  const wrap = (c) => (c ? quizProgram(lang, Object.assign({}, q, { code: c })).display : '');
+  if (m) { const label = m[1];
+    if (/\?$/.test(label)) return { ask: label, display: wrap(rest) };
+    if (/^predict\b/i.test(label)) return { ask: lang === 'sql' ? 'what does this return?' : 'what does this print?', display: wrap(rest) };
+    if (/^(find the (bug|error|mistake|issue)|diagnose the (issue|problem))/i.test(label)) return { ask: 'what is wrong with this code?', display: wrap(rest) };
+  }
+  return { ask: quizAsk(q), display: quizProgram(lang, q).display };
+}
 function quizAsk(q) {
   const c = String((q && q.code) || '');
   if (/print|echo|puts|console\.|println|printf|cout|Console\.Write|\bSELECT\b|\bsay\b|fmt\./i.test(c)) return 'what does this print?';
   const o = String((q && q.options && q.options[q.answer]) || ''); return o.length <= 28 ? 'what does this give?' : 'which statement is true?';
 }
 function quizProgram(lang, q) {
-  if (lang === 'py' || lang === 'js' || lang === 'ts' || lang === 'sql' || lang === 'term' || lang === 'cloud') return { display: q.code, run: q.code };
+  if (lang !== 'c' && lang !== 'cpp' && lang !== 'cs') return { display: q.code, run: q.code }; // Java, Go, Rust and others are shown as written, never wrapped in a C main()
   if (lang === 'cs') { const t = (q.pre ? q.pre + '\n' : '') + q.code; return { display: t, run: t }; }
   const ind = (s) => s.split('\n').map((l) => '    ' + l).join('\n');
   const main = (lang === 'c' ? 'int main(void) {\n' : 'int main() {\n') + ind(q.code) + '\n    return 0;\n}';
@@ -11733,8 +11748,8 @@ function streak() {
 const allTier = (t) => LANG_ORDER.some((k) => tierLessons(k, t).length > 0 && tierDone(k, t) === tierLessons(k, t).length);
 /* ---------- achievements: every one gives XP based on difficulty ---------- */
 const BADGE_DIFF = {
-  easy: { name: 'Easy', xp: 10, c: '#2f9e44' }, medium: { name: 'Medium', xp: 25, c: '#1c7ed6' }, hard: { name: 'Hard', xp: 50, c: '#e8590c' },
-  epic: { name: 'Epic', xp: 100, c: '#9c36b5' }, legendary: { name: 'Legendary', xp: 250, c: '#c58b00' },
+  easy: { name: 'Easy', xp: 10, c: '#237032' }, medium: { name: 'Medium', xp: 25, c: '#1864ab' }, hard: { name: 'Hard', xp: 50, c: '#c92a2a' },
+  epic: { name: 'Epic', xp: 100, c: '#862e9c' }, legendary: { name: 'Legendary', xp: 250, c: '#8f5b00' },
 };
 const BADGE_DIFF_ORDER = ['easy', 'medium', 'hard', 'epic', 'legendary'];
 const cnt = (k) => (S.cnt && S.cnt[k]) || 0;
@@ -12492,7 +12507,8 @@ function confetti() {
 
 /* ---------- views ---------- */
 let view = { name: 'home' }; let ed = null; const app = $('#app');
-const badge = (lang, big) => '<span class="badge' + (big ? ' big' : '') + '" style="background:' + LANGS[lang].color + '">' + esc(LANGS[lang].short) + '</span>';
+const inkFor = (hex) => { const L = (h) => { const c = [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16) / 255).map((x) => (x <= 0.03928 ? x / 12.92 : Math.pow((x + 0.055) / 1.055, 2.4))); return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]; }; return (1.05 / (L(hex) + 0.05)) >= 4.5 ? '#ffffff' : '#141a33'; }; // white text only where it is readable (WCAG AA)
+const badge = (lang, big) => '<span class="badge' + (big ? ' big' : '') + '" style="background:' + LANGS[lang].color + ';color:' + inkFor(LANGS[lang].color) + '">' + esc(LANGS[lang].short) + '</span>';
 const tierTag = (t) => '<span class="tier t-' + t + '">' + TIER_BY_KEY[t].name + '</span>';
 function toHash(v) {
   if (v.name === 'lesson' && LANGS[v.lang] && LANGS[v.lang].lessons[v.idx]) return '#/' + v.lang + '/' + LANGS[v.lang].lessons[v.idx].id;
@@ -12517,7 +12533,7 @@ function go(v) {
 function syncFromUrl() { const v = fromHash(); if (toHash(v) !== toHash(view) || window.__chFresh) { window.__chFresh = false; view = v; render(); window.scrollTo(0, 0); } }
 window.addEventListener('popstate', syncFromUrl); window.addEventListener('hashchange', syncFromUrl);
 function topbar(extraLeft, extraRight) {
-  return '<div class="top">' + extraLeft + '<div class="grow"></div>' + (extraRight || '') + '<span class="xpchip" title="Experience points">⭐ ' + xp() + ' XP</span><button class="btn small" id="themeBtn" aria-label="Switch light or dark theme" title="Switch theme">◐</button></div>';
+  return '<div class="top">' + extraLeft + '<div class="grow"></div>' + (extraRight || '') + '<span class="xpchip" title="Experience points">⭐ ' + xp() + ' XP</span><button class="btn small" id="themeBtn" aria-label="Switch light or dark theme" title="Switch theme"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" style="display:block"><circle cx="12" cy="12" r="8.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 3.5a8.5 8.5 0 0 1 0 17z" fill="currentColor"/></svg></button></div>';
 }
 function bindTheme() {
   $('#themeBtn').addEventListener('click', () => {
@@ -12525,22 +12541,63 @@ function bindTheme() {
     S.theme = dark ? 'light' : 'dark'; root.dataset.theme = S.theme; bump('theme'); save();
   });
 }
-function render() { closeDrawer(); applyRewards(); setTitle(); { const f = checkBadges(); if (f.length) setTimeout(() => badgeToast(f), 600); } duelGuard(); if ((view.name === 'duel' || view.name === 'quiz') && RANKED_STATE !== 2) return rankedGate(); if (view.name === 'duel') return renderDuel(); if (view.name === 'uni') return renderUni(); if (view.name === 'home') renderHome(); else if (view.name === 'shop') renderShop(); else if (view.name === 'avatar') renderAvatar(); else if (view.name === 'locker') renderLocker(); else if (view.name === 'catalog') renderCatalog(); else if (view.name === 'stats') renderStats(); else if (view.name === 'quiz') renderQuiz(); else if (view.name === 'web') renderWeb(); else if (view.name === 'lesson') renderLesson(); else if (view.name === 'project') renderProject(); else renderPlay(); }
+function render() { try { if (view.name === 'duel' && render.last !== 'duel') FBA.paused = false; } catch (e) { /* FBA not created yet */ } render.last = view.name; /* online requests resume when Multiplayer is opened again after a deletion */ closeDrawer(); applyRewards(); setTitle(); { const f = checkBadges(); if (f.length) setTimeout(() => badgeToast(f), 600); } duelGuard(); if ((view.name === 'duel' || view.name === 'quiz') && RANKED_STATE !== 2) return rankedGate(); if (view.name === 'duel') return renderDuel(); if (view.name === 'uni') return renderUni(); if (view.name === 'home') renderHome(); else if (view.name === 'shop') renderShop(); else if (view.name === 'avatar') renderAvatar(); else if (view.name === 'locker') renderLocker(); else if (view.name === 'catalog') renderCatalog(); else if (view.name === 'stats') renderStats(); else if (view.name === 'quiz') renderQuiz(); else if (view.name === 'web') renderWeb(); else if (view.name === 'lesson') renderLesson(); else if (view.name === 'project') renderProject(); else renderPlay(); }
 
 
 /* Online account card (Multiplayer → More). Honest about which mode the site is in. */
 function fbAccountHtml() {
   if (!dbUrl()) return '';
-  if (!fbOn()) return '<div class="card" id="fbAcc"><b style="font-family:var(--head)">🔓 Online play is in legacy mode</b><p class="pill" style="margin:6px 0 0">Player sign-in is not switched on for this site yet, so online names, friends and leaderboards are not protected against tampering. The site owner can switch on secure mode by following docs/FIREBASE_SETUP.md in the release.</p></div>';
+  if (!fbOn()) return '<div class="card" id="fbAcc"><b style="font-family:var(--head)">🔓 Online play is in legacy mode</b><p class="pill" style="margin:6px 0 0">Player sign-in is not switched on for this site yet, so online names, friends and leaderboards are not protected against tampering. The site owner can switch on secure mode by following docs/FIREBASE_SETUP.md in the release.</p></div>' + fbDeleteHtml();
   const em = FBA.email || (fbLoad() || {}).email || '';
   return '<div class="card" id="fbAcc"><b style="font-family:var(--head)">🔐 Online account</b>' +
     (em ? '<p class="pill" style="margin:6px 0 8px">Signed in as <b>' + esc(em) + '</b>. Your online name, friends and rank follow this account on any device.</p><button class="btn small" id="fbOut">Sign out on this device</button>'
       : '<p class="pill" style="margin:6px 0 8px">You are playing with an anonymous account that exists only in this browser. Add an email and password to keep your online name, friends and rank if you change device or clear your browser. This is optional. The email is stored by Google Firebase Authentication for sign-in only and is never shown to other players.</p>' +
         '<div class="row" style="gap:8px;flex-wrap:wrap"><input class="dinput" id="fbEm" type="email" autocomplete="email" placeholder="Email" aria-label="Email" style="flex:1;min-width:170px"><input class="dinput" id="fbPw" type="password" autocomplete="current-password" placeholder="Password (12+ characters)" aria-label="Password" style="flex:1;min-width:170px"></div>' +
         '<div class="row" style="gap:8px;margin-top:8px;flex-wrap:wrap"><button class="btn small primary" id="fbUp">Keep this player: add email</button><button class="btn small" id="fbIn">Sign in to an existing account</button></div>') +
-    '<p class="pill" id="fbMsg" role="status" aria-live="polite" style="margin:8px 0 0"></p></div>';
+    '<p class="pill" id="fbMsg" role="status" aria-live="polite" style="margin:8px 0 0"></p></div>' + fbDeleteHtml();
+}
+/* Delete my online data (4.1). Removes what this player can remove under the database rules: presence, leaderboard
+   entries, name, friend code, friend list (both sides), friend requests, invitations, inbox and party; in secure mode
+   also the ownership records and the sign-in account itself. Local progress on this device is not touched. */
+function fbDeleteHtml() {
+  return '<div class="card" id="fbDel" style="margin-top:10px"><b style="font-family:var(--head)">🗑 Delete my online data</b><p class="pill" style="margin:6px 0 8px">Removes your online name, leaderboard entries, friends, friend requests, invitations and friend code from the online service' + (fbOn() ? ', and deletes your online sign-in account' : '') + '. Your lessons, XP and University progress on this device are not affected. Requests you sent to other players may stay in their inbox until they dismiss them. Matches you played are not stored under your name.</p><button class="btn small" id="fbDelBtn" type="button">Delete my online data</button><p class="pill" id="fbDelMsg" role="status" aria-live="polite" style="margin:8px 0 0"></p></div>';
+}
+async function fbDeleteMe(progress) {
+  const d = duelInit(); if (!d.uid) return { done: [], failed: [] };
+  const pid = d.uid, done = [], failed = [];
+  if (fbOn()) await fbReady();
+  FBA.paused = true; FBA.deleting = true; // stop background polling; only the requests below go out
+  const direct = async (method, p) => { if (fbOn()) return fbRaw(method, p); const r = await fetch(dbUrl() + '/duel/' + p + '.json', { method }); if (!r.ok) throw new Error('db ' + r.status); return r.json(); };
+  const dbDel = (p) => direct('DELETE', p), dbGet = (p) => direct('GET', p);
+  const del = async (p) => { try { await dbDel(p); done.push(p); } catch (e) { failed.push(p); } };
+  try {
+  if (fbOn()) { try { await fbRaw('PUT', 'audit/' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8), { by: FBA.uid, pid, a: 'delete-account', d: '', t: TS }); } catch (e) { /* the audit entry is best effort */ } }
+  progress('Removing presence, leaderboard and name…');
+  await del('presence/' + pid); for (const m of [1, 2, 3, 4, 5]) await del('lb/' + m + '/' + pid);
+  if (d.nk) await del('names/' + d.nk); if (d.fc) await del('codes/' + d.fc);
+  progress('Removing friends, requests and invitations…');
+  for (const node of ['fl', 'frq', 'inv']) { let v = null; try { v = await dbGet(node + '/' + pid); } catch (e) { failed.push(node); } if (v && typeof v === 'object') for (const u of Object.keys(v)) { await del(node + '/' + pid + '/' + u); if (node === 'fl') await del('fl/' + u + '/' + pid); } }
+  await del('inbox/' + pid); await del('party/' + pid);
+  if (fbOn()) {
+    progress('Removing your online identity…');
+    await del('owners/' + pid); await del('uids/' + FBA.uid);
+    try { const tok = await fbToken(); await fbPost(FB_IDT + 'delete', { idToken: tok }); done.push('auth account'); } catch (e) { failed.push('auth account'); }
+    fbSignOut();
+  }
+  d.uid = ''; d.fc = null; d.nk = ''; d.frs = {}; save();
+  return { done, failed };
+  } finally { FBA.deleting = false; }
+}
+function fbDeleteBind() {
+  const b = $('#fbDelBtn'), m = $('#fbDelMsg'); if (!b) return; let armed = false;
+  b.addEventListener('click', async () => {
+    if (!armed) { armed = true; b.textContent = 'Press again to delete permanently'; m.textContent = 'This cannot be undone. Your online name and friends will be gone.'; return; }
+    b.disabled = true; try { const r = await fbDeleteMe((t) => { m.textContent = t; }); DP.fl = {}; DP.rq = {}; DP.inv = {}; m.textContent = r.failed.length ? 'Partly done. Some items could not be removed (' + r.failed.slice(0, 4).join(', ') + '). Check your connection and try again.' : 'Done. Your online data has been deleted. Taking you to the home page; a new anonymous player is created only if you open Multiplayer again.'; if (!r.failed.length) { toast('🗑 Online data deleted'); setTimeout(() => { if (view.name === 'duel') go({ name: 'home' }); }, 1800); } }
+    catch (e) { m.textContent = 'Could not reach the online service. Nothing more was deleted. Try again when you are online.'; b.disabled = false; armed = false; b.textContent = 'Delete my online data'; }
+  });
 }
 function fbAccountBind() {
+  fbDeleteBind();
   const msg = $('#fbMsg'); if (!msg) return;
   const act = async (kind) => { const em = $('#fbEm').value.trim(), pw = $('#fbPw').value; if (!em || pw.length < 6) { msg.textContent = 'Enter an email and a password of at least 6 characters.'; return; } msg.textContent = 'Working…'; try { await fbEmail(kind, em, pw); DP.fl = {}; DP.rq = {}; DP.inv = {}; renderDuel(); } catch (e) { msg.textContent = fbErrText(e); } };
   const up = $('#fbUp'), si = $('#fbIn'), out = $('#fbOut');
@@ -12560,7 +12617,7 @@ function rankedGate() {
 /* ===== Software Engineering University (lazy-loaded from ./uni/) =====
    Nothing in ./uni/ is downloaded until the student opens #/uni. The module gets
    the page internals it needs through this API object instead of globals. */
-const UNI_VER = '1.2.0';
+const UNI_VER = '1.6.0';
 let uniLoad = null;
 function uniApi() {
   return {
@@ -12607,7 +12664,7 @@ function renderHome() {
   const r = rankInfo(), st = streak(), done = doneTotal();
   const lk = S.lastLang && LANGS[S.lastLang] ? S.lastLang : 'py'; const ni = nextLessonIdx(lk); const nl = lessonsOf(lk)[ni];
   const cont = done === TOTAL ? '' : '<button class="continue" id="contBtn">' + badge(lk) + '<span class="ct"><small>' + (done ? 'Continue where you left off' : 'Start here') + '</small><b>' + LANGS[lk].name + ' · ' + (ni + 1) + '. ' + esc(nl.title) + '</b></span><span class="go">→</span></button>';
-  app.innerHTML = '<div class="wrap">' + topbar('<div class="crumb"><img src="icon-192.png" alt="" width="30" height="30" style="border-radius:8px"> Learn to Code</div>', '<button class="btn small uni-nav" id="uniBtn">🎓 University</button> <button class="btn small" id="avatarBtn">🧑 Avatar</button> <button class="btn small" id="lockerHomeBtn">🎒 Locker</button> <button class="btn small" id="catHomeBtn">📖 Catalog</button> <button class="btn small" id="shopBtn">🎁 Cosmetics Shop · ' + wallet() + ' XP</button> <button class="btn small" id="projBtn">🗂 Project</button> <button class="btn small" id="playBtn">⌨ Playground</button>') +
+  app.innerHTML = '<div class="wrap">' + topbar('<div class="crumb"><img src="icon-192.png" alt="" width="30" height="30" style="border-radius:8px"> Learn to Code</div>', '<button class="btn small uni-nav" id="uniBtn">🎓 University</button> <button class="btn small" id="avatarBtn">🧑 Avatar</button> <button class="btn small" id="lockerHomeBtn">🎒 Locker</button> <button class="btn small" id="catHomeBtn">📖 Catalog</button> <button class="btn small" id="shopBtn">🎁 Shop · ' + wallet() + ' XP to spend</button> <button class="btn small" id="projBtn">🗂 Project</button> <button class="btn small" id="playBtn">⌨ Playground</button>') +
     '<div class="homegrid"><div class="hero"><h1>From <em>first line</em> to <em>pro</em>.</h1><p>' + TOTAL + ' hands-on lessons in Python, JavaScript, TypeScript, C, C++, C# and SQL. Learn a concept, write real code, and get instant feedback. It all runs in your browser on Windows, iPad or anything else.</p>' + cont + '</div>' +
     myBanner() + '<div class="statcard"><div class="rankrow"><div><small>YOUR RANK</small><div class="rank">' + r.rank.name + titleHtml() + '</div></div><div class="streak" title="Days in a row you completed a lesson">🔥 <b>' + st + '</b><small>day' + (st === 1 ? '' : 's') + '</small></div></div>' +
     '<div class="bar"><div style="width:' + r.pct + '%"></div></div><div class="xpline"><span>' + r.x + ' XP</span><span>' + (r.next ? (r.next.xp - r.x) + ' XP to ' + r.next.name : 'Top rank reached!') + '</span></div>' +
@@ -12618,7 +12675,7 @@ function renderHome() {
     '<h2 class="sect">Command line</h2><div class="cards">' + termCardHtml('term') + '</div>' +
     '<h2 class="sect">Capstone</h2><div class="cards">' + termCardHtml('cloud') + '</div>' +
     achievementsHtml() +
-    '<div class="foot"><p>Progress, XP and your code are saved on this device only.</p><p><button class="btn small" id="pnOpen" type="button">📋 What\'s new</button></p><details class="backup"><summary>Backup and transfer between devices</summary><p>Press <b>Copy backup code</b>, then paste it into the box on your other device and press <b>Restore</b>.</p><div class="row"><button class="btn small" id="bkCopy">Copy backup code</button><span class="pill" id="bkMsg"></span></div><textarea id="bkBox" class="stdinbox" placeholder="Paste a backup code here" spellcheck="false"></textarea><div class="row" style="margin-top:8px"><button class="btn small" id="bkRestore">Restore from code</button></div></details><p><button class="btn small" id="resetAll">Reset all progress</button></p></div></div>';
+    '<div class="foot"><p>Progress, XP and your code are saved on this device only.</p><p><button class="btn small" id="pnOpen" type="button">📋 What\'s new</button></p>' + backupNudgeHtml() + '<details class="backup" id="bkDetails"><summary>Backup and restore your progress</summary><p>Your progress lives only in this browser. Safari can clear it if the site is not used for a while or storage runs low, so keep a backup file somewhere safe (Files, iCloud Drive, email to yourself).</p><div class="row" style="gap:8px;flex-wrap:wrap"><button class="btn small primary" id="bkFile" type="button">⬇ Download backup file</button><label class="btn small" for="bkPick" style="cursor:pointer">⬆ Restore from file</label><input type="file" id="bkPick" accept=".json,application/json" style="position:absolute;left:-9999px" aria-label="Choose a backup file to restore"></div><p class="pill" id="bkLast" style="margin:8px 0 0">' + backupLastText() + '</p><div id="bkPreview" aria-live="polite"></div><details style="margin-top:10px"><summary>Backup code (copy and paste instead of a file)</summary><div class="row"><button class="btn small" id="bkCopy" type="button">Copy backup code</button></div><textarea id="bkBox" class="stdinbox" placeholder="Paste a backup code here" spellcheck="false" aria-label="Backup code"></textarea><div class="row" style="margin-top:8px"><button class="btn small" id="bkRestore" type="button">Check this code</button></div></details><p class="pill" id="bkMsg" role="status" aria-live="polite" style="margin:8px 0 0"></p></details><p><button class="btn small" id="resetAll">Reset all progress</button></p></div></div>';
   bindTheme();
   $$('.lcard').forEach((b) => b.addEventListener('click', () => { const k = b.dataset.lang; go({ name: 'lesson', lang: k, idx: nextLessonIdx(k) }); }));
   const cb = $('#contBtn'); if (cb) cb.addEventListener('click', () => go({ name: 'lesson', lang: lk, idx: ni }));
@@ -12629,9 +12686,7 @@ function renderHome() {
   $('#avatarBtn').addEventListener('click', () => go({ name: 'avatar' }));
   $$('.dcard[data-dk]').forEach((b) => b.addEventListener('click', () => go({ name: 'lesson', lang: b.dataset.dk, idx: +b.dataset.di })));
   mountExtras(); bindHome();
-  const enc = () => btoa(unescape(encodeURIComponent(JSON.stringify({ v: 2, d: { done: S.done, code: S.code, cur: S.cur, pg: S.pg, quiz: S.quiz, days: S.days, badges: S.badges, fs: S.fs, spent: S.spent, bonus: S.bonus, owned: S.owned, equip: S.equip, doneAt: S.doneAt, daily: S.daily, web: S.web, quizDay: S.quizDay, duel: S.duel, uni: S.uni } }))));
-  $('#bkCopy').addEventListener('click', async () => { const t = enc(); const box = $('#bkBox'); box.value = t; try { await navigator.clipboard.writeText(t); $('#bkMsg').textContent = 'Copied! Paste it on your other device.'; } catch (e) { box.select(); $('#bkMsg').textContent = 'Select the code in the box and copy it.'; } });
-  $('#bkRestore').addEventListener('click', () => { try { const o = JSON.parse(decodeURIComponent(escape(atob($('#bkBox').value.trim())))); if (!o || !o.d) throw new Error('bad'); Object.assign(S, o.d); save(); render(); toast('✅ Progress restored'); } catch (e) { $('#bkMsg').textContent = 'That code is not valid.'; } });
+  bindBackup();
   $('#resetAll').addEventListener('click', () => { if (confirm('Erase all saved progress, XP and code on this device?')) { S = { done: {}, code: {}, cur: {}, pg: {}, theme: S.theme, quiz: {}, days: [], badges: {}, fs: S.fs, lastLang: null, spent: 0, bonus: 0, owned: {}, equip: {}, doneAt: {}, daily: {}, gh: {}, web: {}, quizDay: '' }; save(); render(); } });
 }
 
@@ -13408,6 +13463,7 @@ export const isAxiosError = axios.isAxiosError;
   }
 
   /* ---------- 4. view ---------- */
+  const inkOn = (hex) => { const L = (h) => { const c = [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16) / 255).map((x) => (x <= 0.03928 ? x / 12.92 : Math.pow((x + 0.055) / 1.055, 2.4))); return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]; }; const l = L(hex); return (1.05 / (l + 0.05)) >= 4.5 ? '#ffffff' : '#141a33'; };
   const BADGE = { js: ['JS', '#d9a400'], mjs: ['JS', '#d9a400'], ts: ['TS', '#2f74c0'], py: ['PY', '#3b8ad9'], c: ['C', '#6b7bd6'], cpp: ['C+', '#6b7bd6'], cs: ['C#', '#7a5cc7'], sql: ['SQ', '#c26b1d'], json: ['{}', '#8a8f2a'], md: ['MD', '#6a7490'], html: ['<>', '#d2552b'], css: ['#', '#2f9bd1'], txt: ['TXT', '#8a93b5'] };
   const CSS = `
 .ws{display:grid;grid-template-columns:260px minmax(0,1fr);border:1px solid var(--border);border-radius:10px;overflow:hidden;background:var(--surface);min-height:460px}
@@ -13418,18 +13474,18 @@ export const isAxiosError = axios.isAxiosError;
 .ws-vt.on{color:var(--text);border-bottom-color:var(--accent)}.ws-vt i{font-style:normal;background:var(--accent);color:var(--accent-ink);border-radius:9px;padding:0 6px;font-size:11px;margin-left:4px}
 .ws-sh{display:flex;align-items:center;gap:2px;padding:4px 6px 4px 12px;font-size:12px;color:var(--muted)}
 .ws-sh b{flex:1;font-weight:600}
-.ws-ib{background:none;border:0;color:var(--muted);width:28px;height:28px;border-radius:6px;cursor:pointer;font:600 14px var(--mono)}
+.ws-ib{background:none;border:0;color:var(--muted);width:36px;height:36px;border-radius:6px;cursor:pointer;font:600 14px var(--mono)}
 .ws-ib:hover,.ws-ib:focus-visible{background:var(--border);color:var(--text)}
 .ws-tree{overflow:auto;flex:1;padding:2px 0 8px;font-size:13px;-webkit-overflow-scrolling:touch}
-.ws-row{display:flex;align-items:center;gap:6px;height:30px;padding-right:4px;cursor:pointer;border-left:2px solid transparent;color:var(--text);position:relative;user-select:none}
+.ws-row{display:flex;align-items:center;gap:6px;height:38px;padding-right:4px;cursor:pointer;border-left:2px solid transparent;color:var(--text);position:relative;user-select:none}
 .ws-row:hover{background:color-mix(in srgb,var(--border) 55%,transparent)}
 .ws-row.sel{background:color-mix(in srgb,var(--accent) 14%,transparent);border-left-color:var(--accent)}
 .ws-chev{width:14px;text-align:center;font-size:10px;color:var(--muted);transition:transform .12s}.ws-chev.open{transform:rotate(90deg)}
-.ws-ic{font:700 9px var(--mono);min-width:18px;text-align:center}
+.ws-ic{font:700 10px var(--mono);min-width:22px;text-align:center;border-radius:4px;padding:2px 3px;line-height:1.2}
 .ws-name{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .ws-entry{color:var(--accent);font-size:10px}
 .ws-acts{display:none;gap:0}.ws-row.sel .ws-acts,.ws-row:hover .ws-acts{display:flex}
-.ws-acts button{background:none;border:0;color:var(--muted);width:26px;height:26px;border-radius:5px;cursor:pointer;font-size:13px}
+.ws-acts button{background:none;border:0;color:var(--muted);width:34px;height:34px;border-radius:5px;cursor:pointer;font-size:13px}
 .ws-acts button:hover{background:var(--border);color:var(--text)}
 .ws-in{flex:1;min-width:0;font:13px var(--mono);padding:2px 5px;border:1px solid var(--accent);border-radius:4px;background:var(--surface);color:var(--text)}
 .ws-in.bad{border-color:var(--bad)}.ws-err{color:var(--bad);font-size:11px;padding:2px 12px}
@@ -13452,7 +13508,7 @@ export const isAxiosError = axios.isAxiosError;
 .ws-toggle{flex:none;border-right:1px solid var(--border)}
 .ws-tab{display:flex;align-items:center;gap:6px;padding:0 6px 0 12px;height:36px;font-size:13px;color:var(--muted);border-right:1px solid var(--border);border-top:2px solid transparent;cursor:pointer;white-space:nowrap;flex:none}
 .ws-tab.on{background:var(--surface);color:var(--text);border-top-color:var(--accent)}
-.ws-tab button{background:none;border:0;color:inherit;width:20px;height:20px;border-radius:4px;cursor:pointer;font-size:14px;line-height:1}
+.ws-tab button{background:none;border:0;color:inherit;width:32px;height:32px;border-radius:4px;cursor:pointer;font-size:14px;line-height:1}
 .ws-tab button:hover{background:var(--border)}
 .ws-edit{min-width:0}.ws-empty{padding:48px 16px;text-align:center;color:var(--muted);font-size:13px}
 .ws-bar{display:flex;gap:8px;align-items:center;padding:8px 10px;border-top:1px solid var(--border);flex-wrap:wrap}
@@ -13463,7 +13519,7 @@ export const isAxiosError = axios.isAxiosError;
 .ws-tout{margin:0;padding:2px 12px 4px;max-height:210px;min-height:56px;overflow:auto;white-space:pre-wrap;word-break:break-word}
 .ws-tout .cmd{color:#7ee787}.ws-tout .bad{color:#ff8f86}.ws-tout .dim{color:#8b949e}.ws-tout .pbar{color:#8fa3ff}.ws-row.drop{outline:1px dashed var(--accent);outline-offset:-2px;background:color-mix(in srgb,var(--accent) 10%,transparent)}
 .ws-tin{display:flex;align-items:center;gap:8px;padding:6px 12px 10px}
-.ws-ps{color:#7ee787}.ws-tin input{flex:1;min-width:0;background:transparent;border:0;outline:0;color:inherit;font:inherit;caret-color:#7ee787}
+.ws-ps{color:#7ee787}.ws-tin input{flex:1;min-width:0;min-height:40px;padding:8px 0;background:transparent;border:0;outline:0;color:inherit;font:inherit;caret-color:#7ee787}
 .ws-out{padding:0 10px 10px}
 @media (max-width:700px){.ws{grid-template-columns:1fr}.ws-side{border-right:0;border-bottom:1px solid var(--border);max-height:340px}.ws.collapsed{grid-template-columns:1fr}}
 `;
@@ -13485,7 +13541,7 @@ export const isAxiosError = axios.isAxiosError;
       '<div class="ws-out"><div id="wsStdin"></div>' + outHolder + '</div></div></div>';
     const root = $('.ws', host), side = $('.ws-side', host), tabs = $('.ws-tabs', host), edHost = $('.ws-edit', host), status = $('.ws-status', host), runBtn = $('#wsRun', host), outEl = $('.out', host);
     const tout = $('.ws-tout', host), cmdIn = $('#wsCmd', host);
-    const badge = (n) => { const b = BADGE[extOf(n)] || ['··', '#8a93b5']; return '<span class="ws-ic" style="color:' + b[1] + '">' + b[0] + '</span>'; };
+    const badge = (n) => { const b = BADGE[extOf(n)] || ['··', '#8a93b5']; return '<span class="ws-ic" style="background:' + b[1] + ';color:' + inkOn(b[1]) + '">' + b[0] + '</span>'; };
     const targetDir = () => { const s = ui.sel; return !s ? '/' : store.isDir(s) ? s : dirname(s); };
     const reduced = () => typeof REDUCED !== 'undefined' && REDUCED;
 
@@ -13682,13 +13738,16 @@ function renderProject(track) {
   Workspace.mount($('#wshost'), { track, seed: S.ws[track] || Workspace.starter(track), persist: (st) => { S.ws[track] = st; save(); } });
 }
 
+let realPyP = null; // loads uni/realpy.js once; the Python itself is downloaded only when the student chooses it
+function realPyLoad() { if (window.LearnRealPython) return Promise.resolve(window.LearnRealPython); if (!realPyP) { window.LEARN_UNI_VER = UNI_VER; realPyP = uniScript('uni/realpy.js?v=' + UNI_VER).then(() => window.LearnRealPython, (e) => { realPyP = null; throw e; }); } return realPyP; }
 function renderPlay() {
   const lang = view.lang; S.playLang = lang; save();
   const code = S.pg[lang] !== undefined ? S.pg[lang] : PLAY_STARTERS[lang];
   app.innerHTML = '<div class="wrap">' + topbar('<button class="btn small" id="back">← Home</button><div class="crumb">⌨ Playground</div>') +
     '<div class="row" style="margin-bottom:12px"><div class="seg" role="tablist">' + LANG_ORDER.map((k) => '<button role="tab" data-l="' + k + '" class="' + (k === lang ? 'on' : '') + '">' + LANGS[k].name + '</button>').join('') + '</div><span class="pill">Free coding: write anything and run it.</span></div>' +
     (lang === 'js' && !JsEngine.canEval ? '<div class="warn">This browser blocks running JavaScript from the editor, so JavaScript cannot run here.</div>' : '') +
-    '<div class="playgrid"><section class="card"><div id="edhost"></div><div class="btns"><button class="btn primary" id="runBtn">▶ Run<span class="kbd">' + RUNKEY + '</span></button><button class="btn" id="resetBtn">Reset</button></div></section>' +
+    '<div class="playgrid"><section class="card"><div id="edhost"></div><div class="btns"><button class="btn primary" id="runBtn">▶ Run<span class="kbd">' + RUNKEY + '</span></button><button class="btn" id="resetBtn">Reset</button></div>' +
+    (lang === 'py' ? '<div class="row" style="gap:8px;margin-top:10px;flex-wrap:wrap;align-items:center"><label for="pyEng" class="pill" style="margin:0">Engine</label><select id="pyEng" class="dinput" style="min-height:44px;max-width:100%"><option value="teach"' + (S.pyEngine === 'real' ? '' : ' selected') + '>Learn teaching engine (offline)</option><option value="real"' + (S.pyEngine === 'real' ? ' selected' : '') + '>Real Python 3 (Pyodide)</option></select></div><p class="pill" id="pyEngNote" aria-live="polite" style="margin:8px 0 0"></p>' : '') + '</section>' +
     '<section class="card">' + stdinBox(lang) + outHolder + '</section></div></div>';
   bindTheme();
   $('#back').addEventListener('click', () => go({ name: 'home' }));
@@ -13699,9 +13758,14 @@ function renderPlay() {
     if (busy) return; bump('runs'); save(); const t = $('.stdinbox'); const t0 = performance.now();
     const remote = STATIC_LANGS.includes(lang); const rb = $('#runBtn'); const old = rb.innerHTML;
     if (remote) { busy = true; rb.disabled = true; rb.textContent = 'Running…'; outEl.innerHTML = '<div class="lab">OUTPUT</div><div class="dim">Running your code online… this can take a few seconds.</div>'; }
+    if (lang === 'py' && S.pyEngine === 'real') { busy = true; outEl.innerHTML = '<div class="lab">OUTPUT</div><div class="dim">' + (window.LearnRealPython && window.LearnRealPython.state === 'ready' ? 'Running real Python…' : 'Loading real Python (the first time this downloads about 7 MB)…') + '</div>';
+      let r; try { const R = await realPyLoad(); r = await R.run(ed.get(), t ? t.value : '', 10000); } catch (e) { S.pyEngine = 'teach'; save(); const sel = $('#pyEng'); if (sel) sel.value = 'teach'; $('#pyEngNote').textContent = 'Real Python could not be downloaded (offline, or this network blocks cdn.jsdelivr.net). Switched back to the teaching engine; press Run again.'; r = { out: '', error: 'Real Python is not available right now.' }; } finally { busy = false; }
+      showOut(outEl, { out: r.out || '', error: r.error || null }, lang, performance.now() - t0); return; }
     let r; try { r = await runCodeAsync(lang, ed.get(), t ? t.value : ''); } finally { if (remote) { busy = false; rb.disabled = false; rb.innerHTML = old; } }
     showOut(outEl, r, lang, performance.now() - t0);
   };
+  const pe = $('#pyEng'); if (pe) { const note = () => { $('#pyEngNote').textContent = pe.value === 'real' ? 'Real Python runs the full language in your browser. The first run downloads about 7 MB from the jsDelivr CDN; then it works offline. An endless loop is stopped after 10 seconds.' : 'The teaching engine runs the Python used in the lessons, instantly and offline.'; }; note();
+    pe.addEventListener('change', async () => { S.pyEngine = pe.value; save(); note(); if (pe.value === 'real') { try { const R = await realPyLoad(); $('#pyEngNote').textContent = 'Downloading Python…'; await R.load(); $('#pyEngNote').textContent = 'Real Python ' + (R.version || '3') + ' is ready.'; } catch (e) { pe.value = 'teach'; S.pyEngine = 'teach'; save(); $('#pyEngNote').textContent = 'Real Python could not be downloaded (offline, or this network blocks cdn.jsdelivr.net). Using the teaching engine.'; } } }); }
   ed = mountEditor($('#edhost'), lang, code, run, (v) => { S.pg[lang] = v; save(); });
   $('#runBtn').addEventListener('click', run);
   $('#resetBtn').addEventListener('click', () => { ed.set(''); const sb = $('.stdinbox'); if (sb) sb.value = ''; outEl.innerHTML = ''; ed.focus(); });
@@ -13718,8 +13782,8 @@ const REWARDS = [
   { id: 't-ninja', kind: 'title', name: 'Title: Code Ninja', icon: '🥷', cost: 100, text: '🥷 Code Ninja', desc: 'Shown under your rank on the home screen.' },
   { id: 't-bug', kind: 'title', name: 'Title: Bug Whisperer', icon: '🔍', cost: 150, text: '🔍 Bug Whisperer', desc: 'Shown under your rank on the home screen.' },
   { id: 'ac-ocean', kind: 'accent', name: 'Ocean accent', icon: '🌊', cost: 80, l: '#0b6fa8', d: '#6cc7ff', desc: 'Recolors buttons and highlights.' },
-  { id: 'ac-gold', kind: 'accent', name: 'Gold accent', icon: '🏅', cost: 100, l: '#a86b00', d: '#ffd24a', desc: 'Recolors buttons and highlights.' },
-  { id: 'ac-mint', kind: 'accent', name: 'Mint accent', icon: '🍃', cost: 80, l: '#0f8a6b', d: '#63e6be', desc: 'Recolors buttons and highlights.' },
+  { id: 'ac-gold', kind: 'accent', name: 'Gold accent', icon: '🏅', cost: 100, l: '#8f5b00', d: '#ffd24a', desc: 'Recolors buttons and highlights.' },
+  { id: 'ac-mint', kind: 'accent', name: 'Mint accent', icon: '🍃', cost: 80, l: '#0c7a5e', d: '#63e6be', desc: 'Recolors buttons and highlights.' },
   { id: 'ac-crimson', kind: 'accent', name: 'Crimson accent', icon: '🩸', cost: 80, l: '#b3122f', d: '#ff8a9b', desc: 'Recolors buttons and highlights.' },
   { id: 't-wizard', kind: 'title', name: 'Title: Syntax Wizard', icon: '🧙', cost: 150, text: '🧙 Syntax Wizard', desc: 'Shown under your rank on the home screen.' },
   { id: 't-champ', kind: 'title', name: 'Title: Duel Champion', icon: '🏆', cost: 200, text: '🏆 Duel Champion', desc: 'Shown under your rank on the home screen.' },
@@ -14044,7 +14108,7 @@ const myBanner = (text) => bannerHtml(lkInit().banner, text);
   '.tx-rainbow{background:linear-gradient(90deg,#ff3b3b,#ffb800,#3bd16f,#2ea0ff,#a855f7,#ff3b3b);background-size:200% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;-webkit-text-fill-color:transparent;animation:txRb 2s linear infinite}@keyframes txRb{to{background-position:200% 0}}' +
   '.tx-fire{background:linear-gradient(#ffd000,#ff5a00,#d10000);-webkit-background-clip:text;background-clip:text;color:transparent;-webkit-text-fill-color:transparent;animation:aeFl .6s ease-in-out infinite alternate}' +
   '.tx-gold{background:linear-gradient(100deg,#8a6a00 20%,#ffe27a 45%,#fff6c9 50%,#ffe27a 55%,#8a6a00 80%);background-size:250% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;-webkit-text-fill-color:transparent;animation:txRb 2.4s linear infinite}' +
-  '.tx-neon{color:#fff;text-shadow:0 0 4px #fff,0 0 10px #0ff,0 0 22px #0ff;animation:txNeon 1.6s ease-in-out infinite alternate}@keyframes txNeon{to{text-shadow:0 0 2px #fff,0 0 6px #f0f,0 0 16px #f0f}}' +
+  '.tx-neon{background:#141a33;padding:0 6px;border-radius:6px;color:#fff;text-shadow:0 0 4px #fff,0 0 10px #0ff,0 0 22px #0ff;animation:txNeon 1.6s ease-in-out infinite alternate}@keyframes txNeon{to{text-shadow:0 0 2px #fff,0 0 6px #f0f,0 0 16px #f0f}}' +
   '.tx-glitch{position:relative;animation:txGl 1.2s steps(2,end) infinite}@keyframes txGl{0%,90%{text-shadow:none;transform:none}92%{text-shadow:2px 0 #f0f,-2px 0 #0ff;transform:translateX(1px)}96%{text-shadow:-2px 0 #f0f,2px 0 #0ff;transform:translateX(-1px)}}' +
   '.tx-shake{animation:aeShake .45s linear infinite}.tx-pulse{animation:aeBeat 1.2s ease-in-out infinite}.tx-float{animation:aeFloat 2s ease-in-out infinite}' +
   '.lkgrid{display:grid;gap:8px;grid-template-columns:repeat(auto-fill,minmax(120px,1fr))}.lkitem{display:flex;flex-direction:column;align-items:center;gap:6px;text-align:center;padding:10px}.lkitem .embig{font-size:34px}.lkitem.on{outline:3px solid var(--accent);outline-offset:-3px}.lkcount{font-family:var(--head);font-weight:800}';
@@ -14982,12 +15046,61 @@ function dailyHtml() {
 const GH = 'https://api.github.com', GF = 'learn-to-code.json';
 function snapshot() { return { done: S.done, code: S.code, cur: S.cur, pg: S.pg, quiz: S.quiz, days: S.days, badges: S.badges, spent: S.spent, bonus: S.bonus, owned: S.owned, equip: S.equip, doneAt: S.doneAt, web: S.web, quizDay: S.quizDay, duel: S.duel, avatar: S.avatar, avatarOwned: S.avatarOwned, redeemed: S.redeemed, cnt: S.cnt, daily: S.daily, uni: S.uni }; }
 // University progress in cloud sync: union of both copies, never losing a completed item or an examination attempt.
+/* ===== Backup and restore (4.1) =====
+   A backup is a JSON file: { app: 'learn', v: 3, at, ver, d: { ...progress... } }. Restoring never trusts the file:
+   only known keys are read, each must have the right shape, prototype keys are dropped, and the student chooses
+   between merging (keeps the best of both, the default) and replacing. A preview is shown before anything changes. */
+const BK_KEYS = { done: 'o', code: 'o', cur: 'o', pg: 'o', quiz: 'o', days: 'a', badges: 'o', fs: 'n', spent: 'n', bonus: 'n', owned: 'o', equip: 'o', doneAt: 'o', daily: 'o', web: 'o', quizDay: 's', duel: 'o', uni: 'o', avatar: 'any', avatarOwned: 'o', redeemed: 'o', cnt: 'o', theme: 's', lastLang: 's', playLang: 's' };
+function backupPayload() { const d = {}; Object.keys(BK_KEYS).forEach((k) => { if (S[k] !== undefined && S[k] !== null) d[k] = S[k]; }); if (d.duel) { d.duel = Object.assign({}, d.duel); delete d.duel.uid; delete d.duel.fc; } return { app: 'learn', v: 3, at: new Date().toISOString(), ver: APP_VERSION, d }; }
+function backupParse(text) {
+  if (typeof text !== 'string' || text.length > 25e6) throw new Error('That file is too large to be a Learn backup.');
+  let t = text.trim(), o;
+  if (t[0] !== '{') { try { t = decodeURIComponent(escape(atob(t))); } catch (e) { throw new Error('That is not a Learn backup file or code.'); } }
+  try { o = JSON.parse(t, (k, v) => (k === '__proto__' || k === 'constructor' || k === 'prototype' ? undefined : v)); } catch (e) { throw new Error('That file is damaged or is not a Learn backup.'); }
+  if (!o || typeof o !== 'object' || !o.d || typeof o.d !== 'object' || Array.isArray(o.d)) throw new Error('That is not a Learn backup.');
+  if (o.app !== undefined && o.app !== 'learn') throw new Error('That backup is from a different app.');
+  const d = {}, isO = (x) => !!x && typeof x === 'object' && !Array.isArray(x);
+  Object.keys(BK_KEYS).forEach((k) => { const v = o.d[k], ty = BK_KEYS[k]; if (v === undefined || v === null) return;
+    if ((ty === 'o' && isO(v)) || (ty === 'a' && Array.isArray(v)) || (ty === 's' && typeof v === 'string' && v.length < 200) || (ty === 'n' && typeof v === 'number' && isFinite(v) && v >= 0 && v < 1e9) || ty === 'any') d[k] = v; });
+  if (Array.isArray(d.days)) d.days = d.days.filter((x) => typeof x === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(x)).slice(-4000);
+  if (!Object.keys(d).length) throw new Error('That backup contains no progress.');
+  return { d, at: typeof o.at === 'string' ? o.at.slice(0, 10) : '', ver: typeof o.ver === 'string' ? o.ver.slice(0, 10) : '' };
+}
+function backupSummary(d) { const u = d.uni && typeof d.uni === 'object' ? d.uni : {}; const n = (x) => (x && typeof x === 'object' ? Object.keys(x).length : 0); return [n(d.done) + ' lesson' + (n(d.done) === 1 ? '' : 's') + ' in the language courses', n(u.lessons) + ' University lesson' + (n(u.lessons) === 1 ? '' : 's'), Object.keys(u.exams || {}).length + ' University examination record' + (Object.keys(u.exams || {}).length === 1 ? '' : 's'), ((d.days || []).length) + ' study day' + ((d.days || []).length === 1 ? '' : 's')]; }
+function backupLastText() { return S.lastBackup ? 'Last backup file made on this device: ' + esc(S.lastBackup) + '.' : 'No backup file has been made on this device yet.'; }
+function backupNudgeHtml() { const have = Object.keys(S.done || {}).length + Object.keys((S.uni && S.uni.lessons) || {}).length; if (have < 5) return ''; const last = S.lastBackup ? Date.parse(S.lastBackup) : 0; if (last && Date.now() - last < 14 * 864e5) return ''; return '<p class="pill" id="bkNudge" style="margin:0 0 10px">💾 ' + (last ? 'Your last backup is more than two weeks old.' : 'You have progress that is not backed up.') + ' <a href="#bkDetails" id="bkNudgeGo">Make a backup file</a></p>'; }
+function backupApply(d, mode) {
+  if (mode === 'replace') { const keep = { theme: S.theme, gh: S.gh, lastBackup: S.lastBackup }; Object.keys(BK_KEYS).forEach((k) => { delete S[k]; }); Object.assign(S, { done: {}, code: {}, cur: {}, pg: {}, quiz: {}, days: [], badges: {}, fs: 15, spent: 0, bonus: 0, owned: {}, equip: {}, doneAt: {}, daily: {}, web: {}, quizDay: '' }, d, keep); if (d.theme) S.theme = d.theme; }
+  else { mergeIn(d); ['duel', 'quizDay', 'lastLang', 'playLang'].forEach((k) => { if (S[k] === undefined && d[k] !== undefined) S[k] = d[k]; }); S.fs = S.fs || d.fs || 15; }
+  save();
+}
+let bkAfter = '';
+function bindBackup() {
+  const msg = $('#bkMsg'), prev = $('#bkPreview'); if (!msg) return;
+  if (bkAfter) { $('#bkDetails').open = true; msg.textContent = bkAfter; bkAfter = ''; }
+  const ng = $('#bkNudgeGo'); if (ng) ng.addEventListener('click', (e) => { e.preventDefault(); const dt = $('#bkDetails'); dt.open = true; dt.scrollIntoView({ block: 'center' }); $('#bkFile').focus(); });
+  $('#bkFile').addEventListener('click', () => {
+    const day = dayStr(new Date()), blob = new Blob([JSON.stringify(backupPayload())], { type: 'application/json' });
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'learn-backup-' + day + '.json'; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1500);
+    S.lastBackup = day; save(); $('#bkLast').textContent = 'Last backup file made on this device: ' + day + '.'; const nd = $('#bkNudge'); if (nd) nd.remove();
+    msg.textContent = 'Backup file created. On iPad, choose "Save to Files" if asked, and keep it somewhere you will find again.';
+  });
+  const show = (text) => { let r; try { r = backupParse(text); } catch (e) { prev.innerHTML = ''; msg.textContent = e.message; return; }
+    msg.textContent = '';
+    prev.innerHTML = '<div class="card" style="margin-top:10px"><b>This backup' + (r.at ? ' was made on ' + esc(r.at) : '') + (r.ver ? ' with version ' + esc(r.ver) : '') + ' and contains:</b><ul>' + backupSummary(r.d).map((x) => '<li>' + esc(x) + '</li>').join('') + '</ul><p class="pill">Merge keeps everything you have on this device and adds what the backup has (best scores and all completed work are kept). Replace makes this device exactly match the backup.</p><div class="row" style="gap:8px;flex-wrap:wrap"><button class="btn small primary" id="bkMerge" type="button">Merge into this device</button><button class="btn small" id="bkReplace" type="button">Replace this device\'s progress</button><button class="btn small" id="bkCancel" type="button">Cancel</button></div></div>';
+    $('#bkMerge').addEventListener('click', () => { backupApply(r.d, 'merge'); prev.innerHTML = ''; bkAfter = 'Backup merged into this device.'; toast('✅ Backup merged'); render(); });
+    let armed = false; $('#bkReplace').addEventListener('click', (e) => { if (!armed) { armed = true; e.currentTarget.textContent = 'Press again to replace (this cannot be undone)'; return; } backupApply(r.d, 'replace'); prev.innerHTML = ''; bkAfter = 'This device now matches the backup.'; toast('✅ Progress replaced from backup'); render(); });
+    $('#bkCancel').addEventListener('click', () => { prev.innerHTML = ''; }); };
+  $('#bkPick').addEventListener('change', (e) => { const f = e.target.files && e.target.files[0]; if (!f) return; if (f.size > 25e6) { msg.textContent = 'That file is too large to be a Learn backup.'; return; } const rd = new FileReader(); rd.onload = () => show(String(rd.result)); rd.onerror = () => { msg.textContent = 'The file could not be read.'; }; rd.readAsText(f); e.target.value = ''; });
+  $('#bkCopy').addEventListener('click', async () => { const t = btoa(unescape(encodeURIComponent(JSON.stringify(backupPayload())))); const box = $('#bkBox'); box.value = t; try { await navigator.clipboard.writeText(t); msg.textContent = 'Copied. Paste it on your other device and press "Check this code".'; } catch (e) { box.select(); msg.textContent = 'Select the code in the box and copy it.'; } });
+  $('#bkRestore').addEventListener('click', () => show($('#bkBox').value));
+}
 function mergeUni(r) {
   const isO = (o) => !!o && typeof o === 'object' && !Array.isArray(o);
   if (!isO(r)) return; if (!isO(S.uni)) S.uni = {};
   const L = S.uni;
   ['lessons', 'videos', 'certs', 'bm', 'scratch', 'cv', 'goal'].forEach((k) => { if (isO(r[k])) L[k] = Object.assign({}, r[k], isO(L[k]) ? L[k] : {}); });
-  ['labs', 'projects', 'iv', 'arena', 'studio'].forEach((k) => { if (!isO(r[k])) return; if (!isO(L[k])) L[k] = {}; Object.keys(r[k]).forEach((id) => { const a = L[k][id], b = r[k][id]; if (!isO(b)) return; if (!isO(a)) L[k][id] = b; else if (k === 'labs' || k === 'iv' || k === 'studio') { if (b.pass && !a.pass) L[k][id] = Object.assign({}, b, { tries: Math.max(+a.tries || 0, +b.tries || 0) }); else a.tries = Math.max(+a.tries || 0, +b.tries || 0) || a.tries; } else if (k === 'arena') { if ((+b.score || 0) > (+a.score || 0)) L[k][id] = b; } else if (!a.at && b.at) L[k][id] = b; }); });
+  ['labs', 'projects', 'iv', 'arena', 'studio', 'git', 'mock', 'srs', 'notes'].forEach((k) => { if (!isO(r[k])) return; if (!isO(L[k])) L[k] = {}; Object.keys(r[k]).forEach((id) => { const a = L[k][id], b = r[k][id]; if (!isO(b)) return; if (!isO(a)) L[k][id] = b; else if (k === 'notes') { if (typeof b.t === 'string' && (String(b.at || '') > String(a.at || '') || (String(b.at || '') === String(a.at || '') && b.t.length > String(a.t || '').length))) L[k][id] = b; } else if (k === 'srs') { if (String(b.at || '') > String(a.at || '')) L[k][id] = b; } else if (k === 'mock') { /* same id = same session */ } else if (k === 'labs' || k === 'iv' || k === 'studio' || k === 'git') { if (b.pass && !a.pass) L[k][id] = Object.assign({}, b, { tries: Math.max(+a.tries || 0, +b.tries || 0) }); else a.tries = Math.max(+a.tries || 0, +b.tries || 0) || a.tries; } else if (k === 'arena') { if ((+b.score || 0) > (+a.score || 0)) L[k][id] = b; } else if (!a.at && b.at) L[k][id] = b; }); });
   if (isO(r.exams)) { if (!isO(L.exams)) L.exams = {}; Object.keys(r.exams).forEach((id) => { const a = Array.isArray(L.exams[id]) ? L.exams[id] : [], b = Array.isArray(r.exams[id]) ? r.exams[id] : []; const seen = new Set(a.map((x) => JSON.stringify(x))); L.exams[id] = a.concat(b.filter((x) => x && typeof x === 'object' && !seen.has(JSON.stringify(x)))).slice(-50); }); }
   if (isO(r.missed)) { if (!isO(L.missed)) L.missed = {}; Object.keys(r.missed).forEach((k) => { L.missed[k] = Math.max(+L.missed[k] || 0, +r.missed[k] || 0); }); }
   L.days = Array.from(new Set((Array.isArray(L.days) ? L.days : []).concat(Array.isArray(r.days) ? r.days : []))).sort();
@@ -15046,9 +15159,9 @@ applyRewards(); initAnalytics();
     { id: 'cf-ice', kind: 'confetti', name: 'Ice confetti', icon: '❄️', cost: 120, cols: ['#38bdf8', '#7dd3fc', '#e0f2fe', '#2563eb'], desc: C },
     { id: 'cf-fire', kind: 'confetti', name: 'Fire confetti', icon: '🔥', cost: 120, cols: ['#ef4444', '#f97316', '#facc15', '#b91c1c'], desc: C },
     { id: 'ac-teal', kind: 'accent', name: "Teal accent", icon: "🦚", cost: 90, l: '#0f766e', d: '#5eead4', desc: A },
-    { id: 'ac-amber', kind: 'accent', name: "Amber accent", icon: "🍯", cost: 90, l: '#b45309', d: '#fbbf24', desc: A },
+    { id: 'ac-amber', kind: 'accent', name: "Amber accent", icon: "🍯", cost: 90, l: '#a34a07', d: '#fbbf24', desc: A },
     { id: 'ac-sky', kind: 'accent', name: "Sky accent", icon: "☁️", cost: 90, l: '#0369a1', d: '#7dd3fc', desc: A },
-    { id: 'ac-lime', kind: 'accent', name: "Lime accent", icon: "🍏", cost: 90, l: '#4d7c0f', d: '#bef264', desc: A },
+    { id: 'ac-lime', kind: 'accent', name: "Lime accent", icon: "🍏", cost: 90, l: '#456f0c', d: '#bef264', desc: A },
     { id: 'ac-plum', kind: 'accent', name: "Plum accent", icon: "🍇", cost: 90, l: '#86198f', d: '#f0abfc', desc: A },
     { id: 'ac-coral', kind: 'accent', name: "Coral accent", icon: "🪸", cost: 90, l: '#c2410c', d: '#fdba74', desc: A },
     { id: 'ac-indigo', kind: 'accent', name: "Indigo accent", icon: "🌌", cost: 90, l: '#4338ca', d: '#a5b4fc', desc: A },
@@ -15704,9 +15817,9 @@ function renderQuiz() {
     app.innerHTML = '<div class="wrap">' + topbar('<button class="btn small" id="back">← Home</button><div class="crumb">⚡ Speed round</div>') + '<div class="card" style="text-align:center"><h2>' + QZ.score + ' / ' + QZ.qs.length + '</h2><p>' + (first ? 'Daily bonus: <b>+' + gain + ' XP</b>' : 'You already claimed today’s bonus. Come back tomorrow for more XP.') + '</p><div class="btns" style="justify-content:center"><button class="btn primary" id="again">Play again</button></div></div></div>';
     bindTheme(); $('#back').addEventListener('click', back); $('#again').addEventListener('click', () => { QZ = null; renderQuiz(); }); if (first && QZ.score > 0) confetti(); return;
   }
-  const [k, l] = QZ.qs[QZ.i], q = l.quiz, qp = quizProgram(k, q);
+  const [k, l] = QZ.qs[QZ.i], q = l.quiz, qp = quizShow(k, q);
   app.innerHTML = '<div class="wrap">' + topbar('<button class="btn small" id="back">← Home</button><div class="crumb">⚡ Speed round</div>', '<span class="pill">' + (QZ.i + 1) + ' / ' + QZ.qs.length + ' · ' + QZ.score + ' correct</span>') +
-    '<section class="card quizcard"><div class="quiz"><h3>' + LANGS[k].name + ': what does this print?</h3><pre class="codeblock">' + hl(qp.display, k) + '</pre><div class="opts">' + q.options.map((o, j) => '<button class="opt" data-o="' + j + '">' + esc(o) + '</button>').join('') + '</div><div class="why" aria-live="polite"></div><div class="btns" style="margin-top:10px"><button class="btn primary" id="nxt" style="display:none">' + (QZ.i + 1 === QZ.qs.length ? 'See score' : 'Next →') + '</button></div></div></section></div>';
+    '<section class="card quizcard"><div class="quiz"><h3>' + LANGS[k].name + ': ' + esc(qp.ask) + '</h3>' + (qp.display ? '<pre class="codeblock">' + hl(qp.display, k) + '</pre>' : '') + '<div class="opts">' + q.options.map((o, j) => '<button class="opt" data-o="' + j + '">' + esc(o) + '</button>').join('') + '</div><div class="why" aria-live="polite"></div><div class="btns" style="margin-top:10px"><button class="btn primary" id="nxt" style="display:none">' + (QZ.i + 1 === QZ.qs.length ? 'See score' : 'Next →') + '</button></div></div></section></div>';
   bindTheme(); $('#back').addEventListener('click', back);
   let miss = false;
   $$('.opt').forEach((b) => b.addEventListener('click', () => {
@@ -15852,7 +15965,7 @@ function loadRanked() {
 const _duelPools = {};
 const duelLangPool = (k) => { if (_duelPools[k]) return _duelPools[k]; const p = []; lessonsOf(k).forEach((l) => { if (l.quiz) p.push(l.quiz); }); (BONUS_QUIZ[k] || []).forEach((q) => p.push(q)); _duelPools[k] = p; return p; };
 /* Fair picking for every match type (ranked, unranked, rooms, practice):
-   each selected language has the same chance, and inside a language every question of the 2,500-question bank has the same chance. */
+   each selected language has the same chance, and inside a language every question of that language's bank has the same chance. */
 function duelBankRange(k) { const L = duelLangPool(k).length; const ex = (RANKED_EXTRA_QUESTIONS && Array.isArray(RANKED_EXTRA_QUESTIONS[k])) ? RANKED_EXTRA_QUESTIONS[k].length : 0; return ex && ex <= L ? [L - ex, L] : [0, L]; }
 function duelPickRefs(langs, n) {
   const ls = (langs && langs.length ? langs : LANG_ORDER).filter((k) => LANGS[k]); const used = new Set(), out = []; let guard = 0;
@@ -15894,7 +16007,7 @@ function dbUrl() {
    With FB_API_KEY empty the app runs in LEGACY mode exactly as before (open database). See docs/FIREBASE_SETUP.md. */
 const FB_AUTH_KEY = 'learn-fb-auth';
 const FB_IDT = 'https://identitytoolkit.googleapis.com/v1/accounts:', FB_STS = 'https://securetoken.googleapis.com/v1/token';
-const FBA = { tok: null, exp: 0, uid: null, email: '', ready: null, admin: false, pid: null };
+const FBA = { tok: null, exp: 0, uid: null, email: '', ready: null, admin: false, pid: null, paused: false, deleting: false };
 const fbOn = () => !!FB_API_KEY && !!dbUrl();
 function fbStore(v) { try { if (v) localStorage.setItem(FB_AUTH_KEY, JSON.stringify(v)); else localStorage.removeItem(FB_AUTH_KEY); } catch (e) {} }
 function fbLoad() { try { const v = JSON.parse(localStorage.getItem(FB_AUTH_KEY) || 'null'); return v && typeof v.rt === 'string' ? v : null; } catch (e) { return null; } }
@@ -15908,7 +16021,8 @@ function fbSet(idToken, refreshToken, uid, expiresIn, email) {
   FBA.tok = idToken; FBA.uid = uid; FBA.exp = Date.now() + (Math.max(60, +expiresIn || 3600) * 1000); FBA.email = email || '';
   fbStore({ rt: refreshToken, uid, email: FBA.email });
 }
-async function fbToken() { // a valid ID token, signing in anonymously the first time
+async function fbToken() {
+  if (FBA.paused && !FBA.deleting) throw new Error('online requests paused'); // a valid ID token, signing in anonymously the first time
   if (!fbOn()) return null;
   if (FBA.tok && Date.now() < FBA.exp - 60000) return FBA.tok;
   const st = fbLoad();
@@ -15959,7 +16073,7 @@ const fbErrText = (e) => { const c = String((e && e.code) || (e && e.message) ||
 /* Append-only audit trail of security-sensitive actions (secure mode only). Readable by administrators only. */
 function fbAudit(action, detail) { if (!fbOn() || !FBA.uid) return; const id = Date.now().toString(36) + Math.random().toString(36).slice(2, 8); fbRaw('PUT', 'audit/' + id, { by: FBA.uid, pid: FBA.pid || '', a: String(action).slice(0, 40), d: String(detail || '').slice(0, 120), t: { '.sv': 'timestamp' } }).catch(() => {}); }
 async function dbReq(method, path, body) {
-  const u = dbUrl(); if (!u) throw new Error('no db');
+  const u = dbUrl(); if (!u) throw new Error('no db'); if (FBA.paused) throw new Error('online requests paused');
   if (fbOn()) { await fbReady(); try { return await fbRaw(method, path, body); } catch (e) { if (e.status !== 401) throw e; return fbRaw(method, path, body); } } // one retry with a fresh token
   const r = await fetch(u + '/duel/' + path + '.json', { method, body: body === undefined ? undefined : JSON.stringify(body) });
   if (!r.ok) throw new Error('db ' + r.status);
@@ -16987,11 +17101,11 @@ function duelScoreHtml(D) {
   return h;
 }
 function duelQView() {
-  const D = DU, e = D.qs[D.i], qp = quizProgram(e.k, e.q);
+  const D = DU, e = D.qs[D.i], qp = quizShow(e.k, e.q);
   app.innerHTML = duelWrap('<button class="btn small" id="ff">Forfeit</button><div class="crumb">⚔️ ' + esc(duelLangName(D.lang)) + ' ' + duelModeName(D.n) + '</div>', '<span class="pill">Question ' + (D.i + 1) + ' / ' + D.NQ + '</span>',
     duelScoreHtml(D) +
     '<section class="card quizcard"><div class="bar"><div id="dtbar" style="width:100%;transition:none"></div></div><div class="xpline" style="margin-top:6px"><span id="dtime">' + D.T.toFixed(1) + 's</span><span>faster = more points</span></div>' +
-    '<div class="quiz" style="margin-top:8px"><h3>' + LANGS[e.k].name + ': ' + quizAsk(e.q) + (D.online && D.n > 1 && e.d ? ' <small class="pill" style="font-weight:800">' + DUEL_DIFF_LABEL[e.d] + '</small>' : '') + '</h3><pre class="codeblock">' + hl(qp.display, e.k) + '</pre><div class="opts">' + e.opts.map((o, j) => '<button class="opt" data-o="' + j + '">' + esc(o) + '</button>').join('') + '</div><div class="why" id="dwhy" aria-live="polite"></div></div></section>');
+    '<div class="quiz" style="margin-top:8px"><h3>' + LANGS[e.k].name + ': ' + esc(qp.ask) + (D.online && D.n > 1 && e.d ? ' <small class="pill" style="font-weight:800">' + DUEL_DIFF_LABEL[e.d] + '</small>' : '') + '</h3>' + (qp.display ? '<pre class="codeblock">' + hl(qp.display, e.k) + '</pre>' : '') + '<div class="opts">' + e.opts.map((o, j) => '<button class="opt" data-o="' + j + '">' + esc(o) + '</button>').join('') + '</div><div class="why" id="dwhy" aria-live="polite"></div></div></section>');
   bindTheme();
   $('#ff').addEventListener('click', () => { if (confirm('Forfeit this match?' + (D.ranked ? ' It counts as a loss.' : ''))) { if (D.online) duelFinishOnline('ff'); else duelFinish(true); } });
   $$('.opt').forEach((b) => b.addEventListener('click', () => duelAnswer(+b.dataset.o)));
@@ -17107,12 +17221,41 @@ function makeCard(lang) {
 document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeDrawer(); });
 
 /* ---------- patch notes (pop up once per update; brand-new players never see old notes) ---------- */
-const APP_VERSION = '4.0';
+const APP_VERSION = '4.4';
 const PATCH_NOTES = [
+  { v: '4.4', date: 'Nov 13, 2026', title: '📚 More questions for eight languages, and a worked example in every lesson', items: [
+    'Quiz and match questions: 608 new questions for Java, Go, Rust, PHP, Ruby, Swift, Kotlin and Bash. Each of those languages now has between 109 and 126 distinct questions (it was 15 before 4.3, and 30–40 in 4.3). The whole bank now holds 5,671 distinct questions.',
+    'Every "What does this print?" question for Java, Go, Rust, PHP, Ruby and Bash was run with the real compiler or interpreter to confirm the answer, as were the Python and JavaScript ones. Swift and Kotlin questions were checked by hand only, because those compilers were not available.',
+    'University: the 65 lessons that had no worked example now have one, so every one of the 327 lessons includes at least one. The new examples are mostly in Stages 4 to 6 and the electives: calculations shown step by step, plans, tables and before-and-after fixes.',
+  ] },
+  { v: '4.3', date: 'Nov 13, 2026', title: '🧹 Honest question bank, fixes and polish everywhere', items: [
+    'Correction: earlier notes said the quiz and multiplayer bank had 37,500 questions. Most were repeats: there were about 2,900 distinct questions, and only 15 each for Java, Go, Rust, PHP, Ruby, Swift, Kotlin and Bash. The bank now holds 5,063 distinct questions with no repeats, including 200 new hand-written questions for those eight languages.',
+    'Quiz and match questions now show the actual question ("Which keyword declares a class?") instead of "what does this print?" above unrelated code. 200 C and C++ questions that used Java/C# syntax were rewritten in real C and C++, and C comparison questions now give the correct answer (0 or 1). Every question that prints output was checked by running it.',
+    'Java, Go, Rust and the other online languages are no longer shown wrapped in a C-style main() in quizzes.',
+    'University lessons: fixed the layout of every Knowledge check (it had been squeezed into narrow columns since 3.1). Eighteen beginner lessons gained a "Common mistakes" section and an extra check.',
+    'Playground: the Python engine switch from the University lab is now in the main Playground too (real Python 3 via Pyodide, downloaded on first use).',
+    'Readability: language badges, difficulty labels, the Beginner tier label, terminal hints and the neon text style now meet the WCAG AA contrast ratio. Breadcrumb links, disclosure toggles, workspace icon buttons and terminal inputs are larger and easier to tap. A clearer theme button icon.',
+  ] },
+  { v: '4.2', date: 'Nov 13, 2026', title: '🐍 Real Python, longer electives and lesson notes', items: [
+    'University → Labs → Python: a new Engine switch lets you run real Python 3 (Pyodide) in your browser instead of Learn\'s teaching engine. The first time it downloads about 7 MB from the jsDelivr CDN, then it is kept on this device for offline use. Programs run in the background, so an endless loop is stopped after 10 seconds without freezing the page. Real Python is for experimenting only: graded assignments always use the teaching engine.',
+    'Six more electives now have six lessons instead of four: Computer Graphics (colour, blending and anti-aliasing; GPUs and shaders), Game AI (steering behaviours and flocking; procedural generation), Embedded Systems (power and battery life; debugging and testing), Memory and Storage (flash and data integrity; booting and safe updates), Android and iOS (lifecycle and state; cross-platform approaches) and Mobile Data (push notifications and background work; performance and accessibility). All ten department electives now have six lessons.',
+    'New 📝 My notes box at the bottom of every lesson. Notes save as you type, stay private on this device, travel in your backups, and can be searched and downloaded from My study → My notes.',
+  ] },
+  { v: '4.1', date: 'Nov 13, 2026', title: '💾 Backups, spaced review, a Git simulator and mock interviews', items: [
+    'Backup files: the backup section at the foot of the home page can now save your whole progress as a file (Files, iCloud Drive or email) and restore it. You see what a backup contains before anything changes, and you choose to merge it with this device or replace this device\'s progress. A reminder appears when you have progress that has not been backed up for two weeks.',
+    'University: 🔁 Review. Questions you get wrong come back the next day; answer correctly and they return in 3 days, then 7, then count as mastered. It works across lesson checks, examinations, finals and the weekly challenge.',
+    'University: ⌨️ Git and terminal simulator (Labs). A pretend computer in the page with ten graded tasks: folders and files, copying and deleting, searching a log, first commit, .gitignore, finding a commit in the history, branches, merging, resolving a merge conflict and undoing safely. It checks the result, not the exact commands, and works offline.',
+    'Career centre: timed mock interviews (30 or 45 minutes) with a warm-up question, a coding exercise marked by tests, a technical question and a behavioural question, then a report with what to work on. Six new interview coding exercises (12 in total).',
+    'Projects: a printable portfolio page built from your real record, with the sections you choose. Print it, save it as a PDF, or download it as a web page.',
+    'Calculus, Linear Algebra, Numerical Methods and Human-Computer Interaction now have six lessons each instead of four (differential equations, probability with calculus, bases and orthogonality, least squares, interpolation, optimisation and Monte Carlo, forms and errors, information architecture), with new exam questions.',
+    'Multiplayer → More: "Delete my online data" removes your online name, leaderboard entries, friends, requests, invitations and friend code (and, in secure mode, your online account). Your progress on this device is not touched.',
+    'Accessibility: code comments in the light theme and four shop accent colours (Gold, Mint, Amber, Lime) were darkened so text meets the WCAG AA contrast ratio. All 24 theme text colour pairs and all 21 accents are now checked automatically.',
+    'Videos: every video\'s ID and title were matched against public listings again; each video page shows the date of that check.',
+  ] },
   { v: '4.0', date: 'Nov 12, 2026', title: '🔐 Security, ten new courses, visualiser and practice studio', items: [
     'Security: the multiplayer database can now be locked down. Learn supports Firebase sign-in, per-player ownership rules, administrator accounts managed in the Firebase console instead of a password in the page, and an audit log. This is switched on by the site owner (docs/FIREBASE_SETUP.md); until then the Multiplayer page says plainly that the database is in legacy mode.',
     'New "Online account" card on Multiplayer → More: in secure mode you play with an anonymous account and can add an email and password to keep your identity across devices.',
-    'Faster start: the 37,500-question ranked bank is no longer inside the page. The home page download fell from about 10 MB to 1.5 MB; the bank loads when you open Quiz or Multiplayer and is kept for offline use.',
+    'Faster start: the ranked question bank (described here as 37,500 questions; corrected in 4.3: it held about 2,900 distinct questions, repeated) is no longer inside the page. The home page download fell from about 10 MB to 1.5 MB; the bank loads when you open Quiz or Multiplayer and is kept for offline use.',
     'University: ten new department electives, each with four lessons, a tested assignment, an examination and a project: Computer Graphics, Game AI/Physics/Animation, Embedded Systems, Memory/Storage/Hardware Interfaces, Android and iOS Platform Development, Mobile Data/Networking/Security/Release, Human-Computer Interaction, Numerical Methods, Calculus and Linear Algebra. Electives never change the 52-course programme or graduation.',
     'New 📊 Algorithm visualiser (Labs): step through five sorting algorithms, linear and binary search, a stack, queue and binary search tree, and recursion with the call stack. Every step is also described in words.',
     'New 🎯 Practice studio (Labs): 27 exercises in debugging, code review, SQL, normalisation, test writing (your tests must catch faulty implementations) and system design. Practice results never count toward certificates.',
@@ -17177,7 +17320,7 @@ const PATCH_NOTES = [
     'New updates are picked up automatically: reload once or twice after we publish a new version.'
   ] },
   { v: '2.1', date: 'Oct 20, 2026', title: 'Fair questions everywhere', items: [
-    'Ranked, unranked, room and practice matches now all use the full 37,500-question bank (2,500 per language).',
+    'Ranked, unranked, room and practice matches now all use the full question bank. (This note said 37,500 questions, 2,500 per language; corrected in 4.3: most were repeats. See the 4.3 notes.)',
     'Every language has the same chance to show up, and every question in a language has the same chance too.',
     'A question never repeats inside the same match.',
     'Patch notes are here! You will see them once after each update. Find them again any time at the bottom of the home page.'

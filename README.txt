@@ -1,10 +1,53 @@
-08Raph Learn 4.0: security, ten new courses, visualiser and practice studio
+08Raph Learn 4.4: more questions for eight languages, a worked example in every lesson
+
+NEW IN 4.4
+- 608 new questions for Java, Go, Rust, PHP, Ruby, Swift, Kotlin and Bash (109-126 each now). Bank: 5,671
+  distinct questions. Upload the new ranked_extra.json (1.6 MB).
+- Every University lesson now has a worked example (65 lessons gained one).
+- New tool tests/check-bank-native.py checks answers with real compilers (970 checked, 0 wrong).
+- sw.js cache is now learn-v4.4.
+
+08Raph Learn 4.3: honest question bank, fixes and polish
+
+NEW IN 4.3
+- CORRECTION: the quiz/multiplayer bank was advertised as 37,500 questions; it really held about 2,900 distinct
+  ones. It now has 5,063 distinct questions, every runnable one checked by running it. Upload the new
+  ranked_extra.json (1.2 MB instead of 8.5 MB).
+- Quiz headings show the real question. University knowledge-check layout fixed. Contrast and tap-target fixes
+  found by a full screen audit. Real Python switch in the Playground. Common-mistakes sections in 18 lessons.
+- sw.js cache is now learn-v4.3. New: tests/audit-screens.js, tests/check-bank.js.
+
+08Raph Learn 4.2: real Python, longer electives, lesson notes
+
+NEW IN 4.2
+- Labs > Python: Engine switch for real Python (Pyodide, downloaded from jsDelivr on first use, then offline).
+  NOT TESTED against the real Pyodide here (the CDN was blocked): check it on the live site, see docs/TESTING.md.
+- All ten department electives now have six lessons. Lesson notes with a searchable My notes page.
+- New files: uni/realpy.js, uni/realpy-worker.js, tests/e2e-realpy.js. sw.js cache is now learn-v4.2.
+
+08Raph Learn 4.1: backups, spaced review, Git simulator, mock interviews, portfolio
 
 READ FIRST
-- docs/FIREBASE_SETUP.md   how to lock down the multiplayer database (NOT live until you do it)
+- docs/FIREBASE_SETUP.md   how to lock down the multiplayer database (NOT live until you do it).
+                           If secure mode is already on: re-publish the rules file, it changed in 4.1.
 - docs/DEPLOYMENT.md       how to upload, and the manual actions this release asks of you
 - docs/TESTING.md          what was tested, with counts, and what could not be tested
 - docs/SECURITY.md  docs/PRIVACY.md  docs/COMMUNITY.md  docs/ACADEMIC_AUDIT.md  CHANGELOG.md
+
+NEW IN 4.1
+- Home page: download a backup file and restore it (preview, then merge or replace). Backup reminder.
+- University: Review tab (missed questions return after 1, 3 and 7 days), Git and terminal simulator with
+  10 graded tasks (Labs), timed mock interviews (Career centre), printable portfolio page (Projects).
+- MAT 101, MAT 102, NUM 101, HCI 101 extended to six lessons each. 12 interview coding exercises.
+- Multiplayer > More: Delete my online data.
+- Contrast fixes (light-theme code comments; Gold, Mint, Amber, Lime accents). Video IDs re-checked.
+- New files: uni/uni-tools.js, uni/gitsim.js, tests/e2e-tools.js. sw.js cache is now learn-v4.1.
+- Run the tests: sh tests/run-all.sh
+
+----------------------------------------------------------------------
+EARLIER RELEASE NOTES
+----------------------------------------------------------------------
+08Raph Learn 4.0: security, ten new courses, visualiser and practice studio
 
 NEW IN 4.0
 - Firebase security: sign-in support, strict rules (firebase/database.rules.json), console-managed
@@ -68,7 +111,7 @@ Upload to GitHub (Pages)
 3. Site: https://08raph.github.io/Learn/  (all paths are relative, so it also works on Netlify).
 
 Update 2.1 notes
-- All match types (ranked, unranked, rooms, practice) draw from the 37,500-question bank: each language equally likely, each question in a language equally likely.
+- All match types (ranked, unranked, rooms, practice) draw from the shared question bank (this note originally said 37,500 questions; corrected in 4.3: about 2,900 distinct; 5,063 since the 4.3 rebuild): each language equally likely, each question in a language equally likely.
 - Patch notes pop up once per update for existing players; brand-new players never see them. Re-open any time from "What's new" at the bottom of the home page.
 - To add notes for your next update, edit APP_VERSION and add an entry at the TOP of PATCH_NOTES in index.html (search for "PATCH_NOTES").
 - Players on an older version can't be matched with players on 2.1 online (the question bank changed), so ask everyone to refresh.

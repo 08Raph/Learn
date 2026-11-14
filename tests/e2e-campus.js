@@ -87,7 +87,7 @@ const R = []; const ok = (n, c, x) => R.push((c ? 'PASS ' : 'FAIL ') + n + (x ? 
     const [cvdl] = await Promise.all([p.waitForEvent('download'), p.locator('#cvDown').click()]); const cv = fs.readFileSync(await cvdl.path(), 'utf8');
     ok('CV downloads as HTML with no executable injection', /<h1>Test Student<\/h1>/.test(cv) && !/<script>window/.test(cv) && !/<img src=x/.test(cv) && /&lt;img/.test(cv));
     await p.waitForTimeout(2500); await p.reload(); await p.waitForTimeout(900); await go('#/uni/career/cv'); ok('CV fields persist after reload', /Junior developer/.test(await p.locator('[data-cv="headline"]').inputValue()));
-    await go('#/uni/career/interview'); ok('interview: 6 coding exercises and 14 technical questions', await p.locator('.u-ivq').count() === 14 && /Two sum/.test(await text()));
+    await go('#/uni/career/interview'); ok('interview: 12 coding exercises and 14 technical questions', await p.locator('.u-ivq').count() === 14 && /Two sum/.test(await text()));
     await p.locator('.u-ivq summary').first().click(); await p.locator('.u-ivq').first().locator('[data-rev]').click();
     ok('interview: key points hidden until an answer is written', await p.locator('.u-ivq').first().locator('.u-ivkey').isHidden());
     await go('#/uni/career/interview/iv-two-sum'); const s2 = await UE(() => window.UNI_DEPTS.coding[0].solution);
@@ -138,8 +138,8 @@ const R = []; const ok = (n, c, x) => R.push((c ? 'PASS ' : 'FAIL ') + n + (x ? 
 
     /* ---- service worker ---- */
     await p.evaluate(() => navigator.serviceWorker.ready); await p.waitForTimeout(1500);
-    const keys = await p.evaluate(() => caches.keys()); ok('service worker: only the current cache exists', keys.length === 1 && keys[0] === 'learn-v4.0', keys.join(','));
-    const cached = await p.evaluate(async () => { const c = await caches.open('learn-v4.0'); const ks = (await c.keys()).map((r) => new URL(r.url).pathname); return ['uni/uni-campus.js', 'uni/data/departments.js', 'uni/university.js'].every((f) => ks.some((k) => k.endsWith(f))); });
+    const keys = await p.evaluate(() => caches.keys()); ok('service worker: only the current cache exists', keys.length === 1 && keys[0] === 'learn-v4.4', keys.join(','));
+    const cached = await p.evaluate(async () => { const c = await caches.open('learn-v4.4'); const ks = (await c.keys()).map((r) => new URL(r.url).pathname); return ['uni/uni-campus.js', 'uni/data/departments.js', 'uni/university.js'].every((f) => ks.some((k) => k.endsWith(f))); });
     ok('service worker: new University files are precached', cached);
     await ctx.setOffline(true); await p.goto(BASE + '#/uni/dashboard').catch(() => {}); await p.goto(BASE + '#/uni/departments').catch(() => {}); await p.waitForTimeout(1500); t = await text().catch(() => '');
     ok('offline: departments page works from cache', /Eight departments/.test(t)); await ctx.setOffline(false);

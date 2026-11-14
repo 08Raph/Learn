@@ -137,3 +137,17 @@ server you control.
 - **Offline:** the University's core files are cached with the app. Each course file is cached the first
   time it is opened, so courses you have visited work offline afterwards.
 - Certificates are images generated in the browser. They are a personal record, not a qualification.
+
+## 4.2 modules
+- `realpy.js` + `realpy-worker.js` (lazy): real Python via Pyodide in a Web Worker, used only by the open Python
+  lab when `S.uni.pyEngine === 'real'`. Pinned to `https://cdn.jsdelivr.net/pyodide/v0.26.4/full/`; to upgrade,
+  change it in `realpy-worker.js` and `sw.js` together.
+- Lesson notes: `S.uni.notes['<course>:<lesson>'] = { t, at }`; page `#/uni/notes` (in `uni-campus.js`).
+
+## 4.1 modules
+- `uni-tools.js` (lazy): Review (`#/uni/review`), Git and terminal simulator (`#/uni/terminal`, tasks in `TASKS`),
+  mock interview (`#/uni/career/mock`), portfolio (`#/uni/portfolio`). State: `S.uni.srs`, `S.uni.git`, `S.uni.mock`.
+- `gitsim.js`: the simulator itself, usable in the browser (`window.GitSim`) and in Node (`require`). To add a task,
+  add an entry to `TASKS` with `setup(sim)`, `goal`, `hints`, `sol` and `checks(sim)` returning `[label, boolean]`
+  pairs, then run `node tests/e2e-tools.js`: every task must fail before any command and pass with its `sol`.
+- Review keys are the same as `S.uni.missed`: `course:x<item>` for exam questions, `course:<lesson>:<check>` for lessons.

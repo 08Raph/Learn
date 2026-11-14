@@ -653,6 +653,7 @@ export const isAxiosError = axios.isAxiosError;
   }
 
   /* ---------- 4. view ---------- */
+  const inkOn = (hex) => { const L = (h) => { const c = [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16) / 255).map((x) => (x <= 0.03928 ? x / 12.92 : Math.pow((x + 0.055) / 1.055, 2.4))); return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]; }; const l = L(hex); return (1.05 / (l + 0.05)) >= 4.5 ? '#ffffff' : '#141a33'; };
   const BADGE = { js: ['JS', '#d9a400'], mjs: ['JS', '#d9a400'], ts: ['TS', '#2f74c0'], py: ['PY', '#3b8ad9'], c: ['C', '#6b7bd6'], cpp: ['C+', '#6b7bd6'], cs: ['C#', '#7a5cc7'], sql: ['SQ', '#c26b1d'], json: ['{}', '#8a8f2a'], md: ['MD', '#6a7490'], html: ['<>', '#d2552b'], css: ['#', '#2f9bd1'], txt: ['TXT', '#8a93b5'] };
   const CSS = `
 .ws{display:grid;grid-template-columns:260px minmax(0,1fr);border:1px solid var(--border);border-radius:10px;overflow:hidden;background:var(--surface);min-height:460px}
@@ -663,18 +664,18 @@ export const isAxiosError = axios.isAxiosError;
 .ws-vt.on{color:var(--text);border-bottom-color:var(--accent)}.ws-vt i{font-style:normal;background:var(--accent);color:var(--accent-ink);border-radius:9px;padding:0 6px;font-size:11px;margin-left:4px}
 .ws-sh{display:flex;align-items:center;gap:2px;padding:4px 6px 4px 12px;font-size:12px;color:var(--muted)}
 .ws-sh b{flex:1;font-weight:600}
-.ws-ib{background:none;border:0;color:var(--muted);width:28px;height:28px;border-radius:6px;cursor:pointer;font:600 14px var(--mono)}
+.ws-ib{background:none;border:0;color:var(--muted);width:36px;height:36px;border-radius:6px;cursor:pointer;font:600 14px var(--mono)}
 .ws-ib:hover,.ws-ib:focus-visible{background:var(--border);color:var(--text)}
 .ws-tree{overflow:auto;flex:1;padding:2px 0 8px;font-size:13px;-webkit-overflow-scrolling:touch}
-.ws-row{display:flex;align-items:center;gap:6px;height:30px;padding-right:4px;cursor:pointer;border-left:2px solid transparent;color:var(--text);position:relative;user-select:none}
+.ws-row{display:flex;align-items:center;gap:6px;height:38px;padding-right:4px;cursor:pointer;border-left:2px solid transparent;color:var(--text);position:relative;user-select:none}
 .ws-row:hover{background:color-mix(in srgb,var(--border) 55%,transparent)}
 .ws-row.sel{background:color-mix(in srgb,var(--accent) 14%,transparent);border-left-color:var(--accent)}
 .ws-chev{width:14px;text-align:center;font-size:10px;color:var(--muted);transition:transform .12s}.ws-chev.open{transform:rotate(90deg)}
-.ws-ic{font:700 9px var(--mono);min-width:18px;text-align:center}
+.ws-ic{font:700 10px var(--mono);min-width:22px;text-align:center;border-radius:4px;padding:2px 3px;line-height:1.2}
 .ws-name{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .ws-entry{color:var(--accent);font-size:10px}
 .ws-acts{display:none;gap:0}.ws-row.sel .ws-acts,.ws-row:hover .ws-acts{display:flex}
-.ws-acts button{background:none;border:0;color:var(--muted);width:26px;height:26px;border-radius:5px;cursor:pointer;font-size:13px}
+.ws-acts button{background:none;border:0;color:var(--muted);width:34px;height:34px;border-radius:5px;cursor:pointer;font-size:13px}
 .ws-acts button:hover{background:var(--border);color:var(--text)}
 .ws-in{flex:1;min-width:0;font:13px var(--mono);padding:2px 5px;border:1px solid var(--accent);border-radius:4px;background:var(--surface);color:var(--text)}
 .ws-in.bad{border-color:var(--bad)}.ws-err{color:var(--bad);font-size:11px;padding:2px 12px}
@@ -697,7 +698,7 @@ export const isAxiosError = axios.isAxiosError;
 .ws-toggle{flex:none;border-right:1px solid var(--border)}
 .ws-tab{display:flex;align-items:center;gap:6px;padding:0 6px 0 12px;height:36px;font-size:13px;color:var(--muted);border-right:1px solid var(--border);border-top:2px solid transparent;cursor:pointer;white-space:nowrap;flex:none}
 .ws-tab.on{background:var(--surface);color:var(--text);border-top-color:var(--accent)}
-.ws-tab button{background:none;border:0;color:inherit;width:20px;height:20px;border-radius:4px;cursor:pointer;font-size:14px;line-height:1}
+.ws-tab button{background:none;border:0;color:inherit;width:32px;height:32px;border-radius:4px;cursor:pointer;font-size:14px;line-height:1}
 .ws-tab button:hover{background:var(--border)}
 .ws-edit{min-width:0}.ws-empty{padding:48px 16px;text-align:center;color:var(--muted);font-size:13px}
 .ws-bar{display:flex;gap:8px;align-items:center;padding:8px 10px;border-top:1px solid var(--border);flex-wrap:wrap}
@@ -708,7 +709,7 @@ export const isAxiosError = axios.isAxiosError;
 .ws-tout{margin:0;padding:2px 12px 4px;max-height:210px;min-height:56px;overflow:auto;white-space:pre-wrap;word-break:break-word}
 .ws-tout .cmd{color:#7ee787}.ws-tout .bad{color:#ff8f86}.ws-tout .dim{color:#8b949e}.ws-tout .pbar{color:#8fa3ff}.ws-row.drop{outline:1px dashed var(--accent);outline-offset:-2px;background:color-mix(in srgb,var(--accent) 10%,transparent)}
 .ws-tin{display:flex;align-items:center;gap:8px;padding:6px 12px 10px}
-.ws-ps{color:#7ee787}.ws-tin input{flex:1;min-width:0;background:transparent;border:0;outline:0;color:inherit;font:inherit;caret-color:#7ee787}
+.ws-ps{color:#7ee787}.ws-tin input{flex:1;min-width:0;min-height:40px;padding:8px 0;background:transparent;border:0;outline:0;color:inherit;font:inherit;caret-color:#7ee787}
 .ws-out{padding:0 10px 10px}
 @media (max-width:700px){.ws{grid-template-columns:1fr}.ws-side{border-right:0;border-bottom:1px solid var(--border);max-height:340px}.ws.collapsed{grid-template-columns:1fr}}
 `;
@@ -730,7 +731,7 @@ export const isAxiosError = axios.isAxiosError;
       '<div class="ws-out"><div id="wsStdin"></div>' + outHolder + '</div></div></div>';
     const root = $('.ws', host), side = $('.ws-side', host), tabs = $('.ws-tabs', host), edHost = $('.ws-edit', host), status = $('.ws-status', host), runBtn = $('#wsRun', host), outEl = $('.out', host);
     const tout = $('.ws-tout', host), cmdIn = $('#wsCmd', host);
-    const badge = (n) => { const b = BADGE[extOf(n)] || ['··', '#8a93b5']; return '<span class="ws-ic" style="color:' + b[1] + '">' + b[0] + '</span>'; };
+    const badge = (n) => { const b = BADGE[extOf(n)] || ['··', '#8a93b5']; return '<span class="ws-ic" style="background:' + b[1] + ';color:' + inkOn(b[1]) + '">' + b[0] + '</span>'; };
     const targetDir = () => { const s = ui.sel; return !s ? '/' : store.isDir(s) ? s : dirname(s); };
     const reduced = () => typeof REDUCED !== 'undefined' && REDUCED;
 

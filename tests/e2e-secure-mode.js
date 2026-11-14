@@ -17,6 +17,7 @@ async function backend(route) {
     if (u.pathname.endsWith(':signUp')) { const uid = 'authAnon' + (++seq); accounts[uid] = {}; return json(route, 200, tokenFor(uid)); }
     if (u.pathname.endsWith(':signInWithPassword')) { const uid = Object.keys(accounts).find((k) => accounts[k].email === b.email && accounts[k].pw === b.password); return uid ? json(route, 200, tokenFor(uid)) : json(route, 400, { error: { message: 'INVALID_LOGIN_CREDENTIALS' } }); }
     if (u.pathname.endsWith(':update')) { const uid = String(b.idToken || '').replace('tok.', ''); if (!accounts[uid]) return json(route, 400, { error: { message: 'INVALID_ID_TOKEN' } }); if (Object.keys(accounts).some((k) => accounts[k].email === b.email)) return json(route, 400, { error: { message: 'EMAIL_EXISTS' } }); accounts[uid] = { email: b.email, pw: b.password }; return json(route, 200, tokenFor(uid)); }
+    if (u.pathname.endsWith(':delete')) { const uid = String(b.idToken || '').replace('tok.', ''); if (!accounts[uid]) return json(route, 400, { error: { message: 'INVALID_ID_TOKEN' } }); delete accounts[uid]; return json(route, 200, {}); }
     return json(route, 404, {}); }
   if (u.hostname === 'securetoken.googleapis.com') { const rt = new URLSearchParams(req.postData() || '').get('refresh_token') || ''; const uid = rt.replace('rt.', ''); return accounts[uid] ? json(route, 200, { id_token: 'tok.' + uid, refresh_token: rt, user_id: uid, expires_in: '3600' }) : json(route, 400, { error: { message: 'INVALID_REFRESH_TOKEN' } }); }
   // Realtime Database REST
@@ -81,6 +82,20 @@ async function backend(route) {
     await B2.p.locator('#fbEm').fill('student@example.test'); await B2.p.locator('#fbPw').fill('a long enough password'); await B2.p.locator('#fbIn').click(); await B2.p.waitForTimeout(2500);
     const pid2 = await B2.p.evaluate(() => { const s = JSON.parse(localStorage.getItem('learn-code-v2')); return s.duel && s.duel.uid; });
     ok('signing in on a second device restores the same online identity', pid2 === aPid, pid2 + ' vs ' + aPid);
+    /* delete my online data (4.1), from the second device, against the real rules */
+    db.duel.fl = Object.assign({}, db.duel.fl, { [aPid]: { ufriend00001: { n: 'Friend' } }, ufriend00001: { [aPid]: { n: 'Me' } } }); db.duel.presence = Object.assign({}, db.duel.presence, { [aPid]: { n: 'Me', h: 1 } });
+    db.duel.lb = Object.assign({}, db.duel.lb, { 1: Object.assign({}, (db.duel.lb || {})[1], { [aPid]: { n: 'Me', r: 900, w: 1, l: 0, d: 0, b: 900, at: 1 } }) });
+    const deniedBefore = denied.length; const acctsBefore = Object.keys(accounts).length; const progBefore = await B2.p.evaluate(() => Object.keys(JSON.parse(localStorage.getItem('learn-code-v2')) || {}).length);
+    await A.ctx.close();
+    await B2.p.goto(BASE + '#/duel'); await B2.p.waitForTimeout(1500); await B2.p.locator('[data-tab="more"]').click(); await B2.p.waitForTimeout(400);
+    ok('delete-my-data card is shown and explains what is removed', /Delete my online data/.test(await B2.p.locator('#fbDel').innerText()) && /not affected/.test(await B2.p.locator('#fbDel').innerText()));
+    await B2.p.locator('#fbDelBtn').click(); await B2.p.waitForTimeout(300); const armedTxt = await B2.p.locator('#fbDelBtn').innerText();
+    ok('deletion needs a second press', /again/i.test(armedTxt) && db.duel.owners[aPid] === aAuth);
+    await B2.p.locator('#fbDelBtn').click(); await B2.p.waitForFunction(() => { const m = document.querySelector('#fbDelMsg'); return m && /deleted|Partly|Could not/.test(m.innerText); }, null, { timeout: 20000 }); const delMsg = await B2.p.locator('#fbDelMsg').innerText(); await B2.p.waitForTimeout(4000);
+    ok('delete: presence, leaderboard entry and both sides of the friendship are removed', !(db.duel.presence || {})[aPid] && !((db.duel.lb || {})[1] || {})[aPid] && !(db.duel.fl || {})[aPid] && !((db.duel.fl || {}).ufriend00001 || {})[aPid], JSON.stringify({ fl: db.duel.fl, pres: Object.keys(db.duel.presence || {}) }));
+    ok('delete: ownership records and the sign-in account are removed', !(db.duel.owners || {})[aPid] && !(db.duel.uids || {})[aAuth] && !accounts[aAuth], delMsg);
+    ok('delete: every deletion was allowed by the rules', !denied.slice(deniedBefore).some((d) => /^DELETE/.test(d)), denied.slice(deniedBefore).join(' ; '));
+    { const au = Object.values(db.duel.audit || {}).some((x) => x.a === 'delete-account'), la = await B2.p.evaluate(() => localStorage.getItem('learn-fb-auth')), pa = await B2.p.evaluate(() => Object.keys(JSON.parse(localStorage.getItem('learn-code-v2')) || {}).length); ok('delete: recorded in the audit log, success message shown, local progress untouched, and no new online identity is created afterwards', au && /has been deleted/.test(delMsg) && progBefore <= pa && !la && Object.keys(accounts).length === acctsBefore - 1 && await B2.p.evaluate(() => location.hash === '#/' || location.hash === ''), JSON.stringify({ au, la, pa, progBefore, accts: Object.keys(accounts), acctsBefore })); }
     ok('no JavaScript errors in secure mode', A.errs.concat(ADM.errs, B2.errs).length === 0, A.errs.concat(ADM.errs, B2.errs).join(' | '));
     /* legacy mode still works untouched when no key is configured */
     const ctx = await b.newContext(); const L = await ctx.newPage(); const calls = []; await ctx.route(/identitytoolkit|securetoken/, (r) => { calls.push(1); r.abort(); }); await ctx.route(/firebaseio\.com|fonts\./, (r) => r.abort());

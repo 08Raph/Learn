@@ -11,14 +11,14 @@
       "owners": {
         "$pid": {
           ".read": "auth != null",
-          ".write": "auth != null && !data.exists() && newData.val() === auth.uid",
+          ".write": "auth != null && ((!data.exists() && newData.val() === auth.uid) || (data.val() === auth.uid && !newData.exists()))",
           ".validate": "$pid.matches(/^u[a-z0-9]{6,24}$/)"
         }
       },
       "uids": {
         "$uid": {
           ".read": "auth != null && auth.uid === $uid",
-          ".write": "auth != null && auth.uid === $uid && !data.exists() && newData.isString() && root.child('duel/owners').child(newData.val()).val() === auth.uid"
+          ".write": "auth != null && auth.uid === $uid && ((!data.exists() && newData.isString() && root.child('duel/owners').child(newData.val()).val() === auth.uid) || !newData.exists())"
         }
       },
 

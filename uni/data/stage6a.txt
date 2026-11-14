@@ -61,6 +61,20 @@ A list of aspirations ("we will be cloud-native and AI-first") is not a strategy
 ### Judgement
 There is no formula. Principal engineers are valued for judgement formed from seeing many systems succeed and fail, and for the honesty to say "it depends, and here is on what".
 
+### Worked example
+A company debates rewriting its monolith as microservices. An architecture decision record captures the strategic reasoning.
+
+```text
+ADR-014: Keep the monolith; extract only the billing module
+Context:  40 engineers; deploys are slow because billing changes need finance sign-off.
+Options:  full microservices (12 months), modular monolith, extract billing only.
+Decision: extract billing as one service; modularise the rest internally.
+Because:  solves the actual bottleneck (release coupling) at a fraction of the cost.
+Consequences: one new network boundary to operate; revisit in 12 months.
+```
+
+Architecture serves business goals: solve the constraint that actually hurts, and record why, so the decision can be revisited when the context changes.
+
 > Key idea: Architecture at this level is the set of decisions that are expensive to change and that determine what the organisation can do. Rank the quality attributes, say what you are giving up, and align the teams with the structure.
 #Q What makes a technical strategy more than a list of goals?
 - It is longer
@@ -195,6 +209,23 @@ Models are only as good as their data. An architecture for machine learning need
 
 ### Cost
 Data grows without limit unless something stops it. Storage is cheap per unit and expensive in aggregate, and every copy multiplies it. Tier old data to cheaper storage, set retention deliberately, and measure the cost of each data product.
+
+### Worked example
+An e-commerce platform separates transactional data from analytics instead of running reports on the live database.
+
+```text
+Orders DB (PostgreSQL, OLTP)  ──change data capture──▶  Event stream
+                                                              │
+                                     ┌────────────────────────┴──────┐
+                                     ▼                               ▼
+                         Data warehouse (OLAP)               Search index
+                         daily sales, cohorts                product search
+
+Rules: the orders DB is the source of truth; consumers are read-only and
+may lag by seconds; every event has a schema version.
+```
+
+Separating workloads protects checkout from heavy reports, and an explicit source of truth with versioned events keeps the copies consistent and evolvable.
 
 > Key idea: Decide who owns each fact, make data contracts explicit, and treat residency and retention as architectural constraints, not afterthoughts.
 #Q Why should each important piece of data have exactly one system of record?
@@ -338,6 +369,21 @@ The **DORA** measures capture delivery performance: deployment frequency, lead t
 
 ### The role
 A principal engineer governs mainly through influence: writing clearly, asking the question nobody asked, teaching, and being right often enough to be trusted. Authority that has to be invoked has already partly failed.
+
+### Worked example
+A lightweight governance process keeps 30 teams' architecture coherent without a central bottleneck.
+
+```text
+Principles (one page): APIs first · each service owns its data · no shared DB tables
+Paved road:   templates for new services with logging, auth and CI built in
+Decisions:    teams write ADRs; significant ones get a 30-minute review
+Fitness functions (automated):
+  - build fails if a service imports another service's database client
+  - alert if p95 latency of a public API exceeds its SLO
+Tech radar:   adopt / trial / assess / hold, reviewed quarterly
+```
+
+Encoding rules as templates and automated checks scales better than review meetings, and the radar makes technology choices visible and deliberate.
 
 > Key idea: Encode architectural intent as automated checks, manage technical debt by the interest it charges, and finish migrations by turning the old system off.
 #Q What is an architectural fitness function?
@@ -715,6 +761,20 @@ Perfect security is unattainable and unaffordable. The principal engineer's task
 ### Regulation
 Requirements for breach notification, operational resilience and security practice are increasing in many sectors. Design the evidence trail in: it is far cheaper than reconstructing it for an audit.
 
+### Worked example
+Security as an organisational capability: a quarterly scorecard shared with leadership.
+
+```text
+Metric                                    Q1     Q2     Target
+Critical vulns fixed within 7 days         61%    84%    95%
+Services with SSO + MFA                    70%    92%    100%
+Staff completing phishing training         88%    95%    95%
+Mean time to detect a test intrusion       9 h    3 h    1 h
+Security champions per engineering team    4/12   10/12  12/12
+```
+
+Measuring capabilities over time, not just counting incidents, shows whether security is improving and where investment is needed.
+
 > Key idea: At scale, security comes from defaults and platforms that make whole classes of mistake impossible, backed by the ability to patch everything quickly and to notice when something is wrong.
 #Q What is the most scalable way to eliminate a class of vulnerability such as SQL injection across thousands of engineers?
 - Annual training
@@ -790,6 +850,21 @@ Time to detect, time to mitigate, repeat incidents, and the completion rate of a
 ### Psychological safety
 Research on team effectiveness consistently finds that teams where people can speak up, admit mistakes and ask questions without fear perform better. It is a precondition for learning from failure, and leaders create or destroy it through how they react to bad news.
 
+### Worked example
+A blameless post-incident review after checkout was down for 47 minutes.
+
+```text
+Impact:    47 min; about 3,100 failed checkouts.
+Timeline:  14:02 deploy · 14:05 errors spike · 14:19 alert fires · 14:31 rollback
+           starts · 14:49 recovered
+Cause:     a config change set the payment timeout to 0.5 s instead of 5 s.
+Contributing factors: no validation of config values; alert threshold too high.
+Actions:   validate config in CI (owner: A., due 1 Jun) · lower alert threshold
+           (B., 25 May) · canary deploys for payment config (C., 15 Jun)
+```
+
+Blameless reviews ask how the system allowed the mistake, and every action has an owner and a date, so the organisation actually learns.
+
 > Key idea: Mitigate first, then learn. Treat every incident as information about the system, including the human and organisational parts of it, and finish the actions.
 #Q What is the incident commander's job?
 - To find the bug personally
@@ -862,6 +937,21 @@ You cannot enumerate every failure. Build general capabilities: fast rollback, l
 
 ### Maturity
 Organisations progress from reactive (fix what breaks), through proactive (prevent known failures), to **adaptive**: learning from every signal and deliberately probing their own limits. The aim is not zero incidents. It is fast detection, small impact, quick recovery and continual learning.
+
+### Worked example
+A game day verifies that the system really survives the loss of a database replica.
+
+```text
+Hypothesis: if one read replica fails, p95 latency stays under 300 ms and no
+            errors reach users.
+Blast radius: staging first, then 5% of production traffic, business hours only.
+Inject:     stop replica 2.
+Observe:    p95 rose to 410 ms for 4 minutes; zero errors.
+Finding:    connection pool took 4 min to drop the dead replica.
+Fix:        shorter health-check interval; re-run next month.
+```
+
+Chaos experiments turn resilience from an assumption into evidence, starting small and stopping if the impact exceeds the agreed limit.
 
 > Key idea: Untested resilience is assumed resilience. Break things on purpose, restore backups for real, and make the recovery path so routine that an actual disaster is a drill you have already run.
 #Q In a chaos experiment, what must be defined before any failure is injected?
@@ -1111,6 +1201,20 @@ People copy what senior engineers do, not what they say. If you cut corners on t
 ### Disagree and commit
 Argue your position fully. Once a decision is made by those entitled to make it, support it wholeheartedly, and say so. Continuing to resist, or complying while signalling disapproval, destroys trust. If the matter is one of ethics or safety, that is different: escalate.
 
+### Worked example
+A senior engineer wants three teams to adopt a shared logging format, without authority over any of them.
+
+```text
+1. Find the pain: incident reviews show 40% of debugging time is spent matching logs.
+2. Build allies: pair with one interested team; ship the format there first.
+3. Make it easy: a library that adds the format in one line; docs with examples.
+4. Show evidence: that team's incident diagnosis time fell from 50 to 20 minutes.
+5. Ask small: "Could you try it in one service this sprint?"
+6. Credit others: present the results with the pilot team, not alone.
+```
+
+Influence comes from solving people's real problems, lowering the cost of saying yes, and sharing credit.
+
 > Key idea: At senior levels your output is other people's improved results. Influence is earned through trust, clear writing and generosity, and is spent on the problems that matter most.
 #Q On what does influence without authority mainly depend?
 - Job title
@@ -1185,6 +1289,22 @@ Strategy rests on assumptions. Write them down, and watch for evidence that they
 ### Saying no
 Strategy is mostly about what **not** to do. A senior engineer must be able to decline good ideas that do not fit, and to explain why in a way that keeps the proposer's goodwill.
 
+### Worked example
+A one-page technical strategy for a team whose releases are slow and risky.
+
+```text
+Diagnosis:   releases take 2 weeks; 1 in 5 causes an incident; tests are flaky.
+Guiding policy: make small, safe, frequent releases the default.
+Coherent actions (next two quarters):
+  1. Quarantine and fix the 30 flakiest tests.
+  2. Trunk-based development with feature flags.
+  3. Automated canary deploys with rollback.
+Measures:   deploy frequency, change failure rate, lead time.
+Not doing:  rewriting the frontend this year.
+```
+
+A strategy diagnoses the real problem, chooses a direction and says what will not be done, so effort concentrates where it matters.
+
 > Key idea: Diagnose the real problem, choose an approach that excludes things, and line up the actions. Then repeat it until people can make the right call without asking you.
 #Q According to the "kernel" of good strategy, what comes first?
 - A list of goals
@@ -1249,6 +1369,22 @@ Hiring shapes the team for years. Define what the role requires, assess it with 
 
 ### Letting go
 As people grow, hand over ownership, including of things you built and care about. Then let them do it differently from how you would.
+
+### Worked example
+Feedback to a junior engineer, using the situation–behaviour–impact model, then a growth plan.
+
+```text
+Situation:  "In yesterday's design review..."
+Behaviour:  "...you presented the caching plan with clear diagrams and answered
+             the latency question with data."
+Impact:     "The team approved it in one meeting instead of three."
+Next:       "For the next review, could you also write down the options you
+             rejected and why?"
+
+Growth plan: lead one small design per quarter; pair on on-call; review 3 PRs a week.
+```
+
+Specific, observable feedback is easy to act on, and a concrete plan turns it into growth rather than a compliment.
 
 > Key idea: Your leverage is the growth of the people around you. Delegate real outcomes, give specific and honest feedback, sponsor people actively, and make it safe to be wrong.
 #Q What is the difference between mentoring and sponsoring?
@@ -1321,6 +1457,22 @@ Write things down, default to asynchronous communication, make decisions visible
 ### Sustainable pace
 Sustained overtime lowers output and quality and drives people away. Occasional pushes are survivable; a permanent crunch is a management failure. Burnout is caused by conditions (overload, lack of control, unfairness, values in conflict), not by weakness.
 
+### Worked example
+A team lead plans a quarter's delivery with explicit capacity instead of hope.
+
+```text
+Engineers 6 × 12 weeks = 72 engineer-weeks
+  − holidays and training            −8
+  − on-call and support (20%)       −13
+  − unplanned work buffer (15%)     −8
+  = about 43 weeks for roadmap work
+
+Committed:   search improvements (20), billing migration (15)
+Stretch:     mobile notifications (12) — only if the above finish early
+```
+
+Planning with real capacity, protected support time and a buffer makes commitments credible and avoids the burnout of permanent overcommitment.
+
 > Key idea: A manager's output is the team's output. Give people autonomy, mastery and purpose, treat estimates as ranges, limit work in progress, and protect a sustainable pace.
 #Q What does Brooks's law state?
 - Small teams are always slow
@@ -1392,6 +1544,18 @@ Communication is two-way. Ask questions, restate what you heard, and attend to w
 
 ### Credibility
 It accumulates slowly and is lost quickly. Be accurate, including about uncertainty. Meet commitments or renegotiate them early. Never overstate. Say "I don't know, I will find out", and then find out.
+
+### Worked example
+Explain a database migration's delay to an executive in four sentences.
+
+```text
+Bottom line:  "The migration will finish on 30 June, four weeks later than planned."
+Why:          "Testing found that 3% of old records are corrupt and must be repaired first."
+Impact:       "Customers are not affected; the cost is about 4 extra engineer-weeks."
+Ask:          "No decision is needed; I will update you on 1 June." 
+```
+
+Executives need the conclusion first, the reason in plain words, the business impact, and whether they must act.
 
 > Key idea: Start with the conclusion, speak in terms of money, time, risk and customers, offer options with a recommendation, and bring bad news early with a plan.
 #Q How should a message to a busy executive begin?
@@ -1477,6 +1641,20 @@ It is far easier to hold a line you have thought about in advance. Decide what y
 
 ### Your own career
 Keep learning, since the field changes constantly. Build breadth with one or two areas of depth. Find mentors and be one. Choose where you work with attention to what it does and how it treats people. Protect your health. A career is long.
+
+### Worked example
+Introducing blameless post-incident reviews into a team where people have been blamed for outages.
+
+```text
+Step 1  Leaders go first: the manager writes up a mistake they made.
+Step 2  Template asks "what made this easy to get wrong?", never "who?".
+Step 3  Actions target systems: tests, alerts, safer defaults.
+Step 4  Celebrate a near-miss reported early.
+Measure: incidents reported by the person involved rose from 2 to 9 per quarter,
+         while repeat incidents fell.
+```
+
+Culture changes through repeated visible behaviour from leaders and processes that reward honesty, not through slogans.
 
 > Key idea: Culture is set by what leaders do and tolerate. Change comes from altering systems and incentives, not slogans. And an engineer's first duty is to the people their work affects.
 #Q What best defines an organisation's culture?

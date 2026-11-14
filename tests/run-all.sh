@@ -16,5 +16,7 @@ echo "== 4. end-to-end: departments, career, study, finals, certificates, servic
 echo "== 5. Firebase rules (SIMULATOR, not the Firebase emulator)"; node tests/firebase-rules.test.js | tail -2
 echo "== 6. secure mode end to end (MOCKED Firebase backend enforcing firebase/database.rules.json)"; APP_DIR="$ROOT" node tests/e2e-secure-mode.js | tail -2
 echo "== 7. app shell: ranked bank on demand, quiz, multiplayer page, version"; APP_DIR="$ROOT" node tests/e2e-app.js | tail -2
+echo "== 8. 4.1/4.2 features: backup, review, Git simulator, mock interview, portfolio, notes, electives, contrast"; APP_DIR="$ROOT" node tests/e2e-tools.js | tail -2
+echo "== 9. real Python (Pyodide): MOCKED Pyodide plus a blocked-CDN test; real Pyodide is NOT tested here"; APP_DIR="$ROOT" node tests/e2e-realpy.js | tail -2
 rm -rf "$TMP"
 echo "Done. Each suite prints '0 problems' or '0 failed of N' when everything in it passed."

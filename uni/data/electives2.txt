@@ -213,6 +213,102 @@ Frame time goes to the number of **draw calls**, the number of triangles, and ab
 - Missing shadows
 ! A pre-shrunk copy matches the on-screen size.
 
+#LESSON Colour, blending and anti-aliasing | 12
+### Colour on a screen
+Each pixel mixes red, green and blue light, usually stored as one byte per channel: 0 to 255. Graphics code often works with values from 0.0 to 1.0 instead, and converts at the end.
+
+Those stored values are not proportional to light. Screens use the **sRGB** encoding, which spends more of the 256 steps on dark shades, where our eyes notice differences most. The value 128 is far less than half as bright as 255. This matters whenever you do arithmetic on colours: averaging, blending or lighting should happen in **linear** values, converted from sRGB first and back again at the end. Mixing in sRGB directly makes gradients look muddy and edges look too dark.
+
+### Alpha and blending
+A fourth channel, **alpha**, stores opacity: 1 is solid, 0 is invisible. Drawing a semi-transparent colour over what is already there uses the "over" operation:
+
+```text
+result = source · alpha + destination · (1 − alpha)
+```
+
+Order matters. Transparent objects must be drawn **after** solid ones and, among themselves, from back to front, or the blending is wrong. Engines sort transparent objects by distance for this reason, and still struggle when transparent objects overlap each other.
+
+### Jagged edges
+Rasterisation decides, for each pixel, whether a shape covers it. A sloping edge therefore becomes a staircase: **aliasing**. It is worst on thin lines and high-contrast edges, and it shimmers when the camera moves.
+
+### Anti-aliasing
+The fix is to estimate how much of each pixel the shape covers and blend accordingly.
+
+- **Supersampling (SSAA)** renders at a higher resolution, for example four samples per pixel, and averages them. Excellent quality, four times the work.
+- **Multisampling (MSAA)** takes several coverage samples per pixel at edges but shades the pixel only once. Most of the quality for much less cost.
+- **Post-process methods (FXAA, SMAA)** find edges in the finished image and blur along them. Very cheap, slightly soft.
+- **Temporal methods (TAA)** jitter the camera slightly each frame and blend with previous frames. Smooth, but can leave ghosting behind moving objects.
+
+Textures alias too: shrinking a detailed texture onto a few pixels produces sparkle and moiré. **Mipmaps**, pre-shrunk copies of each texture at half, quarter and smaller sizes, let the renderer sample an appropriately blurred version.
+
+> Key idea: Do colour arithmetic in linear light, draw transparent objects after solid ones from back to front, and fight aliasing by estimating coverage: supersampling, multisampling, post-processing or temporal methods, plus mipmaps for textures.
+#Q Why should colours be converted from sRGB to linear values before blending or lighting?
+- sRGB values are stored as text
+* sRGB values are not proportional to light, so arithmetic on them gives wrong, too-dark results
+- Linear values use less memory
+! The encoding is perceptual; physics needs linear light.
+#Q With the "over" operation, a red pixel with alpha 0.25 is drawn on white. How much of the result comes from the white background?
+- 25%
+* 75%
+- 100%
+! destination · (1 − alpha) = 0.75 of the background.
+#Q What do mipmaps prevent?
+- Z-fighting
+* Sparkle and moiré when detailed textures are drawn small
+- Slow loading of models
+! They provide pre-filtered smaller versions of the texture.
+
+#LESSON GPUs and shaders | 13
+### Why graphics cards exist
+A 1920 × 1080 frame has about two million pixels, and a game wants 60 or more frames a second. Each pixel needs similar but independent work. A **GPU** is built for exactly that: thousands of simple cores running the same program on different data at the same time. A CPU has a few powerful cores tuned for one complicated task at a time.
+
+### Shaders
+The programmable stages of the GPU pipeline run small programs called **shaders**, written in languages such as GLSL, HLSL, Metal Shading Language or WGSL.
+
+- A **vertex shader** runs once per vertex. It applies the model, view and projection matrices from earlier lessons and passes values such as normals and texture coordinates onwards.
+- The rasteriser then works out which pixels each triangle covers and **interpolates** the vertex outputs across the triangle.
+- A **fragment (pixel) shader** runs once per covered pixel and returns its colour, usually by sampling textures and computing lighting.
+
+```text
+// GLSL fragment shader: simple diffuse lighting
+in vec3 vNormal;
+uniform vec3 lightDir;
+uniform vec3 baseColour;
+out vec4 colour;
+void main() {
+  float d = max(dot(normalize(vNormal), -lightDir), 0.0);
+  colour = vec4(baseColour * d, 1.0);
+}
+```
+
+**Uniforms** are values that are the same for every vertex or pixel in a draw, such as the light direction. Compute shaders run general calculations on the GPU, used for physics, particles and machine learning.
+
+### Thinking in parallel
+Shaders cannot see what neighbouring invocations are computing, and branches are expensive when neighbouring pixels take different paths, because groups of cores run in lock-step. Good shader code is straight-line arithmetic over its own inputs.
+
+### Talking to the GPU
+The CPU prepares data, uploads it to GPU memory, and issues **draw calls**. Each draw call has overhead, so engines **batch** many objects that share a material into one call and use **instancing** to draw thousands of copies of the same mesh with different positions. Moving data between CPU and GPU memory is slow; keep it on the GPU where possible.
+
+### APIs
+OpenGL and Direct3D 11 hide much of the hardware. Vulkan, Direct3D 12 and Metal give more control and less overhead in exchange for far more code. In the browser, **WebGL** and the newer **WebGPU** expose the GPU to JavaScript.
+
+> Key idea: GPUs run the same small program over huge numbers of vertices and pixels in parallel. Vertex shaders transform, the rasteriser interpolates, and fragment shaders colour; keep draw calls few and data on the GPU.
+#Q How often does a fragment (pixel) shader run?
+- Once per frame
+- Once per vertex
+* Once for each pixel a triangle covers
+! The rasteriser produces fragments; each gets its own invocation.
+#Q What is a uniform in a shader?
+- A value that differs for every pixel
+* A value that is the same for every invocation in one draw call
+- A type of texture
+! Light directions and matrices are typical uniforms.
+#Q Why do engines batch objects and use instancing?
+- To make textures sharper
+* To reduce the number of draw calls, each of which has CPU overhead
+- To avoid writing shaders
+! Fewer, larger draw calls keep the GPU busy and the CPU free.
+
 #LAB js | A software graphics toolkit
 Implement the mathematics of a tiny renderer. Points are `{ x, y }` (2D) or `{ x, y, z }` (3D). Matrices are arrays of rows.
 
@@ -386,6 +482,16 @@ A point is inside the triangle when none of the three weights is negative.
 * The fragment shader
 - The model matrix
 ! Per-pixel work is the fragment stage.
+#Q Transparent objects are drawn in which order?
+- Before all solid objects, front to back
+* After the solid objects, from back to front
+- In any order; blending is commutative
+! The over operation depends on what is already behind.
+#Q What does a vertex shader typically do?
+- Choose the colour of each pixel
+* Transform each vertex with the model, view and projection matrices
+- Load textures from disk
+! Fragment shaders colour pixels; vertex shaders transform vertices.
 #W Describe the journey of one vertex of a 3D model to a pixel on the screen. Name each coordinate system and the matrix or operation that moves between them, explain where perspective comes from, and explain how the renderer decides which surface is visible when two overlap.
 + Model coordinates to world coordinates by the model matrix
 + World to camera coordinates by the view matrix (the inverse of the camera's placement)
@@ -659,6 +765,124 @@ Frame **consistency** matters as much as the average. One long frame in a hundre
 - Reverses the motion
 ! Motion that settles gently looks natural.
 
+#LESSON Steering behaviours and flocking | 12
+### Movement that looks alive
+Pathfinding decides where a character should go. **Steering behaviours**, described by Craig Reynolds in 1999, decide how it moves from moment to moment: speeding up, turning smoothly and avoiding others, instead of sliding along grid lines.
+
+Each character has a position, a velocity, a maximum speed and a maximum force. A behaviour computes a **steering force**; the force changes the velocity a little each step, and the velocity changes the position. Limits on force and speed make the motion smooth, because nothing can turn instantly.
+
+### The basic behaviours
+- **Seek:** desired velocity points straight at the target at full speed. Steering = desired − current velocity. The character curves towards the target.
+- **Flee:** the opposite of seek.
+- **Arrive:** like seek, but inside a slowing radius the desired speed shrinks with distance, so the character stops at the target instead of overshooting and circling.
+- **Pursue and evade:** seek or flee the target's **predicted** future position, not where it is now, which catches moving targets far better.
+- **Wander:** small random changes to a steering target on a circle in front of the character, giving natural idle movement without jitter.
+- **Obstacle avoidance:** look ahead along the velocity; if something is in the way, steer sideways.
+
+### Combining behaviours
+Real characters do several things at once: follow a path, avoid walls, keep away from each other. Their forces are **weighted and added**, or applied in priority order (avoid collisions first, then everything else) so that an urgent force is not cancelled by a calm one.
+
+### Flocking
+Reynolds' **boids** produce flocks, schools and crowds from three local rules, each looking only at nearby neighbours:
+
+1. **Separation:** steer away from neighbours that are too close.
+2. **Alignment:** steer towards the average heading of neighbours.
+3. **Cohesion:** steer towards the average position of neighbours.
+
+No boid knows about the flock as a whole, yet convincing group motion **emerges**. Tuning the three weights changes the character of the group from a tight school to a loose crowd.
+
+### Keeping it fast
+Checking every boid against every other is O(n²). A **spatial grid** or quadtree lets each boid examine only the cells around it, which makes thousands of agents practical.
+
+### Worked example
+One update step of the seek behaviour, with numbers.
+
+```text
+position (0, 0), velocity (1, 0), target (10, 10), maxSpeed 2, maxForce 0.5
+desired  = normalise(target − position) × maxSpeed = (1.41, 1.41)
+steering = desired − velocity                     = (0.41, 1.41)
+limit to maxForce 0.5:  length 1.47 → scale → (0.14, 0.48)
+velocity = (1, 0) + (0.14, 0.48) = (1.14, 0.48)
+position = (0, 0) + velocity × dt(1)  = (1.14, 0.48)
+```
+
+Because the force is limited, the character curves gradually towards the target instead of snapping to face it.
+
+> Key idea: Steering behaviours turn a goal into smooth motion by applying limited forces: seek, arrive, pursue, wander and avoid. Weighted together, and with separation, alignment and cohesion, they produce believable individuals and flocks.
+#Q What does the arrive behaviour add to seek?
+- Random wandering
+* Slowing down within a radius so the character stops at the target instead of overshooting
+- Prediction of the target's future position
+! Desired speed shrinks as the distance shrinks.
+#Q Why does pursue aim at a predicted position?
+- It is cheaper to compute
+* A moving target will have moved by the time the chaser arrives, so aiming ahead catches it sooner
+- Prediction removes the need for a speed limit
+! Seeking the current position leads to a tail chase.
+#Q Which three rules produce flocking in Reynolds' boids?
+- Seek, flee and wander
+* Separation, alignment and cohesion
+- Gravity, friction and collision
+! Each rule looks only at nearby neighbours.
+
+#LESSON Procedural generation and randomness | 12
+### Content from algorithms
+**Procedural generation** creates levels, terrain, loot or names with algorithms instead of by hand. It gives variety and replay value from a small download, but it needs careful design: random is not the same as interesting.
+
+### Seeds
+A pseudo-random generator started with the same **seed** produces the same sequence. Store the seed and you can regenerate a whole world from a single number, let players share worlds, and reproduce bugs. Use separate generators for separate systems (terrain, loot, enemies) so that a change in one does not reshuffle the others.
+
+### Noise
+Pure random values per tile give static, not landscapes. **Gradient noise** such as Perlin or simplex noise varies smoothly: nearby points have similar values. Adding several layers (**octaves**) at doubling frequency and halving strength gives detail at every scale, from mountains to pebbles. Height maps, clouds, textures and wind all use it.
+
+### Simple generators worth knowing
+- **Random walk:** a digger moves randomly, carving corridors.
+- **Cellular automata:** fill a grid randomly, then repeatedly make each cell a wall if most of its neighbours are walls. A few steps turn noise into natural-looking caves.
+- **Rooms and corridors:** place rooms that do not overlap, then connect them, for example with a minimum spanning tree plus a few extra links so there are loops.
+- **Grammars and templates:** combine hand-made pieces by rules, which keeps quality high.
+
+Always **validate** the result: is every room reachable (a breadth-first search answers that), is the exit not blocked, is the difficulty sensible? Regenerate if not.
+
+### Randomness that feels fair
+Players judge randomness by feel. A 10% drop chance can fail 30 times in a row, which feels broken.
+
+- A **shuffle bag** puts outcomes in a bag, shuffles it, and draws without replacement, guaranteeing that each appears once per bag.
+- **Pity timers** raise the chance after each failure.
+- **Weighted random** picks items with different probabilities: draw a number from 0 to the total weight and walk through the items.
+
+Never use the game's ordinary random generator for anything security-related, and disclose real odds when money is involved.
+
+### Worked example
+Generating a cave with a cellular automaton, step by step.
+
+```text
+1. Fill a 40×25 grid: each cell is wall with probability 0.45 (seed 1234).
+2. Repeat 4 times: a cell becomes wall if 5 or more of its 8 neighbours are walls,
+   otherwise floor.
+3. Flood-fill from a floor cell; keep only the largest connected cave.
+4. Validate: at least 40% floor; the exit is reachable by breadth-first search.
+5. If validation fails, try the next seed.
+```
+
+A few lines of rules turn random noise into natural caves, and the validation step guarantees the level is playable.
+
+> Key idea: Seeded generators make procedural content reproducible; smooth noise and simple algorithms build convincing worlds; validate what you generate; and shape randomness so it feels fair.
+#Q Why store the seed of a procedurally generated level?
+- It makes the level load faster
+* The same seed regenerates exactly the same level, for sharing and debugging
+- Seeds prevent cheating
+! Same seed, same pseudo-random sequence, same level.
+#Q What makes gradient noise better than independent random values for terrain?
+- It is truly random
+* Nearby points have similar values, so the result varies smoothly
+- It is always zero at the edges
+! Smoothness gives hills instead of static.
+#Q A designer wants every item to appear once in every 10 drops. Which technique fits?
+- A higher seed
+* A shuffle bag
+- Gradient noise
+! Drawing without replacement guarantees each outcome once per bag.
+
 #LAB js | Game AI, pathfinding and physics response
 Implement decision logic, a pathfinder and collision response.
 
@@ -856,6 +1080,16 @@ Clamp `t` with `Math.max(0, Math.min(1, t))` before applying the easing formula.
 * Allowing a jump for a brief moment after the player has left a ledge
 - A physics time step
 ! It forgives slightly late input and makes controls feel fair.
+#Q In flocking, which rule keeps boids from crowding into each other?
+- Cohesion
+* Separation
+- Alignment
+! Separation steers away from neighbours that are too close.
+#Q Which technique turns random noise on a grid into natural-looking caves?
+- A shuffle bag
+* Cellular automata
+- Mipmapping
+! Repeatedly applying a neighbour rule smooths noise into cave shapes.
 #W A player reports that enemies in your game "feel robotic and unfair": they turn instantly, always know where the player is, and their movement looks stiff. Explain the likely technical causes and the changes you would make, covering perception, decision making, movement and animation.
 + Perception: give enemies a vision cone, line of sight and memory of the last known position, not global knowledge
 + Decision making: add reaction delays, visible intentions and tuned accuracy; use a behaviour tree or utility scores for varied choices
@@ -1145,6 +1379,111 @@ A **real-time** system must respond within a **deadline**. It is about predictab
 - It uses a large processor
 ! Predictability, not raw speed, is the requirement.
 
+#LESSON Power, sleep and battery life | 12
+### Every microamp counts
+A sensor that must run for two years on a coin cell cannot keep its processor awake. Embedded programmers think about **current** (in milliamps, mA, or microamps, µA) as carefully as about speed.
+
+Battery capacity is given in **milliamp-hours** (mAh). A 220 mAh coin cell can, in theory, supply 1 mA for 220 hours, or 10 µA for 22,000 hours (about 2.5 years). Real capacity is lower at high currents and in the cold, so designers keep a safety margin.
+
+### Duty cycling
+Most devices spend almost all their time doing nothing. The trick is to be **asleep** then. If a device draws 5 mA for 20 ms every 10 seconds and 4 µA the rest of the time, its average current is:
+
+```text
+average = 5 mA × (0.02 / 10) + 0.004 mA × (9.98 / 10)
+        ≈ 0.010 mA + 0.004 mA = 0.014 mA
+```
+
+At 14 µA the coin cell lasts around 220 / 0.014 ≈ 15,700 hours, almost 1.8 years. Notice that the sleep current matters as much as the active current: halving sleep current here buys far more than speeding up the active part.
+
+### Sleep modes and waking up
+Microcontrollers offer several sleep levels. Light sleep stops the processor clock but keeps peripherals and memory running; deep sleep turns off almost everything and may lose the contents of RAM. The device wakes on an **interrupt**: a timer, a button press, or data arriving on a bus. Polling in a busy loop (`while (!ready) {}`) keeps the processor awake and is the classic battery killer.
+
+### Other power drains
+- **Radios** are usually the biggest consumer. Send less often, send less data, and batch transmissions.
+- **LEDs** draw several milliamps each: blink briefly instead of staying on.
+- **Pull-up resistors** on inputs that are held low waste current continuously.
+- Unused peripherals and floating pins should be disabled or tied to a defined level.
+- **Voltage regulators** have their own quiescent current; pick low-power ones.
+
+### Measuring
+Estimate on paper, then measure: a current meter or power profiler shows the spikes and the sleep floor. Many products ship with a surprise in the sleep current that only measurement reveals.
+
+> Key idea: Battery life is capacity divided by average current. Keep the device asleep, wake by interrupt rather than polling, minimise radio use, and measure the real sleep current.
+#Q A device averages 0.05 mA from a 1000 mAh battery. Roughly how long does it last?
+- 50 hours
+* About 20,000 hours (over two years)
+- 1,000 hours
+! 1000 / 0.05 = 20,000 hours.
+#Q Why is a busy-wait loop like while (!ready) {} bad in a battery-powered device?
+- It uses too much memory
+* It keeps the processor awake and drawing current instead of sleeping until an interrupt
+- It cannot compile
+! Waking on interrupt lets the processor sleep meanwhile.
+#Q In a duty-cycled device that is asleep 99.8% of the time, what often dominates battery life?
+- The clock speed while awake
+* The sleep current
+- The size of the program
+! Small currents over long times add up.
+
+#LESSON Debugging and testing embedded systems | 13
+### Why it is harder
+Embedded code runs on a device with no screen, little memory, real-time deadlines and hardware that can itself be faulty. A bug might be in your code, the wiring, a component, or the timing between them.
+
+### Simple tools first
+- **An LED** is the embedded "hello world" and the first debugging tool: blink a pattern to show which state the program reached.
+- **Serial output** over a UART to a computer is the equivalent of print statements. Keep messages short: printing is slow and can change the timing you are trying to observe.
+- **Asserts** that halt and report the file and line catch impossible states early.
+
+### Instruments
+- A **multimeter** checks voltages, continuity and current: is the chip powered at all?
+- A **logic analyser** records many digital signals over time and decodes protocols such as UART, I2C and SPI, so you can see exactly which bytes were sent and when.
+- An **oscilloscope** shows the real analogue shape of a signal: slow edges, noise, ringing or a supply voltage dipping when a motor starts.
+
+### Debug probes
+Most microcontrollers have a debug port (**JTAG** or **SWD**). With a probe and a debugger such as GDB you can set breakpoints, step through code, and read memory and registers on the running chip. Remember that stopping at a breakpoint also stops the program's timing: motors keep moving and communication partners time out.
+
+### Defending against the unexpected
+- A **watchdog timer** resets the device if the program stops "feeding" it, recovering from hangs in the field.
+- Log the **reset reason** at start-up (power-on, watchdog, brown-out) to learn what happened.
+- Check stack usage: stack overflows are a common, silent cause of corruption on small devices.
+
+### Testing
+- **Unit-test on the host:** keep hardware access behind small interfaces so the logic can be compiled and tested on a normal computer with fake hardware. Most bugs are in logic, and this finds them fast.
+- **Hardware-in-the-loop (HIL)** tests run the real firmware on a real board, with a test rig that drives inputs and checks outputs automatically.
+- **Soak tests** run for days to find leaks and rare timing bugs.
+- Test the edges: low battery, brown-outs, unplugged sensors and corrupt messages.
+
+### Worked example
+A sensor board resets randomly about once a day. A debugging plan:
+
+```text
+1. Log the reset reason at boot over UART:  "reset: WATCHDOG"
+2. Hypothesis: a task blocks too long. Add timestamps around each task.
+3. Finding: the I2C read occasionally hangs for 3 s when the sensor is unplugged.
+4. Fix: add a 50 ms I2C timeout and retry; feed the watchdog only from the main loop.
+5. Verify: a hardware-in-the-loop rig unplugs the sensor 500 times; no resets.
+6. Unit-test the retry logic on the host with a fake I2C bus.
+```
+
+Recording why the device reset turns a mystery into a lead, and an automated rig proves the fix under the exact condition that failed.
+
+> Key idea: Start with LEDs, serial output and asserts; use a logic analyser and oscilloscope to see the signals; use a debug probe with care for timing; protect with a watchdog; and test logic on the host before testing on hardware.
+#Q Which tool shows which bytes were sent on an I2C bus, and when?
+- A multimeter
+* A logic analyser
+- A watchdog timer
+! It records digital lines and decodes protocols.
+#Q What does a watchdog timer do?
+- It measures battery level
+* It resets the device if the software stops checking in, recovering from hangs
+- It speeds up the clock
+! The program must "feed" it regularly; if it stops, the device restarts.
+#Q Why put hardware access behind small interfaces?
+- To make the firmware larger
+* So the logic can be unit-tested on a normal computer with fake hardware
+- Because microcontrollers require it
+! Host tests are fast and catch most logic bugs.
+
 #LAB js | Registers, circuits and signals
 Implement the calculations of embedded programming. Registers are whole numbers treated as 32-bit unsigned values.
 
@@ -1352,6 +1691,16 @@ For the UART frame, take the bits of the byte from bit 0 upward. Even parity is 
 * Average current, and so battery life, depends on keeping awake periods short
 - To avoid interrupts
 ! Sleep modes draw microamps.
+#Q A device draws 2 mA for 1% of the time and 0.01 mA otherwise. What is its average current, approximately?
+- 2 mA
+* About 0.03 mA
+- 0.01 mA
+! 2 × 0.01 + 0.01 × 0.99 ≈ 0.02 + 0.0099 ≈ 0.03 mA.
+#Q Why can a breakpoint change how an embedded bug behaves?
+- It deletes variables
+* Stopping the processor also stops its timing, while the outside world keeps going
+- Breakpoints erase flash
+! Real-time behaviour is altered when execution halts.
 #W You are writing firmware for a battery-powered temperature logger that reads a sensor once a minute and has one button and one LED. Describe its structure: how time is kept, how the button is read reliably, how shared data is protected, how power is saved, and what happens if the program hangs.
 + A timer interrupt or real-time clock wakes the device; no delay loops
 + The button is debounced, by interrupt plus timer or by sampling
@@ -1481,6 +1830,22 @@ RAID protects against device failure. It is **not a backup**: a deleted or corru
 
 ### Choosing
 Use solid-state storage for anything with random access. Keep rarely used bulk data on cheaper media. Whatever you choose, keep tested backups elsewhere.
+
+### Worked example
+How a file system finds the bytes of a file on disk.
+
+```text
+Path:  /photos/cat.jpg
+1. Read the root directory → entry "photos" → inode 12
+2. Read inode 12 (a directory) → entry "cat.jpg" → inode 57
+3. Inode 57: size 2,500,000 bytes; blocks 9100–9710 (4 KB each)
+4. Read those blocks → file contents
+
+Deleting cat.jpg removes the directory entry and frees the blocks;
+the data stays on disk until overwritten.
+```
+
+Directories map names to inodes, and inodes map files to blocks; that indirection is why renames are instant and deleted data can sometimes be recovered.
 
 > Key idea: Disks are slow to seek; flash must erase before writing and wears out. File systems use journaling or copy-on-write so that a crash cannot leave them inconsistent.
 #Q Why is random access slow on a hard disk?
@@ -1617,6 +1982,131 @@ Every choice trades performance, power, cost, size and development effort. There
 * The condition a system falls into on failure that does no harm, such as a heater switching off
 - The factory password
 ! Failure should lead to safety, not danger.
+
+#LESSON Flash memory and data integrity | 12
+### How flash differs from RAM
+Flash memory keeps its contents without power, which is why it holds firmware, phone storage and SSDs. It has three rules that shape all software built on it:
+
+- You can **read** any byte.
+- You can **program** (write) a page, typically a few hundred bytes to a few kilobytes, but only change bits from 1 to 0.
+- To set bits back to 1 you must **erase** a whole block, often tens or hundreds of kilobytes, and erasing is slow.
+
+So "overwriting one byte" really means: copy the block's live data elsewhere, erase, and write it back.
+
+### Wear
+Each block survives only a limited number of erase cycles: roughly 100,000 for some microcontroller flash, and as few as a few thousand for dense consumer flash. A program that writes a counter to the same place every second would wear that block out in days.
+
+**Wear levelling** spreads writes across all blocks by writing new data to fresh locations and keeping a map from logical to physical addresses. SSDs and memory cards do this in a controller; small devices use a flash file system or a log-structured store designed for it.
+
+The extra internal copying means the device writes more than the program asked for, called **write amplification**. Keeping free space and writing in large sequential chunks reduces it.
+
+### Errors and checksums
+Bits can flip: from wear, radiation, or charge leaking over years. Defences come in layers:
+
+- **ECC** (error-correcting codes) stored alongside data can fix small errors automatically; flash controllers rely on it.
+- A **checksum** or **CRC** stored with each record detects corruption, so software can reject bad data rather than act on it.
+- Critical settings can be stored twice and compared.
+
+### Surviving power loss
+Power can fail in the middle of a write, leaving half-written data. Safe designs never update in place. Instead:
+
+1. Write the new version to a fresh location, with a sequence number and a CRC.
+2. Only when it is complete, mark it as current (or let the higher sequence number win).
+3. On start-up, pick the newest record with a valid CRC.
+
+If power fails during step 1, the old version is still intact. This is the same idea as a database journal.
+
+### Worked example
+Saving a settings record safely on flash with two slots and a CRC.
+
+```text
+Slot A: seq 41, data {...}, CRC ok      ← current
+Slot B: seq 40, data {...}, CRC ok
+
+Write new settings:
+  1. Erase slot B; write seq 42, data, then the CRC last.
+  2. Power fails during step 1 → slot B has a bad CRC; boot picks slot A (seq 41).
+  3. Write completes        → boot picks slot B (seq 42, highest valid).
+```
+
+Alternating slots with sequence numbers and a CRC written last means there is always one complete, valid copy, whatever moment power fails.
+
+> Key idea: Flash is written in pages and erased in blocks, and wears out; spread writes with wear levelling, detect corruption with CRCs and ECC, and never overwrite in place when power can fail.
+#Q Why can you not simply overwrite one byte in flash?
+- Flash is read-only
+* Bits can only be changed from 1 to 0 by programming; setting them back requires erasing a whole block
+- Each byte has its own password
+! Erase works on blocks, so updates mean copy, erase and rewrite.
+#Q What does wear levelling do?
+- Encrypts the flash
+* Spreads writes across all blocks so no block wears out early
+- Makes reads faster
+! Every block gets a share of the erase cycles.
+#Q How do safe designs survive power loss during a settings update?
+- By writing faster
+* By writing the new version to a fresh location with a CRC and only then treating it as current
+- By disabling interrupts
+! The old version stays valid until the new one is complete.
+
+#LESSON Booting and updating devices | 12
+### From power-on to your code
+When a processor starts, it fetches its first instruction from a fixed place: the **reset vector**. What happens next is a chain of small programs, each preparing the ground for the next.
+
+On a microcontroller the chain is short: built-in **boot ROM** code, then usually a **bootloader**, then the application. On a PC, firmware (**UEFI**, formerly BIOS) tests and initialises the hardware, finds a boot loader on a disk, which loads the operating system kernel, which starts everything else.
+
+### What a bootloader does
+- Sets up clocks and memory.
+- Checks that the application image is present and valid (a CRC or signature).
+- Offers a way to install new firmware, over USB, serial or a network.
+- Jumps to the application.
+
+Keep the bootloader small, well tested and rarely changed: if it breaks, the device may be unrecoverable ("bricked").
+
+### Secure boot
+Anyone who can change the firmware controls the device. **Secure boot** builds a **chain of trust**: the boot ROM contains a public key (or its hash) that cannot be changed; it verifies the bootloader's digital signature; the bootloader verifies the application's signature, and so on. Unsigned or altered code is refused. The private signing key must stay off the device and well protected.
+
+### Updating safely in the field
+Over-the-air (**OTA**) updates fix bugs and security holes on devices already sold, but a failed update must never leave a dead device.
+
+- **A/B partitions:** keep two copies of the firmware. Download the update into the inactive slot while the device keeps working, verify it, then switch slots on the next boot.
+- **Rollback:** if the new firmware fails to start or does not confirm it is healthy within a time limit, the bootloader switches back to the previous slot.
+- **Anti-rollback counters** stop an attacker from reinstalling an old, vulnerable but validly signed version.
+- **Delta updates** send only the changed bytes to save bandwidth and battery.
+
+### Where this meets the rest of the course
+Phones, routers, cars and smart speakers all follow this pattern, and so do app stores and the update systems of desktop applications: verify before installing, keep a known-good version, and switch over atomically.
+
+### Worked example
+An over-the-air update with A/B slots and rollback.
+
+```text
+Running slot A (v1.4). Update v1.5 arrives.
+1. Download into slot B while v1.4 keeps working.
+2. Verify signature and hash of slot B.
+3. Set "try B once" and reboot.
+4. v1.5 starts, runs self-tests, then marks itself "good".
+   If it crashes or does not confirm within 60 s, the bootloader returns to A.
+5. Anti-rollback counter raised only after "good", so v1.3 can never be reinstalled.
+```
+
+The device always keeps a known-good version, so a bad update costs a reboot rather than a dead product.
+
+> Key idea: Booting is a chain from the reset vector through boot ROM and bootloader to the application. Secure boot verifies each link's signature, and A/B partitions with rollback make field updates safe.
+#Q What does secure boot check before running the next stage?
+- That it is smaller than the last one
+* Its digital signature, against a key the earlier stage trusts
+- Its file name
+! Each stage verifies the next, forming a chain of trust.
+#Q Why do devices keep two firmware slots (A/B)?
+- To run two programs at once
+* So an update can be installed into the inactive slot and rolled back if it fails
+- To double the storage
+! The known-good version stays available.
+#Q What is an anti-rollback counter for?
+- Counting reboots
+* Preventing the installation of an older, vulnerable firmware version
+- Measuring battery life
+! A signed old version may still have known holes.
 
 #LAB js | Bytes, addresses and buffers
 Implement low-level data handling. Bytes are whole numbers from 0 to 255.
@@ -1831,6 +2321,16 @@ Battery life is the capacity divided by the sum of current × fraction over the 
 * A cryptographic signature on each stage of start-up code before running it
 - The network connection
 ! Tampered firmware or bootloaders are refused.
+#Q What is write amplification?
+- Writing data twice for backup
+* The device physically writing more data than the program asked for, because of internal copying and erasing
+- Amplifying weak signals
+! Wear levelling and block erases cause extra internal writes.
+#Q In A/B updates, what happens if the new firmware fails to confirm it is healthy?
+- The device is bricked
+* The bootloader rolls back to the previous slot
+- The update is sent again forever
+! Rollback keeps the device working.
 #W A wearable device must run for a year on a 250 mAh battery. Its radio draws 15 mA when transmitting, its sensor 2 mA when measuring, and the whole device 4 µA asleep. Explain how you would work out whether the target is achievable, what the design must do to meet it, and two other budgets or risks a computer engineer must check before building it.
 + Computes the allowed average current: 250 mAh over about 8,760 hours is roughly 28 µA
 + Builds a power budget from current × fraction of time in each mode

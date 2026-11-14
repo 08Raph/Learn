@@ -249,6 +249,98 @@ Do not write your own linear solver or integrator for real work. Mature librarie
 - It is unchanged
 ! Euler's method is first order: error is proportional to h.
 
+#LESSON Interpolation and curve fitting | 12
+### Filling in between known values
+A sensor reports a temperature every minute; an animation has keyframes at a few moments; a table lists a function at a few points. **Interpolation** builds a function that passes exactly through the known points and estimates the values between them.
+
+### Linear interpolation
+The simplest method joins neighbouring points with straight lines. Between (x0, y0) and (x1, y1):
+
+```text
+y = y0 + (x − x0) · (y1 − y0) / (x1 − x0)
+```
+
+Graphics and games call this **lerp**, written as a + t·(b − a) for t from 0 to 1. It is fast and never overshoots, but the result has corners at every data point.
+
+### Polynomial interpolation
+Through n + 1 points with different x values there is exactly one polynomial of degree at most n. **Lagrange's formula** writes it directly as a weighted sum of the y values. It is smooth and exact at the points.
+
+But high-degree polynomials behave badly. With many equally spaced points, the curve can swing wildly between them near the ends of the range. This is **Runge's phenomenon**, and it is why fitting a degree-20 polynomial through 21 points is almost never the right idea.
+
+### Splines
+A **spline** joins many low-degree pieces, usually cubics, so that the curve and its first and second derivatives match where the pieces meet. The result is smooth without the wild swings of one big polynomial. Fonts, vector drawing tools (Bézier curves are close relatives), animation paths and CAD software all use splines.
+
+### Interpolation versus fitting
+Interpolation insists on passing through every point. That is right when the data are exact, like values from a formula. Measurements contain noise, and forcing a curve through every noisy point fits the noise. Then you **fit** instead: choose a simple model and minimise the overall error, as least squares does, accepting that the curve misses individual points.
+
+### Extrapolation
+Using the curve **outside** the range of the data is extrapolation, and it is risky. A polynomial that fits well inside the range can head off in any direction outside it. Treat extrapolated values as guesses and say so.
+
+> Key idea: Interpolation passes exactly through known points: linear for speed, splines for smoothness, and high-degree polynomials rarely. With noisy data, fit a simple model instead, and be wary of extrapolating.
+#Q Linear interpolation between y0 = 10 at x = 0 and y1 = 20 at x = 4 gives what value at x = 1?
+- 15
+* 12.5
+- 11
+! 10 + 1 · (20 − 10) / 4 = 12.5.
+#Q What is Runge's phenomenon?
+- Rounding error in floating-point addition
+* Large oscillations near the ends when a high-degree polynomial interpolates many equally spaced points
+- The failure of Newton's method to converge
+! It is why high-degree interpolation is avoided.
+#Q You have 500 noisy measurements. What is usually better than interpolating through every one?
+- A polynomial of degree 499
+* Fitting a simple model that minimises the overall error
+- Deleting half the points
+! Interpolating noisy data fits the noise.
+
+#LESSON Optimisation and Monte Carlo methods | 13
+### Finding the lowest point
+Much of computing is **optimisation**: choose inputs that make some cost as small as possible. Training a machine-learning model minimises a loss; a route planner minimises travel time; a compiler's register allocator minimises spills.
+
+### Gradient descent
+If the cost f depends on numbers x, its **gradient** points in the direction of steepest increase. So step the other way:
+
+```text
+x_new = x − η · ∇f(x)
+```
+
+The **step size** (learning rate) η matters. Too small and progress is painfully slow; too large and the steps overshoot, bounce around or diverge. If the gradient has no formula, it can be estimated with the finite differences from an earlier lesson.
+
+Gradient descent finds a **local minimum**, a point lower than its neighbours, which need not be the lowest point overall. Starting from several random points, or adding momentum, helps on bumpy landscapes.
+
+### Newton's method for minimisation
+Newton's method for roots can be applied to the derivative: a minimum is where f'(x) = 0. Using the second derivative as well, it takes much larger, well-aimed steps and converges very fast near the answer, but each step costs more and it can head for a maximum instead. Practical optimisers combine ideas from both.
+
+### Monte Carlo: answers from randomness
+Some quantities are hard to compute directly but easy to **sample**. Monte Carlo methods estimate them with random numbers.
+
+Estimating π: pick random points in the square from (0, 0) to (1, 1). The fraction landing inside the quarter circle x² + y² ≤ 1 approaches π/4, so four times that fraction approaches π.
+
+Integration works the same way: the average of f at many random points, times the length of the interval, estimates the integral. This is the method of choice in many dimensions, where grid-based rules need impossibly many points.
+
+### How accurate is it?
+The error of a Monte Carlo estimate shrinks like **1 / √N** for N samples. Ten times the accuracy costs a hundred times the samples. Reporting the estimate with its standard error is part of doing it honestly.
+
+### Reproducibility
+Computer random numbers are **pseudo-random**: a generator started from the same **seed** produces the same sequence. Fix and record the seed when results must be repeatable, as in tests and scientific work. Use a cryptographically secure generator, not Math.random, for anything security-related.
+
+> Key idea: Gradient descent steps against the gradient and finds local minima, with the step size deciding speed and stability. Monte Carlo methods estimate hard quantities by random sampling, with error falling like 1/√N.
+#Q In gradient descent, what typically happens if the step size is far too large?
+- Convergence becomes slower but safer
+* The steps overshoot and the method can oscillate or diverge
+- Nothing; step size does not matter
+! Large steps jump past the minimum.
+#Q How does the error of a Monte Carlo estimate usually shrink as the number of samples N grows?
+- Like 1/N²
+* Like 1/√N
+- It does not shrink
+! Halving the error needs four times the samples.
+#Q Why should a simulation used in a test fix its random seed?
+- It makes the numbers truly random
+* So that the same sequence is produced and the result is repeatable
+- Seeds make the program faster
+! The same seed gives the same pseudo-random sequence.
+
 #LAB js | A numerical toolkit
 Implement the classic numerical algorithms. Functions are passed as JavaScript functions.
 
@@ -449,6 +541,16 @@ For `solve`, copy the matrix with the right-hand side attached as an extra colum
 * Its error falls as 1/√N regardless of dimension, while grids grow exponentially
 - It needs no random numbers
 ! Grid methods suffer the curse of dimensionality.
+#Q What is a spline?
+- One polynomial of very high degree through all the points
+* A curve made of low-degree pieces joined smoothly
+- A random sample of the data
+! Piecewise cubics avoid the oscillation of one big polynomial.
+#Q A Monte Carlo estimate with 10,000 samples has a standard error of 0.02. About how many samples are needed for 0.01?
+- 20,000
+* 40,000
+- 100,000,000
+! Error falls like 1/√N, so halving it needs four times the samples.
 #W A colleague's simulation of a satellite orbit, written with Euler's method and a fixed step, shows the satellite slowly spiralling away from the planet, which is physically wrong. Explain the likely numerical causes, how you would confirm them, and what you would change. Mention how you would check the accuracy of the new version.
 + Identifies truncation error of a first-order method accumulating systematically (energy drift)
 + Confirms by halving the step and observing the error fall in proportion, or by monitoring a conserved quantity such as energy
@@ -787,6 +889,119 @@ Backpropagation applies this rule systematically through a network of operations
 - Along the contour lines
 ! To descend, move in the opposite direction.
 
+#LESSON Differential equations and change over time | 13
+### Equations about rates
+Many questions in computing are about how something changes: how fast a population of users grows, how quickly a cache entry goes stale, how a cooling processor approaches room temperature. A **differential equation** states a rule for the rate of change, and solving it gives the quantity itself.
+
+The simplest and most important one says the rate of change is proportional to the amount present:
+
+```text
+dy/dt = k · y
+```
+
+Its solution is exponential:
+
+```text
+y(t) = y0 · e^(k t)
+```
+
+where y0 is the starting value. You can check it: the derivative of e^(kt) is k·e^(kt), so the rate really is k times the amount.
+
+### Growth and decay
+- If **k > 0** the quantity grows exponentially: compound interest, unchecked viral sharing, the number of nodes at each level of a full binary tree.
+- If **k < 0** it decays: radioactive material, a discharging capacitor, a moving average that forgets old data.
+
+Decay is often described by a **half-life**, the time for the amount to halve. Setting e^(k t) = 1/2 gives t = ln(2) / |k|, about 0.693 / |k|. Doubling time for growth is the same formula with k positive.
+
+### Newton's law of cooling
+An object's temperature T changes at a rate proportional to the difference from its surroundings S:
+
+```text
+dT/dt = −k (T − S)
+```
+
+The difference decays exponentially, so T approaches S quickly at first and then ever more slowly. Thermal throttling and sensor smoothing follow this shape.
+
+### Limits to growth: the logistic equation
+Real growth runs out of room. The logistic equation adds a capacity C:
+
+```text
+dy/dt = k · y · (1 − y / C)
+```
+
+When y is small it behaves like exponential growth; as y nears C the rate falls to zero. The result is the S-shaped curve seen in product adoption and in the spread of information through a fixed audience.
+
+### When there is no formula
+Most differential equations have no neat solution. Programs then **step** through time: knowing y now and the rate dy/dt, estimate y a short time h later as y + h · dy/dt. This is Euler's method, covered with better alternatives in Numerical Methods. Physics engines, epidemic models and circuit simulators all work this way.
+
+> Key idea: A differential equation describes how something changes. dy/dt = ky gives exponential growth or decay; the logistic equation adds a ceiling; when no formula exists, programs step forward in small increments.
+#Q What is the solution of dy/dt = k·y with starting value y0?
+- y0 + k·t
+* y0 · e^(k t)
+- k · y0 · t²
+! Its derivative is k times itself, which is exactly the rule.
+#Q A quantity decays with k = −0.1 per hour. Roughly what is its half-life?
+- 0.1 hours
+* About 6.9 hours
+- 10 hours exactly
+! Half-life = ln 2 / |k| ≈ 0.693 / 0.1 ≈ 6.9 hours.
+#Q What does the logistic equation add to exponential growth?
+- A random term
+* A capacity, so growth slows to zero as the quantity approaches it
+- A second variable for time
+! The factor (1 − y/C) shrinks the rate as y approaches C.
+
+#LESSON Probability with calculus | 12
+### From counting to continuous values
+With a dice you can list every outcome and its probability. A value like a response time, a sensor reading or a person's height can take any value in a range, so the chance of any one exact value is zero. Instead we describe it with a **probability density function** (PDF), f(x).
+
+The probability that the value falls between a and b is the **area under the density curve** between them:
+
+```text
+P(a ≤ X ≤ b) = ∫ from a to b of f(x) dx
+```
+
+Two rules follow: f(x) is never negative, and the total area under the whole curve is 1.
+
+### The cumulative distribution
+The **cumulative distribution function** F(x) gives the probability that the value is at most x: the area from the far left up to x. It rises from 0 to 1, and its derivative is the density. Percentiles come straight from it: the 95th percentile of response time is the x where F(x) = 0.95. Service-level objectives are written in exactly these terms.
+
+### Three distributions you will meet
+- **Uniform** on [a, b]: every value equally likely, so f(x) = 1 / (b − a). Random-number generators produce this, and other distributions are built from it.
+- **Exponential** with rate λ: f(x) = λ e^(−λx) for x ≥ 0. It models the waiting time between independent random events, such as requests arriving at a server. Its mean is 1/λ.
+- **Normal** (Gaussian): the bell curve, set by its mean μ and standard deviation σ. About 68% of values lie within one σ of the mean and about 95% within two. Sums of many small independent effects tend towards it.
+
+### Expected value as an integral
+The **expected value** (mean) of a continuous variable is the density-weighted average:
+
+```text
+E[X] = ∫ x · f(x) dx
+```
+
+For a uniform variable on [0, 10] this gives 5, as you would hope. Variance is computed the same way from (x − mean)².
+
+### Why programmers care
+- Performance work talks in percentiles, not averages, because a long tail of slow requests hurts users even when the mean looks fine.
+- Machine-learning losses such as cross-entropy and models such as Gaussian processes are built on densities.
+- Simulations draw random values from these distributions; Monte Carlo methods (in Numerical Methods) estimate integrals by sampling.
+
+> Key idea: For continuous values, probability is area under a density curve. The cumulative distribution gives percentiles, and expected value is an integral of x weighted by the density.
+#Q For a continuous variable, how is P(a ≤ X ≤ b) found?
+- By evaluating the density at a and b and adding
+* As the area under the density curve between a and b
+- It is always zero
+! Probability is the integral of the density over the interval.
+#Q Requests arrive independently at random. Which distribution usually models the gap between them?
+- Uniform
+* Exponential
+- Normal with mean 0
+! Waiting times between independent random events are exponential.
+#Q Why do engineers report the 95th or 99th percentile of response time instead of only the mean?
+- Percentiles are easier to compute
+* The mean can hide a long tail of slow requests that users still feel
+- The mean is always larger
+! Percentiles describe the tail; averages smooth it away.
+
 #LAB js | Calculus in code
 Implement calculus on polynomials and numerically. A polynomial is an array of coefficients from the constant term upward: `[1, 2, 3]` means 1 + 2x + 3x².
 
@@ -971,6 +1186,16 @@ In `taylorExp`, build each term from the previous one: multiply by `x` and divid
 * The fundamental theorem of calculus
 - The mean value theorem
 ! A total over a range is the change in the accumulated sum.
+#Q A process follows dy/dt = 0.05·y. What happens to y over time?
+- It stays constant
+* It grows exponentially
+- It decays to zero
+! A positive constant k gives exponential growth.
+#Q For a continuous random variable, what is the total area under its density curve?
+- 0
+* 1
+- It depends on the mean
+! All probability together adds up to 1.
 #W Explain, to a programmer who has not studied calculus, how a machine-learning model is trained by gradient descent. Cover what a derivative and a gradient are, why the model's parameters are moved against the gradient, the role of the learning rate, what the chain rule contributes, and one way the process can go wrong.
 + A derivative as the rate of change of the loss when a parameter is nudged; the gradient as the vector of all such partial derivatives
 + The gradient points uphill, so parameters are updated by subtracting a multiple of it
@@ -1284,6 +1509,106 @@ Every matrix, square or not, factors as A = UΣVᵀ: a rotation, a scaling along
 - The determinant
 ! The largest eigen-direction grows fastest and takes over.
 
+#LESSON Vector spaces, bases and orthogonality | 13
+### Span and independence
+Take some vectors and form every combination a·u + b·v + …. The set of all such combinations is their **span**. Two vectors in the plane that do not lie on the same line span the whole plane; two that do lie on one line span only that line.
+
+Vectors are **linearly independent** if none of them is a combination of the others. Independence means no vector is wasted: each adds a new direction.
+
+### Basis and dimension
+A **basis** of a space is a set of independent vectors that spans it. Every vector in the space can then be written in exactly one way as a combination of the basis vectors, and those weights are its **coordinates** in that basis.
+
+The number of vectors in any basis is the same: that number is the **dimension**. The plane has dimension 2, ordinary space 3, and a word embedding of 300 numbers lives in a 300-dimensional space.
+
+The standard basis uses (1, 0) and (0, 1), but nothing forces that choice. A **change of basis** describes the same vector in different coordinates. Graphics engines do this constantly: a point has coordinates relative to a model, a world and a camera.
+
+### Orthogonality
+Two vectors are **orthogonal** (perpendicular) when their dot product is zero. A basis whose vectors are mutually orthogonal and of length 1 is **orthonormal**. Orthonormal bases are the most convenient there are: the coordinate of v along a basis vector q is simply the dot product v · q, with no system of equations to solve.
+
+### Projection
+The **projection** of v onto a non-zero vector u is the closest point to v on the line through u:
+
+```text
+proj_u(v) = ((v · u) / (u · u)) · u
+```
+
+What is left over, v − proj_u(v), is orthogonal to u. Projection splits a vector into "the part along u" and "the part that has nothing to do with u". Shadows in graphics, removing a trend from data, and least-squares fitting (next lesson) all use it.
+
+### Building an orthonormal basis
+The **Gram–Schmidt process** turns any independent set into an orthonormal one: take each vector in turn, subtract its projections onto the vectors already chosen, and scale what remains to length 1. Numerical libraries use more stable variants of the same idea in the QR decomposition.
+
+> Key idea: A basis is a minimal set of directions that reaches every vector; the dimension is how many it needs. Orthonormal bases make coordinates simple dot products, and projection splits a vector into a part along a direction and a part perpendicular to it.
+#Q Which set is a basis of the plane?
+- (1, 2) and (2, 4)
+* (1, 0) and (1, 1)
+- (0, 0) and (1, 0)
+! (1, 2) and (2, 4) lie on one line, and the zero vector is never independent.
+#Q When are two vectors orthogonal?
+- When they have the same length
+* When their dot product is zero
+- When one is a multiple of the other
+! A zero dot product means a right angle between them.
+#Q In an orthonormal basis, how do you find the coordinate of v along basis vector q?
+- Solve a system of equations
+* Take the dot product v · q
+- Divide v by q
+! Orthonormality makes each coordinate a single dot product.
+
+#LESSON Least squares and fitting data | 13
+### More equations than unknowns
+Suppose you measure a server's response time at several loads and want a straight line y = m x + c through the points. With two points there is exactly one line. With twenty noisy points no single line passes through them all: the system has more equations than unknowns and no exact solution.
+
+Written as matrices, each point gives one row:
+
+```text
+[ x1 1 ]           [ y1 ]
+[ x2 1 ]  [ m ]  ≈ [ y2 ]
+[ ...  ]  [ c ]    [ ...]
+   A        x        b
+```
+
+We cannot make Ax equal b, so we make it as close as possible.
+
+### The least-squares idea
+The **residual** of each point is the vertical gap between the measured y and the line's prediction. Least squares chooses the line that minimises the **sum of the squared residuals**. Squaring makes every gap count as positive, punishes large misses more than small ones, and leads to a clean formula.
+
+### The normal equations
+Geometrically, Ax can only reach vectors in the column space of A. The best choice is the **projection** of b onto that space, which leaves a residual orthogonal to every column. Writing "orthogonal to every column" as a matrix equation gives the **normal equations**:
+
+```text
+Aᵀ A x = Aᵀ b
+```
+
+For a straight-line fit, AᵀA is just 2 × 2, so the system is tiny however many points there are.
+
+### A worked example
+Fit a line to (0, 1), (1, 3) and (2, 4). Then AᵀA has rows (5, 3) and (3, 3), and Aᵀb is (11, 8). Solving gives m = 1.5 and c ≈ 1.17. The line passes near all three points without touching them exactly, and no other straight line has a smaller sum of squared gaps.
+
+### Beyond straight lines
+The same method fits any model that is linear in its unknown weights: a parabola (columns x², x, 1), several input features at once (one column per feature), or seasonal patterns. This is **linear regression**, one of the most used tools in data science, and the first model most machine-learning courses teach.
+
+### Cautions
+- Least squares is sensitive to **outliers**: one wild point pulls the line hard, because its squared error is large.
+- A good fit is not proof of cause; it summarises the data you have.
+- Libraries solve the problem with QR or SVD rather than forming AᵀA directly, which can lose precision when columns are nearly dependent.
+
+> Key idea: When a system has no exact solution, least squares finds the x that minimises the sum of squared residuals by solving AᵀAx = Aᵀb. It projects the data onto what the model can express, and it is the basis of linear regression.
+#Q What does least squares minimise?
+- The largest residual
+* The sum of the squared residuals
+- The number of points off the line
+! Squared gaps are added up and made as small as possible.
+#Q What are the normal equations?
+- Ax = b
+* AᵀA x = Aᵀ b
+- A x = 0
+! They say the residual is orthogonal to every column of A.
+#Q Why can one extreme outlier distort a least-squares fit?
+- Outliers are ignored by the method
+* Its squared error is very large, so the fit moves to reduce it
+- Least squares only uses the first and last points
+! Squaring gives large gaps an outsized weight.
+
 #LAB js | A linear algebra library
 Implement the core operations. Vectors are arrays of numbers; matrices are arrays of rows.
 
@@ -1501,6 +1826,16 @@ In power iteration, find the component of `w` with the largest absolute value, d
 * Principal component analysis
 - The transpose
 ! The directions are eigenvectors of the covariance matrix.
+#Q What is the dimension of a space?
+- The largest number in any of its vectors
+* The number of vectors in any basis of it
+- The number of zero vectors it contains
+! Every basis has the same number of vectors.
+#Q You fit a line to 100 noisy points. Which method gives the line with the smallest sum of squared errors?
+- Interpolation through every point
+* Least squares, solving AᵀA x = Aᵀb
+- Taking the first and last points
+! That is exactly what least squares minimises.
 #W A search service represents every document and every query as a vector of 500 numbers. Explain how linear algebra is used to find the documents most relevant to a query, why cosine similarity is preferred to raw distance or the plain dot product, how the data could be compressed to fewer dimensions, and one limitation of the approach.
 + Relevance as similarity between the query vector and each document vector
 + Cosine similarity as the dot product divided by the lengths, measuring direction regardless of magnitude or document length

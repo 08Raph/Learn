@@ -971,6 +971,23 @@ A test that sometimes fails without a code change is worse than no test: people 
 ### Testability is designed in
 Code is easy to test when its dependencies are passed in, its logic is separated from input and output, and its functions are small and pure. Difficulty in writing a test is feedback about the design.
 
+### Worked example
+A team builds a small online shop. A balanced test strategy might look like this.
+
+```text
+Unit tests (hundreds, milliseconds each)
+  price calculation, discount rules, address validation
+Integration tests (dozens, seconds)
+  order saved to a real test database; payment client against a sandbox
+End-to-end tests (a handful, minutes)
+  browse → add to basket → pay → confirmation email
+Non-functional
+  load test before sales; dependency vulnerability scan on every build
+Run: unit + integration on every push; end-to-end before each release
+```
+
+Most checks sit at the fast, cheap bottom of the pyramid; only the journeys that matter most are tested end to end, because those tests are slow and brittle.
+
 > Key idea: The goal is not a coverage number. It is the confidence to change the code and release it.
 #Q How should testing effort be distributed?
 - Equally across all code
@@ -1647,6 +1664,19 @@ Go deep in one area while widening your general knowledge. Build things slightly
 Every shortcut has a cost paid later, with interest. Some debt is a sensible choice to ship sooner. The professional habit is to **make it visible**: record it, say what it will cost, and plan to repay the debts that hurt most.
 
 > In industry: Engineers are promoted for the scope of problems they can be trusted with, from a well-defined task, to an ambiguous feature, to a whole system. Trust is earned through judgement and follow-through.
+### Worked example
+An intermediate engineer gives a weekly status update in a few lines that a manager can act on.
+
+```text
+Done:      Search results now paginate (PR #88 merged, deployed Tuesday).
+In progress: CSV export, 60%. Expected Friday.
+Risk:      The export of 50,000 rows takes 40 s; may need a background job.
+           Proposal: try streaming first; decide by Thursday.
+Need:      A review of PR #91 from someone who knows the billing tables.
+```
+
+Good updates state outcomes, not activity; raise risks early with a proposal; and ask for exactly the help needed.
+
 #Q What should you do when you realise an estimate was too optimistic?
 - Work in silence and hope to catch up
 * Tell the team early, with the reason and a revised range

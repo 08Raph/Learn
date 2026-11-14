@@ -589,6 +589,26 @@ The comments are about the code. Assume good intent, answer every comment, and s
 Most teams run tests and linters on every pull request and block merging until they pass. This is continuous integration, which Stage 3 covers.
 
 > In industry: At most companies no code reaches `main` without at least one approving review. Reviewing well is a large part of how engineers are judged as they become senior.
+### Worked example
+Your pull request adds input validation to a sign-up form. A good description and a good review comment look like this.
+
+```text
+Title: Validate email and password on the sign-up form
+
+What: client and server checks; messages next to each field.
+Why: 14% of sign-ups last month failed later with bad emails (issue #212).
+How to test: run npm test; try "a@b" and a 5-character password.
+Screenshots: before / after.
+
+Review comment (helpful):
+  "Line 42: this regex rejects plus-addresses like ann+news@x.com, which are valid.
+   Could we rely on the server check and keep the client check simple?"
+Review comment (unhelpful):
+  "This is wrong." 
+```
+
+A small, explained change gets a fast review. A specific comment with a reason and a suggestion moves the work forward; a verdict without either does not.
+
 #Q What is the main advantage of small pull requests?
 - They use less storage
 * They can be reviewed thoroughly and merged quickly
@@ -633,6 +653,22 @@ An **issue** records a bug, a request or a task. A good bug report states what y
 Teams configure the repository so `main` cannot be pushed to directly: every change needs a pull request, a review and passing checks.
 
 > In industry: Your first weeks in any job involve learning that team's workflow. The details vary; branches, pull requests, review and a protected main line are nearly universal.
+### Worked example
+You want to fix a typo in the documentation of an open-source library you use. The usual contribution flow:
+
+```text
+1. Read CONTRIBUTING.md and check open issues/PRs for the same fix.
+2. Fork the repository on GitHub, then clone your fork.
+3. git switch -c docs/fix-typo-in-readme
+4. Make the change; run the project's checks (npm test, make lint, ...).
+5. git commit -m "docs: fix typo in installation section"
+6. git push -u origin docs/fix-typo-in-readme
+7. Open a pull request against the original repository; describe the change.
+8. Respond to review; push more commits to the same branch.
+```
+
+Small first contributions such as documentation fixes teach the workflow with little risk, and maintainers welcome them when the guidelines are followed.
+
 #Q In semantic versioning, which number increases when a release breaks compatibility?
 * MAJOR
 - MINOR
@@ -855,6 +891,21 @@ In a deployed system you cannot attach a debugger. **Logs**, lines the program w
 - **Read the error message, all of it.**
 - **Take a break.** Solutions often arrive away from the screen.
 - **Write the test first.** Capture the bug in a failing test, then fix it. The test proves the fix and keeps the bug away.
+
+### Worked example
+A function that averages ratings returns the wrong result for some users. A systematic debugging session:
+
+```text
+Symptom:    average([4, 5]) returns 4, expected 4.5.
+Reproduce:  a failing test: assert average([4, 5]) == 4.5      → fails
+Hypothesis: integer division somewhere.
+Inspect:    total = 9, count = 2, result = total // count     ← found it
+Fix:        result = total / count
+Verify:     the new test passes; the whole suite passes.
+Prevent:    keep the test; add a case for an empty list (→ raises ValueError).
+```
+
+Reproduce first, change one thing at a time, and keep the test that caught the bug so it can never quietly return.
 
 > Key idea: Debugging is the scientific method applied to code. Guess, predict, test, and let the evidence overrule your beliefs.
 #Q What does a breakpoint do?

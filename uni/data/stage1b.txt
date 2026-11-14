@@ -37,6 +37,11 @@ console.log("5" === 5);     // false
 ```
 
 > In industry: JavaScript is the only language browsers run natively, so every web developer needs it. TypeScript, which you meet in Stage 2, is JavaScript with types added.
+### Common mistakes
+- Forgetting that JavaScript's `==` converts types: `"5" == 5` is true. Use `===`.
+- Declaring with `var`; prefer `let`, or `const` when the variable is never reassigned.
+- Leaving out `console.log` and expecting a bare expression to print, as it would in a Python shell.
+
 #TRY js | Create a constant `city` with the value "Toronto" and a variable `visits` with the value 3.
 @starter
 // create the constant and the variable
@@ -57,6 +62,12 @@ visits => 3
 - ==
 * ===
 ! `===` compares without converting types.
+#Q What is "5" === 5 in JavaScript?
+- An error
+* false
+- true
+- undefined
+! === compares type as well as value; a string is not a number.
 
 #LESSON Conditions, loops and functions in JavaScript | 14
 The ideas are the ones you know. Only the punctuation is new: conditions go in round brackets and blocks in curly brackets.
@@ -123,6 +134,11 @@ const doubled = numbers.map((n) => n * 2);      // [2, 4, 6]
 
 `map` calls the function you give it once for each item and collects the results.
 
+### Common mistakes
+- Writing `for (let i = 0; i <= arr.length; i++)`, which reads one element past the end.
+- Missing `return` in a function with braces: it returns `undefined`.
+- Using `if (x = 5)`, which assigns instead of comparing.
+
 > Key idea: Passing a function to another function is how JavaScript says "here is what to do later" or "here is what to do with each item".
 #TRY js | Write `isAdult(age)` that returns true when age is 18 or more.
 @starter
@@ -147,6 +163,14 @@ isAdult(40) => true
 * [2, 3, 4]
 - [1, 2, 3, 1]
 ! `map` applies the function to each item and returns a new array.
+#Q What does this return?
+function add(a, b) { a + b; }
+add(2, 3)
+- An error
+- 5
+- "23"
+* undefined
+! Without return, a function with a block body returns undefined.
 
 #LESSON Arrays and objects | 14
 JavaScript's **array** is Python's list. Its **object** is close to Python's dictionary.
@@ -273,6 +297,11 @@ Create the element, fill it in, then attach it to the tree. Until you attach it,
 > Warning: Use `textContent` to insert text that came from a user. Its cousin `innerHTML` treats the text as page code, which lets an attacker inject their own script. This kind of attack is called cross-site scripting and you will study it in Stage 3 and Stage 4.
 
 > In industry: Large applications use libraries such as React that update the DOM for you. They are built on exactly these operations, and understanding the DOM is what lets you debug them.
+### Common mistakes
+- Running the script before the page has loaded, so `document.querySelector` returns `null`. Put the script at the end of the body or use `defer`.
+- Setting `innerHTML` with text typed by users, which allows script injection; use `textContent`.
+- Misspelling a selector: `querySelector('btn')` looks for a `<btn>` element; a class needs `.btn`.
+
 #Q What is the DOM?
 - A programming language
 * The browser's in-memory tree model of the page
@@ -283,6 +312,12 @@ Create the element, fill it in, then attach it to the tree. Until you attach it,
 * innerHTML would run any page code hidden in the text
 - textContent is faster to display
 ! Treating untrusted text as HTML allows script injection.
+#Q Which is the safe way to show text typed by a user?
+- eval(text)
+- document.write(text)
+* element.textContent = text
+- element.innerHTML = text
+! textContent inserts plain text and never interprets it as HTML.
 
 #LESSON Events: reacting to the user | 12
 A web page mostly waits. Code runs when something happens: a click, a key press, a form being submitted. Each such happening is an **event**, and the function you want run is an **event listener**.
@@ -332,6 +367,11 @@ input.addEventListener("input", (event) => {
 
 `event.target` is the element the event happened on. For forms, call `event.preventDefault()` to stop the browser reloading the page.
 
+### Common mistakes
+- Calling the handler instead of passing it: `addEventListener('click', go())` runs `go` immediately.
+- Forgetting `event.preventDefault()` on a form submit, so the page reloads.
+- Adding the same listener many times inside a loop or on every render.
+
 > Key idea: State, event, update, redraw. Every user interface you will ever build, in any technology, is some version of this loop.
 #Q What does addEventListener("click", fn) do?
 - Runs fn immediately
@@ -343,6 +383,12 @@ input.addEventListener("input", (event) => {
 * The data the program remembers, such as a counter
 - The internet connection
 ! State is the information that changes over time and decides what the page shows.
+#Q Which line attaches go as a click handler?
+- button.addEventListener('click', go())
+- button.click(go)
+* button.addEventListener('click', go)
+- button.onclick = go()
+! Pass the function itself; go() would call it immediately.
 
 #LAB js | To-do list logic
 Write the logic of a to-do list as plain functions, separate from any page. Each task is an object like `{ text: "Buy milk", done: false }`.
@@ -519,6 +565,11 @@ Most elements have an **opening tag** `<p>`, some content, and a **closing tag**
 A tag can have **attributes** that give extra information, written as `name="value"`, such as `lang="en"` above.
 
 > In industry: Browsers are very forgiving of broken HTML and will display something anyway. That makes mistakes easy to miss, which is why teams run validators and linters on their pages.
+### Common mistakes
+- Forgetting `<!DOCTYPE html>`, which makes browsers render in old quirks mode.
+- Leaving out the `<meta name="viewport">` tag, so phones show a tiny zoomed-out page.
+- Opening a tag and never closing it, which can swallow the rest of the page.
+
 #Q What is the job of HTML?
 - Making the page look good
 * Describing the structure and content of the page
@@ -529,6 +580,12 @@ A tag can have **attributes** that give extra information, written as `name="val
 * The title element inside head
 - The file name
 ! `<title>` sets the tab text and the name used in bookmarks and search results.
+#Q What does the viewport meta tag mainly affect?
+- The page title
+- The font
+- Search ranking only
+* How the page scales on phones and tablets
+! Without it, mobile browsers render a desktop-width page and shrink it.
 
 #LESSON The elements you need most | 14
 A small set of elements builds almost any page.
@@ -582,6 +639,11 @@ Rather than making everything a plain box, HTML has elements that say what part 
 
 These are **semantic** elements: they carry meaning. Browsers, search engines and assistive technology use that meaning. When no semantic element fits, use `<div>` (a block) or `<span>` (a piece of text), which mean nothing by themselves.
 
+### Common mistakes
+- Using headings for size instead of structure: `<h1>` should be the page title, not just big text.
+- Images without `alt` text, which screen-reader users cannot understand.
+- Using `<div>` for everything when `<button>`, `<nav>`, `<main>` or `<ul>` say what the content is.
+
 > Key idea: Choose an element for what the content *is*, never for how it looks by default. Looks are CSS's job.
 #Q Why should every img have an alt attribute?
 - It makes the image load faster
@@ -593,6 +655,12 @@ These are **semantic** elements: they carry meaning. Browsers, search engines an
 * nav
 - span
 ! `<nav>` is the semantic element for navigation.
+#Q Why should an informative image have alt text?
+* Screen readers read it, and it shows if the image fails to load
+- It makes the image load faster
+- It is required for CSS
+- It sets the image size
+! alt describes the image to people who cannot see it.
 
 #LESSON Styling with CSS | 14
 **CSS** (Cascading Style Sheets) controls appearance. A stylesheet is a list of **rules**. Each rule has a **selector** that picks elements and **declarations** that style them.
@@ -710,6 +778,11 @@ The old joke was that centring something in CSS was impossible. With flexbox it 
 ```
 
 > In industry: Flexbox handles one-dimensional layouts (a row or a column). For two-dimensional layouts such as a whole-page grid, CSS Grid is the companion tool. Real pages use both.
+### Common mistakes
+- Putting `display: flex` on the children instead of the container.
+- Mixing up the axes: `justify-content` works along the main axis (a row by default), `align-items` across it.
+- Forgetting `flex-wrap: wrap`, so items squash or overflow on small screens.
+
 #Q What does display: flex on a container do to its direct children?
 - Hides them
 * Lays them out as flex items, in a row by default
@@ -720,6 +793,12 @@ The old joke was that centring something in CSS was impossible. With flexbox it 
 - align-items
 - flex-wrap
 ! `justify-content` works along the main axis; `align-items` works across it.
+#Q Which property centres items horizontally in a default flex row?
+* justify-content: center
+- float: center
+- align-items: center
+- text-align: middle
+! In a row, the main axis is horizontal, so justify-content controls it.
 
 #LESSON Responsive and accessible pages | 12
 People will open your page on a phone, a tablet, a laptop and a huge monitor. Some will zoom in. Some cannot use a mouse. Some cannot see the screen. A professional page works for all of them.
@@ -1479,6 +1558,21 @@ Put it on GitHub and add a card to your personal site. Explaining a project to s
 After each project, write three lines: what went well, what was hard, what you will do differently. People who do this improve much faster than people who simply start the next project.
 
 > In industry: "Done" at work means tested, reviewed, documented and released, not "it ran once on my computer". Building that habit now is worth more than any single language feature.
+### Worked example
+You finished a to-do app and have two minutes to present it. A clear structure beats a tour of every button.
+
+```text
+1. Problem (15 s)   "I kept losing track of homework across three apps."
+2. Demo (60 s)       Add a task, set a due date, mark it done, reload: still there.
+3. How (30 s)        Plain JavaScript, localStorage, 12 automated tests.
+4. Hardest part (15 s) Dates across time zones; fixed by storing ISO strings.
+5. Next (10 s)       Sync between devices.
+
+README: what it does · how to run it · screenshot · known limits
+```
+
+Show the working product early, explain one real decision, and be honest about what is missing; reviewers trust that more than a long feature list.
+
 #Q Why is it hard to test your own program well?
 - Your computer is too fast
 * You tend to use it the way you intended, and miss the unexpected cases

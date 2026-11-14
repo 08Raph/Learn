@@ -5,6 +5,11 @@ Firebase project `learn-a72fb`, its rules, its Authentication settings or any us
 below is prepared for you to apply when you choose. Until you do, the site runs in **legacy mode**: it
 behaves exactly as version 3.1 did, and the Multiplayer page says plainly that online data is unprotected.
 
+> **Upgrading from 4.0 with secure mode already on?** 4.1 changes one thing in `firebase/database.rules.json`:
+> an account may delete its own `owners/<pid>` and `uids/<uid>` records, so players can delete their own data.
+> Re-run the rules test (section 4) and publish the new rules file, or the "Delete my online data" button
+> will remove everything except those two records.
+
 ## 1. What the problem is
 
 In legacy mode the website talks to the Realtime Database with no sign-in. For that to work, the database
@@ -34,7 +39,7 @@ When `FB_API_KEY` is set in `index.html`, the app:
 | Everything not listed | nobody | nobody |
 | `duel/ping` | anyone | nobody |
 | `duel/admins/<uid>` | that user (their own flag) | **console only** |
-| `duel/owners/<pid>`, `duel/uids/<uid>` | signed-in users | once, by the claiming account; never changed |
+| `duel/owners/<pid>`, `duel/uids/<uid>` | signed-in users | once, by the claiming account; never changed; may be deleted only by that same account (self-service deletion, 4.1) |
 | `duel/names`, `presence`, `lb/<mode>/<pid>` | signed-in users | only the owner of `<pid>`; values validated (name ≤ 24 characters, rating 0 to 10,000, numbers only) |
 | `duel/fl`, `frq`, `inv`, `inbox` | the owner (requests: also the sender) | the owner, or a signed-in sender for requests addressed to that player |
 | `duel/codes` (list) | administrators | – |

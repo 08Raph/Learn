@@ -100,6 +100,11 @@ Because hex and decimal can look alike, hex is usually marked with `0x` in code 
 - **Raw data** when inspecting files or network traffic.
 
 > In industry: When a program crashes, the report often shows addresses and data in hex. Being able to read it is part of debugging at a low level.
+### Common mistakes
+- Forgetting that hexadecimal digits go up to F (15): `0x1A` is 26, not 110.
+- Mixing up place values: each hex digit is worth 16 times the one to its right.
+- Thinking hex is a different kind of number: it is only a shorter way to write the same binary value, four bits per digit.
+
 #Q What is hexadecimal F in decimal?
 - 10
 * 15
@@ -110,6 +115,12 @@ Because hex and decimal can look alike, hex is usually marked with `0x` in code 
 * 26
 - 110
 ! 1 × 16 + 10 = 26.
+#Q What is 0x1F in decimal?
+- 25
+* 31
+- 115
+- 16
+! 1 × 16 + 15 = 31.
 
 #LESSON Operating systems | 12
 If programs talked to hardware directly, every program would need to know how to drive every kind of disk, screen and keyboard, and two programs running at once would fight over them. The **operating system** (OS) solves this. It is the program that runs all the other programs. Windows, macOS, Linux, Android and iOS are operating systems.
@@ -162,6 +173,22 @@ These steps are not done once in order. Modern teams repeat them in small loops,
 
 ### What engineers actually do all day
 Less typing than you might expect. A lot of reading other people's code, talking with colleagues about what to build, finding out why something is broken, reviewing each other's work, and writing things down so the next person understands.
+
+### Worked example
+A small team is asked for a feature: let customers reset their password by email. Here is how the work flows through the software development life cycle.
+
+```text
+Requirements  "A customer who forgot their password can set a new one within 15 minutes,
+               without contacting support." Out of scope: SMS.
+Design        Single-use reset token, valid 15 minutes, sent by email; store only a hash of it.
+Build         Endpoint POST /password-reset, email template, token table.
+Test          Unit: token expires after 15 min. Integration: full reset flow.
+              Security: an old or reused token is rejected.
+Release       Behind a feature flag for 5% of users, then everyone.
+Operate       Dashboard: reset requests per hour, failures, support tickets.
+```
+
+Notice that most of the effort is not typing code: it is agreeing what "done" means, designing for safety, and checking the result in production.
 
 > Key idea: Code is read far more often than it is written. Writing code that other people can understand is the central skill of the job.
 
@@ -314,6 +341,22 @@ A real rule: "You may enter if you have a ticket AND (you are 18 or older OR you
 "Not (hungry and tired)" means "not hungry, or not tired".
 
 > In industry: A large share of bugs are logic slips: AND where OR was meant, or a condition that is the wrong way round. Writing out the truth table for a tricky condition is a real professional technique.
+### Worked example
+A shop gives free delivery when an order is over 50 or the customer is a member, but never for oversized items. Turn the rule into logic and check it with a truth table.
+
+```text
+free = (total > 50 OR member) AND NOT oversized
+
+total>50  member  oversized | free
+  T        T        F       |  T
+  T        F        F       |  T
+  F        T        F       |  T
+  F        F        F       |  F
+  any      any      T       |  F
+```
+
+Writing the table first exposes the cases people forget, such as a member with an oversized item. The brackets matter: without them AND would bind first and change the rule.
+
 #Q When is "A AND B" true?
 - When A is true
 - When either A or B is true
@@ -495,6 +538,20 @@ Computers store whole numbers (**integers**) exactly. Numbers with a decimal poi
 > Warning: Never use floating-point numbers for money. Store amounts as whole numbers of cents.
 
 > In industry: The floating-point surprise above is not a bug in any language. It follows from the IEEE 754 standard that nearly all hardware uses.
+### Worked example
+A photo app stores 2,000,000 images of about 3 MB each and keeps a thumbnail of 30 KB for each. How much storage is needed, and how many bits does an image ID need?
+
+```text
+Images      2,000,000 × 3 MB   = 6,000,000 MB  ≈ 6 TB
+Thumbnails  2,000,000 × 30 KB  = 60,000,000 KB ≈ 60 GB
+Total                                         ≈ 6.06 TB
+
+IDs: 2^20 = 1,048,576 (too few), 2^21 = 2,097,152 (enough)
+→ at least 21 bits; in practice a 32- or 64-bit integer.
+```
+
+Rounding to friendly numbers, multiplying, and using powers of two are most of the mathematics a working programmer needs day to day.
+
 #Q What is 17 % 5?
 * 2
 - 3
@@ -656,6 +713,11 @@ Names can use letters, digits and underscores, cannot start with a digit, and ar
 ### Comments
 Anything after `#` on a line is a **comment**. Python ignores it. Comments are notes for people.
 
+### Common mistakes
+- Using a variable before the line that creates it: `print(total)` above `total = 5` gives a NameError.
+- Writing the assignment backwards: `5 = total` is an error; the name goes on the left.
+- Expecting a variable to update itself: after `b = a` then `a = 10`, `b` still holds the old value.
+
 > Key idea: A program runs from top to bottom, one line at a time. A variable has no value until the line that creates it has run.
 
 > In industry: Naming is treated as a serious skill. A good name removes the need for a comment; a misleading one causes bugs.
@@ -682,6 +744,15 @@ print(a)
 - 3
 * 5
 ! The right side is worked out first (2 + 3), then a becomes 5.
+#Q After these lines, what is b?
+a = 3
+b = a
+a = 10
+- An error
+- 10
+* 3
+- 13
+! b took a copy of the value 3; changing a later does not change b.
 
 #LESSON Types of data | 14
 Every value has a **type**, which says what kind of thing it is and what you can do with it. Python's basic types:
@@ -734,6 +805,11 @@ print(f"{name} is {age} years old")
 ```
 
 > In industry: Python and JavaScript check types while the program runs (**dynamic typing**). Java, C and TypeScript check before it runs (**static typing**). You will use both, and Stage 2 compares them.
+### Common mistakes
+- Adding a number to text: `"Age: " + 30` is a TypeError. Use `str(30)` or an f-string.
+- Forgetting that `input()` always returns text: `int(input())` is needed before doing arithmetic.
+- Comparing floats exactly: `0.1 + 0.2 == 0.3` is False because of rounding; compare with a tolerance.
+
 #TRY py | Make `total` hold the number 12 by converting the two strings and adding them.
 @starter
 a = "5"
@@ -755,6 +831,12 @@ total => 12
 * 3
 - 3.9
 ! `int` cuts off the decimal part. It does not round.
+#Q What does type("5") return?
+- <class 'int'>
+- <class 'float'>
+- 5
+* <class 'str'>
+! The quotes make it text, a str, even though it looks like a number.
 
 #LESSON Operators and expressions | 12
 An **expression** is anything that produces a value: `3 + 4`, `age * 2`, `len(name)`. **Operators** are the symbols that combine values.
@@ -796,6 +878,11 @@ print(age >= 18 and has_ticket)     # True
 
 ### Precedence
 Python follows the usual order: brackets, powers, multiply and divide, add and subtract, comparisons, `not`, `and`, `or`. When in doubt, add brackets. They cost nothing and make your intention clear.
+### Common mistakes
+- Expecting `/` to give a whole number: `7 / 2` is `3.5`; use `//` for whole-number division.
+- Confusing `=` (assign) with `==` (compare).
+- Forgetting precedence: `2 + 3 * 4` is `14`, not `20`. Add brackets when in doubt.
+
 #TRY py | A rectangle is 7 wide and 4 high. Set `area` and `perimeter` using expressions with `width` and `height`.
 @starter
 width = 7
@@ -820,6 +907,12 @@ perimeter => 22
 * ==
 - ===
 ! One equals sign assigns. Two compare.
+#Q What is 7 // 2 in Python?
+- 3.5
+* 3
+- 1
+- 4
+! // divides and rounds down to a whole number.
 
 #LESSON Input and output | 10
 Programs become useful when they respond to a person. **Output** shows information; **input** reads it.
@@ -872,6 +965,11 @@ The `:.2f` inside the f-string means "show two digits after the decimal point".
 **Input, process, output.** Read what you need, compute, show the result. Keeping those three parts separate makes programs much easier to test, as you will see when you learn functions.
 
 > In industry: Real programs get input from many places besides a keyboard: files, databases, web requests, sensors. The same rule holds for all of them: input arrives as raw text or bytes and must be checked and converted before you trust it.
+### Common mistakes
+- Doing arithmetic on `input()` directly: it returns a string, so `input() + 1` fails.
+- Forgetting the `f` in an f-string: `"Hi {name}"` prints the braces literally.
+- Leaving out spaces in output: `print("Total:" + str(t))` prints `Total:5`.
+
 #Q A user types 8 in answer to `n = input("Number? ")`. What is the type of n?
 - int
 * str
@@ -882,6 +980,12 @@ The `:.2f` inside the f-string means "show two digits after the decimal point".
 * A B
 - A,B
 ! `print` separates its arguments with a space by default.
+#Q What does print(f"{2 + 3} apples") show?
+- An error
+- 2 + 3 apples
+* 5 apples
+- {2 + 3} apples
+! An f-string evaluates the expression inside the braces.
 
 #LESSON Making decisions with if | 14
 An `if` statement runs some code only when a condition is true.
@@ -931,6 +1035,11 @@ An `if` can sit inside another `if`. Each level is indented further. More than t
 Python treats some values as false in a condition: `0`, `""` (empty string), empty lists, and `None`. Everything else counts as true. So `if name:` means "if name is not empty".
 
 > In industry: A common review comment is "this condition is hard to follow". Giving a complicated condition a name, such as `is_eligible = age >= 18 and has_ticket`, makes the `if` read like a sentence.
+### Common mistakes
+- Using `=` instead of `==` in a condition: `if x = 5:` is a syntax error.
+- Forgetting the colon or the indentation after `if`, `elif` and `else`.
+- Ordering conditions badly: checking `score >= 50` before `score >= 90` means the second never runs for high scores.
+
 #TRY py | Write `sign(n)` that returns "positive", "negative" or "zero".
 @starter
 def sign(n):
@@ -957,6 +1066,16 @@ sign(0) => "zero"
 - All whose conditions are true
 - At least two
 ! Python runs the first branch whose condition is true and skips the rest.
+#Q score = 95. Which branch runs?
+if score >= 50:
+    print("pass")
+elif score >= 90:
+    print("distinction")
+- Both
+* pass
+- distinction
+- Neither
+! The first true condition wins; elif is skipped. Check the stricter condition first.
 
 #LESSON Repeating with loops | 16
 A **loop** runs the same lines many times. Python has two kinds.
@@ -1009,6 +1128,11 @@ The same shape counts things (start at 0, add 1), finds a largest value, or buil
 The classic loop bug is running one time too many or too few, usually from forgetting that `range` stops before its end. Test with the smallest cases: zero items, one item.
 
 > In industry: Loops are where programs spend their time. In Stage 2 you will learn to measure how the number of loop steps grows as the data grows, which decides whether a program is fast or unusable.
+### Common mistakes
+- An off-by-one range: `range(5)` gives 0 to 4, not 1 to 5.
+- A `while` loop whose condition never becomes false, because the variable is never updated.
+- Changing a list while looping over it, which skips items.
+
 #TRY py | Write `sum_to(n)` that returns 1 + 2 + ... + n using a loop.
 @starter
 def sum_to(n):
@@ -1035,6 +1159,14 @@ sum_to(100) => 5050
 * Its condition never becomes false
 - Using a variable named n
 ! Something in the loop must move the condition toward false.
+#Q How many times does this loop print?
+for i in range(2, 6):
+    print(i)
+- 6
+- 3
+* 4
+- 5
+! range(2, 6) gives 2, 3, 4 and 5: the end is not included.
 
 #LAB py | Loops and decisions
 Write three functions using `if` and loops.
@@ -1245,6 +1377,11 @@ power(3)        # 9   (exponent uses its default)
 power(2, 5)     # 32
 ```
 
+### Common mistakes
+- Printing inside a function instead of returning: the caller then gets `None`.
+- Forgetting the brackets when calling: `greet` refers to the function; `greet()` runs it.
+- Passing arguments in the wrong order; use keyword arguments when there are several.
+
 > Key idea: A good function does one thing, and its name says what that thing is.
 #TRY py | Write `area(width, height)` that returns the area of a rectangle.
 @starter
@@ -1267,6 +1404,16 @@ area(0, 9) => 0
 - An error
 * None
 ! `None` is Python's value for "nothing".
+#Q What does this print?
+def double(x):
+    print(x * 2)
+result = double(4)
+print(result)
+- 8 then 8
+- An error
+- None
+* 8 then None
+! The function prints 8 but returns nothing, so result is None.
 
 #LESSON Scope: where variables live | 10
 Variables created inside a function exist only while that function runs. They are **local** to it. This is called **scope**.
@@ -1292,6 +1439,11 @@ def add_tax(price):
 ```
 
 Reading a global constant like this is fine. *Changing* global variables from inside functions is a habit to avoid, because then the result of a function depends on hidden state and on what ran before, and the program becomes hard to reason about.
+
+### Common mistakes
+- Expecting a variable created inside a function to exist outside it.
+- Assigning to a global inside a function, which creates a new local variable instead (Python needs `global`, and it is usually better to return a value).
+- Reusing the same name for different things in nested code.
 
 > Key idea: Give a function everything it needs through its parameters, and get everything back through its return value. Then you can understand it by reading only its own lines.
 
@@ -1321,6 +1473,16 @@ Each time a function is called, Python creates a fresh workspace (a **stack fram
 - Python forbids it
 * The function's behaviour then depends on hidden state, which makes programs hard to understand
 ! Parameters in, return value out, keeps each function understandable on its own.
+#Q What happens here?
+def f():
+    inner = 1
+f()
+print(inner)
+- 0
+* NameError: inner is not defined
+- None
+- 1
+! inner is local to f and disappears when f returns.
 
 #LESSON Lists | 15
 A **list** holds many values in order. It is Python's version of what most languages call an array.
@@ -1372,6 +1534,11 @@ print(a)         # [1, 2, 3, 4]
 To get a separate copy, write `b = a.copy()`.
 
 > In industry: "It changed and I did not touch it" is very often two names for one list. Understanding references early saves hours of confusion later.
+### Common mistakes
+- Indexing from 1: the first item is `items[0]`, and the last is `items[-1]`.
+- Going past the end: `items[len(items)]` is an IndexError.
+- Copying by assignment: `b = a` makes both names refer to the same list; use `a.copy()` for a separate list.
+
 #TRY py | Write `average(numbers)` that returns the mean of a non-empty list.
 @starter
 def average(numbers):
@@ -1393,6 +1560,16 @@ average([1, 2]) => 1.5
 * [1, 2, 3]
 - An error
 ! a and b are two names for the same list.
+#Q What does this print?
+a = [1, 2]
+b = a
+b.append(3)
+print(a)
+- [1, 2]
+- [3]
+* [1, 2, 3]
+- An error
+! a and b are the same list, so appending through b changes a too.
 
 #LESSON Strings in depth | 12
 A string is a sequence of characters, and much of what works on lists works on strings too.
@@ -1532,6 +1709,11 @@ for book in books:
 This shape, lists of records with named fields, is how most data moves between programs. The format called **JSON** that web services exchange looks almost exactly like it.
 
 > In industry: Dictionary lookup is extremely fast no matter how many entries there are. Stage 2 explains why (the hash table) and when that makes a dictionary the right tool.
+### Common mistakes
+- Looking up a key that is not there with `d[key]`, which raises a KeyError; use `d.get(key)` or check `key in d`.
+- Expecting dictionaries to be ordered by key: they keep insertion order, not sorted order.
+- Using a list as a key: keys must be unchangeable (strings, numbers, tuples).
+
 #TRY py | Write `word_count(text)` that returns a dictionary mapping each word to how many times it appears.
 @starter
 def word_count(text):
@@ -1557,6 +1739,12 @@ word_count("go go go") => {"go": 3}
 - None
 * 0
 ! `get` returns the default you supply instead of raising an error.
+#Q What does {"a": 1}.get("b", 0) return?
+- None
+- 1
+- KeyError
+* 0
+! get returns the default when the key is missing.
 
 #LESSON Debugging: finding your own mistakes | 14
 Every programmer writes bugs, every day. The skill is not avoiding them completely; it is finding them quickly. **Debugging** is detective work, and it can be learned.

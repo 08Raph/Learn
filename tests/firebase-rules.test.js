@@ -32,7 +32,15 @@ t('unauthenticated: ping is readable (connection test only)', rd('ping', nobody)
 t('a new account can claim an unused player ID', wr('owners/unew000001', 'authStranger', stranger), true);
 t('cannot claim a player ID for someone else', wr('owners/unew000002', 'authAlice', stranger), false);
 t('cannot take over a player ID that is already claimed', wr('owners/ualice0001', 'authStranger', stranger), false);
-t('the owner cannot be changed or removed, even by the owner', wr('owners/ualice0001', null, alice), false);
+t('the owner cannot be changed, even by the owner', wr('owners/ualice0001', 'authBob', alice), false);
+t('another account cannot remove an owner record', wr('owners/ualice0001', null, bob), false);
+t('delete my data: a player can remove their own owner record', wr('owners/ualice0001', null, alice), true);
+t('delete my data: an account can remove its own player mapping', wr('uids/authAlice', null, alice), true);
+t('delete my data: an account cannot remove another account\'s mapping', wr('uids/authAlice', null, bob), false);
+t('delete my data: a player can remove their presence, leaderboard entry and name', wr('presence/ualice0001', null, alice) && wr('lb/1/ualice0001', null, alice) && wr('names/alice', null, alice), true);
+t('delete my data: a player can remove each friend entry on both sides', wr('fl/ualice0001/ubob000001', null, alice) && wr('fl/ubob000001/ualice0001', null, alice), true);
+t('delete my data: a player can remove their own friend code', wr('codes/FRIENDA1', null, alice), true);
+t('delete my data: a player cannot remove someone else\'s friend code', wr('codes/FRIENDA1', null, bob), false);
 t('malformed player IDs are rejected', wr('owners/../hack', 'authStranger', stranger) || wr('owners/BAD ID', 'authStranger', stranger), false);
 t('an account cannot map itself to a player ID it does not own', wr('uids/authStranger', 'ualice0001', stranger), false);
 t('an account cannot change its player ID once set', wr('uids/authAlice', 'ubob000001', alice), false);

@@ -135,6 +135,20 @@ Platforms, APIs and developer tools are products whose users are engineers. The 
 ### Ethics of product decisions
 Metrics can be improved by harming users: manipulative design, engineered compulsion, hidden charges. Optimising a number does not excuse the method.
 
+### Worked example
+Turn a feature request into a product decision.
+
+```text
+Request:   "Add dark mode."
+Problem:   who wants it and why? Survey: 38% use the app at night; complaints about eye strain.
+Outcome:   increase evening session length.
+Options:   full dark theme (3 weeks) · reduced-brightness mode (3 days)
+Experiment: ship reduced brightness to 10% of users.
+Result:    evening sessions +12%; proceed with the full theme next quarter.
+```
+
+Product thinking starts from the user's problem and a measurable outcome, then tests the cheapest option that could work.
+
 > Key idea: Building the thing is not the goal. Changing what users can do is. Treat every feature as a hypothesis, test it cheaply, and measure outcomes.
 #Q What is the difference between an output and an outcome?
 - They are the same
@@ -218,6 +232,20 @@ The law concerning the ownership of generated code, and the use of copyrighted m
 ### Other content
 Data sets, images, fonts and documentation carry their own terms. **Creative Commons** licences are common for content. An API being publicly reachable does not mean its data may be used freely: check the terms of service.
 
+### Worked example
+Check whether three dependencies are compatible with a closed-source commercial app.
+
+```text
+Library      License      Obligation                               OK for closed source?
+lib-a        MIT          keep copyright notice                    Yes
+lib-b        Apache-2.0   keep notice; patent grant; state changes Yes
+lib-c        GPL-3.0      distributing the app requires releasing  No (if distributed)
+                          the whole program's source under GPL
+Action: replace lib-c, or isolate it in a separate service you do not distribute.
+```
+
+Permissive licences ask for attribution; strong copyleft licences can require you to release your own source, so check before you depend.
+
 > Key idea: Code without a licence is not yours to use. Know the difference between permissive and copyleft terms, track every dependency's licence automatically, and ask a lawyer when the stakes are real.
 #Q You find useful code in a public repository that has no licence file. May you use it in your product?
 - Yes, public code is free to use
@@ -288,6 +316,20 @@ Encode requirements as automated controls and tests. Generate evidence as a by-p
 
 ### Professional responsibility
 Law sets a minimum. Something can be legal and still wrong. Professional codes ask engineers to protect the public even where the law does not yet require it.
+
+### Worked example
+A startup collecting users' names and emails in the EU checks its main GDPR obligations.
+
+```text
+Lawful basis:   contract (to run the account); consent for the newsletter, separately
+Transparency:   privacy notice: what, why, how long, who receives it
+Rights:         users can access, correct, export and delete their data
+Security:       encryption in transit and at rest; access limited to staff who need it
+Breach:         notify the regulator within 72 hours of becoming aware
+Processors:     data-processing agreement with the email provider
+```
+
+Regulations translate into concrete engineering tasks: features for user rights, security controls and records that show compliance. (This is general information, not legal advice.)
 
 > Key idea: Privacy, accessibility, sector rules and contracts are design constraints. Identify them at the start, involve specialists early, and build compliance in as automated controls.
 #Q A sales team is about to sign a contract promising 99.99% availability. What should engineering do first?
@@ -594,6 +636,20 @@ A **model card** records what a model is for, the data it was trained on, its pe
 - **Distillation** trains a small model to imitate a large one.
 - **Pruning** removes weights that contribute little.
 
+### Worked example
+Evaluate a spam classifier properly before trusting its accuracy.
+
+```text
+Data split:   train 70% · validation 15% · test 15%, split by user so no user's
+              emails appear in two sets
+Baseline:     "always not spam" scores 92% accuracy (because 92% is not spam)
+Model:        accuracy 97%; precision 0.91; recall 0.88 on the test set
+Slice check:  recall only 0.70 on non-English emails  → collect more data
+Tracking:     every run logs data version, code commit and hyperparameters
+```
+
+Accuracy alone can mislead; compare against a baseline, report precision and recall, check slices, and record exactly what produced each result.
+
 > Key idea: Evaluation is infrastructure, not an afterthought. Build a representative evaluation set, measure by slice, compare every candidate with production, and confirm online what you measured offline.
 #Q When adapting an existing model to a new task, which approach should usually be tried first?
 - Training a new model from scratch
@@ -667,6 +723,19 @@ Inference is a recurring cost that grows with use, unlike training. Track cost p
 
 ### Logging and privacy
 Logging inputs and outputs is essential for debugging, evaluation and retraining, and it may capture personal data. Apply minimisation, access control, retention limits and consent, exactly as for any other personal data.
+
+### Worked example
+Deploy a new model version safely and watch it in production.
+
+```text
+1. Package the model with its preprocessing code; version both together.
+2. Shadow mode: new model scores live traffic, but its answers are not used.
+3. Canary: 5% of users for 24 hours; compare business metrics and latency.
+4. Monitor: input drift (feature distributions), output drift, latency p95, errors.
+5. Rollback: one switch back to the previous version if metrics drop.
+```
+
+Models fail quietly when data changes, so production ML needs the same gradual rollout and monitoring as other software, plus drift checks.
 
 > Key idea: A deployed model can fail without any error. Monitor the data and the predictions as well as the service, release models progressively with a rollback, and keep a non-model fallback.
 #Q What is a shadow deployment of a model?
@@ -840,6 +909,20 @@ You are often the person who best understands what the system can and cannot do.
 
 ### A culture of care
 Responsible AI is not a checklist completed at the end. It is a habit of asking, throughout: who could this hurt, how would we know, and what would we do?
+
+### Worked example
+A risk assessment before releasing an AI feature that summarises customer support tickets.
+
+```text
+Risk                          Likelihood  Impact  Mitigation
+Summary invents facts          medium      high    show source quotes; agent must confirm
+Personal data in prompts       high        high    redact emails and card numbers first
+Unequal quality by language    medium      medium  evaluate per language; disable where poor
+Over-reliance by agents        medium      medium  label as AI-generated; easy feedback button
+Accountability: product owner signs off; review after 30 days.
+```
+
+Responsible deployment lists concrete harms, puts controls in place before launch, and names who is accountable.
 
 > Key idea: Match the controls to the risk. Know who is affected and who is accountable, make human oversight real, monitor after release, and be honest about what the system cannot do.
 #Q Which system warrants the strictest controls?
@@ -1131,6 +1214,21 @@ The work must be your own. You may use libraries, frameworks and tools, includin
 ### What is being assessed
 Not the idea, and not the number of features. You are assessed on **engineering quality** and **judgement**: the design and its justification, correctness, testing, security, performance, operability, documentation, the honesty of your evaluation, and your ability to explain and defend your decisions.
 
+### Worked example
+A capstone plan that fits a twelve-week term.
+
+```text
+Week 1–2   Scope: one core user journey; write the requirements and a design doc
+Week 3–4   Walking skeleton: login → main screen → database → deployed
+Week 5–8   Core features, each with tests; weekly demo to a peer
+Week 9     Security and performance pass
+Week 10    Feature freeze; fix bugs; write the report
+Week 11    Rehearse the demonstration
+Week 12    Buffer (there is always something)
+```
+
+Deploying a thin end-to-end version early exposes integration problems while there is still time, and a buffer keeps the plan honest.
+
 > Key idea: Write the proposal first, keep the scope small enough to finish properly, deploy in week one, and attack the riskiest part early.
 #Q What is the commonest reason a capstone project fails?
 - The wrong programming language
@@ -1222,6 +1320,21 @@ Coverage figures are evidence, not a goal. A meaningful suite that covers the im
 ### Proportion and honesty
 You will not do everything perfectly. Where you fall short of an item, say so, explain why, and state what you would do next. An honest account of a gap is treated as evidence of judgement. An unacknowledged gap is treated as something you did not notice.
 
+### Worked example
+What "done" means for each feature in a production-style capstone.
+
+```text
+Definition of done:
+  [ ] Code reviewed (by a peer or a recorded self-review checklist)
+  [ ] Unit and integration tests; CI green
+  [ ] Input validated on the server; errors handled and logged
+  [ ] Accessible: keyboard, labels, contrast checked
+  [ ] Documented in the README; migration scripts included
+  [ ] Deployed to the staging environment
+```
+
+A written definition of done prevents half-finished features from piling up and makes the expected standard visible.
+
 > Key idea: Production grade means the unhappy paths are handled: invalid input, a hostile user, a failed dependency, a bad deployment. Each claim you make needs evidence.
 #Q Which test is essential evidence of correct authorisation in the capstone?
 - A test that the home page loads
@@ -1293,6 +1406,21 @@ It is natural to want your work to be good. Guard against it: decide the tests *
 
 ### The standard
 An examiner reading your evaluation should be able to tell exactly how good the system is, in what respects, on what evidence, and be confident that you know its weaknesses better than they do.
+
+### Worked example
+Self-evaluation against the rubric, with evidence for each claim.
+
+```text
+Criterion            Self-score  Evidence
+Functionality        4/5         all 6 user stories pass E2E tests (link)
+Code quality         3/5         lint clean; two modules still too large
+Testing              4/5         82% line coverage; mutation score 61%
+Security             3/5         OWASP checklist done; no rate limiting yet
+Operations           2/5         health check only; no dashboards
+Main improvement: add dashboards and rate limiting before the defence.
+```
+
+Scoring yourself with evidence shows reviewers you understand the standard, and exposes the weakest area while you can still fix it.
 
 > Key idea: Evaluate against the targets you set, with reproducible evidence for each, and report shortfalls plainly. Knowing precisely where your system is weak is the mark of a professional.
 #Q What should each requirement in the proposal have in the evaluation?
@@ -1383,6 +1511,20 @@ Afterwards, turn the project into a portfolio piece: a clear README with a scree
 
 ### After the capstone
 Completing this programme and its certificate records your own learning on this site. It is **not an accredited academic qualification**. Its value lies in what you can now do and can show: the projects, the reasoning and the evidence.
+
+### Worked example
+Prepare for questions in the capstone defence.
+
+```text
+Likely question                         Prepared answer (one sentence + evidence)
+Why PostgreSQL rather than MongoDB?     Relational orders data; we needed transactions.
+What happens if the payment API is down? Orders queue and retry; see the runbook.
+How do you know it scales?              Load test: 500 req/s at p95 180 ms (chart).
+What would you change?                  Split the notification code into a worker.
+What did you not finish?                Admin reporting; descoped in week 9.
+```
+
+Anticipating questions and answering briefly with evidence shows command of the work; admitting what is unfinished builds credibility.
 
 > Key idea: Show the engineering, not only the product. Know every decision, every number and every weakness, and say plainly what you would change.
 #Q What distinguishes a capstone demonstration from a product pitch?
@@ -1554,6 +1696,21 @@ You will find violations of your own guarantees. That is success: document each 
 
 ### Scope
 A correct, well-tested implementation of a small protocol is worth far more than a broad system with unverified guarantees. Leave out membership changes, log compaction and the like unless the core is solid, and state clearly what is left out.
+
+### Worked example
+A brief for the distributed-systems capstone: a replicated key-value store.
+
+```text
+Must:     3 replicas; leader-based replication; reads from the leader
+          survive one node crash with no lost acknowledged writes
+Should:   automatic leader election (Raft-style); linearisable reads
+Could:    snapshots and log compaction
+Evaluate: inject crashes and network partitions with a test harness;
+          check results with a linearisability checker; measure latency
+Deliver:  code, design doc, test report, 10-minute demo
+```
+
+Stating the guarantees precisely and how they will be tested under failure is what turns a networking project into a distributed-systems project.
 
 > Key idea: In a distributed system, the claim that matters is what remains true when things fail. State your guarantees precisely, then try as hard as you can to break them, and report what happened.
 #Q Why does a web application on three servers sharing one database not qualify as a distributed-systems capstone?
@@ -1732,6 +1889,21 @@ Research is improved by criticism. Seek a review of your draft from a capable re
 
 ### What is being assessed
 The quality of the question, the soundness of the method, the rigour and honesty of the evaluation, the clarity of the writing, and your understanding of the limits of what you have shown. A clear, well-supported negative result is a successful capstone. An overclaimed positive one is not.
+
+### Worked example
+A brief for a research capstone comparing two approaches.
+
+```text
+Question:  Does retrieval-augmented generation reduce factual errors compared
+           with fine-tuning alone, for questions about a 200-page manual?
+Data:      300 questions with reference answers, written before any model runs
+Method:    both systems answer all questions; two raters label errors blind
+Metrics:   factual error rate; inter-rater agreement (Cohen's kappa)
+Threats:   question bias; rater fatigue → random order, breaks
+Output:    paper-style report, code and data released
+```
+
+A research capstone is judged on a clear question, a fair comparison, honest threats to validity and reproducible materials, not only on the result.
 
 > Key idea: Ask a precise question, decide the method before the data, try to refute your own hypothesis, and report exactly what the evidence supports, with everything needed for someone else to check it.
 #Q Which is an acceptable contribution for the research capstone?

@@ -716,6 +716,25 @@ The pattern is introduced at the moment it removes real pain.
 ### Working with legacy code
 Code without tests is frightening to change. The approach: find a **seam** where you can substitute a dependency, write tests that capture what the code does now (**characterisation tests**), then refactor behind them.
 
+### Worked example
+A function prices orders with a growing if/else chain for each customer type. Refactor it in small, safe steps.
+
+```text
+Before:
+  def price(order):
+      if order.kind == "student":  return order.total * 0.9
+      elif order.kind == "staff":  return order.total * 0.8
+      else:                         return order.total
+
+Step 1  Add tests for every branch (they pass).
+Step 2  Extract the discounts into a table:
+          DISCOUNT = {"student": 0.9, "staff": 0.8}
+          def price(order): return order.total * DISCOUNT.get(order.kind, 1.0)
+Step 3  Run the tests again (they still pass). Commit.
+```
+
+Refactoring changes structure without changing behaviour, so tests come first and each step is small enough to undo. Adding a new customer type is now one line.
+
 > Key idea: Design is a continuous activity, not a phase. The best structure for today's requirements is found by refactoring as the requirements reveal themselves.
 
 > In industry: Most engineering time is spent in existing codebases. Improving them safely, a little at a time, is the practical form of design skill.

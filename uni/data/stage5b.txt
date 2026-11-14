@@ -1931,6 +1931,20 @@ Now run as an industry, with separate groups specialising in access, tooling and
 ### Thinking like the attacker
 Attackers think in **graphs**, not lists: which access leads to which. A defender protecting each item on a checklist can miss the path through three "low-risk" weaknesses that together reach the crown jewels.
 
+### Worked example
+Map a realistic credential-phishing intrusion onto the attack stages, and the control that could stop each one.
+
+```text
+Stage            What happened                         Control that breaks it
+Reconnaissance   Staff emails found on the website      Minimise public exposure
+Initial access   Fake login page captures a password    Phishing-resistant MFA (keys)
+Persistence      Attacker adds a mail forwarding rule   Alert on new forwarding rules
+Privilege        Reused password opens an admin panel   Unique passwords, least privilege
+Exfiltration     Customer list downloaded               Data-loss alerts, egress limits
+```
+
+Defence in depth means the attacker must beat several independent controls; any one of them can stop the chain.
+
 > Key idea: Assume initial compromise will sometimes succeed. Design so that each later stage is hard and noisy, and make sure someone is watching.
 #Q Why is detection important even with strong preventive controls?
 - Prevention is illegal
@@ -2087,6 +2101,21 @@ Machine-learning models can memorise training examples. **Membership inference**
 
 ### Dark patterns
 Interfaces designed to manipulate people into giving up privacy: pre-ticked boxes, a prominent "accept all" beside a buried "reject", consent that is laborious to withdraw. They are unethical and in many places unlawful.
+
+### Worked example
+A fitness app wants to publish city-level running statistics. Apply privacy engineering before release.
+
+```text
+Data minimisation:  keep start/end only as city, not GPS traces
+Aggregation:        publish counts per city per week; suppress any cell < 20 runners
+Retention:          raw traces deleted after 30 days
+Purpose limitation: statistics only; no sharing with advertisers
+Risk check:         heat maps once revealed military bases from a few users,
+                    so small groups and remote areas are suppressed
+Transparency:       clear notice and an opt-out in settings
+```
+
+Collecting less, aggregating with thresholds and deleting on schedule reduce harm far more reliably than promising to protect detailed data forever.
 
 > Key idea: Removing names does not anonymise. Minimise what you collect, and where you must release statistics, use a definition of privacy that survives an adversary with outside knowledge.
 #Q Why is removing names and identity numbers from a data set usually insufficient for anonymity?
@@ -2439,6 +2468,21 @@ Rank by reliability: peer-reviewed papers in strong venues, then preprints from 
 ### Keeping track
 Use a reference manager. For each paper keep a short note: the question, the method, the result, and your assessment. A **literature review** is not a list of summaries. It is an **argument** that organises prior work by theme, shows how the pieces relate, and identifies the **gap** your work addresses.
 
+### Worked example
+Turn a vague interest into a researchable question and a literature search.
+
+```text
+Interest:   "Do code reviews help?"
+Question:   "In open-source projects, is the number of review comments on a pull
+             request associated with fewer bug-fix commits to the same files
+             in the following 90 days?"
+Search:     ("code review" AND (defect* OR bug*)) in IEEE Xplore, ACM DL, Google Scholar
+Screening:  412 results → 37 by title/abstract → 11 read in full
+Gap found:  most studies are from single companies; few use open data.
+```
+
+A good research question names the population, the variables and how they will be measured, and the literature review shows what is genuinely unknown.
+
 > Key idea: Research begins with a precise, answerable question and a thorough knowledge of what is already known. Read critically: a published claim is an argument to be examined, not a fact to be accepted.
 #Q Which is a well-formed research question?
 - Caching
@@ -2523,6 +2567,21 @@ Many venues now run **artifact evaluation**, awarding badges to papers whose res
 
 ### Honesty
 Do not select only the favourable runs. Do not tune on the test set. Do not omit the inconvenient experiment. The purpose is to find out what is true, including when it is not what you hoped.
+
+### Worked example
+Design an experiment to test whether a new onboarding tutorial increases the number of users who finish their first project.
+
+```text
+Hypothesis H1:   tutorial users complete their first project more often.
+Null H0:         no difference.
+Design:          randomised A/B test; new users split 50/50 by user ID hash.
+Metric:          completion within 7 days (decided before starting).
+Sample size:     baseline 20%; detect +4 points with 80% power, α = 0.05
+                 → about 1,700 users per group.
+Reproducibility: pre-register metric and stopping rule; publish analysis code.
+```
+
+Randomisation removes bias, a fixed metric and sample size prevent fishing for a result, and published code lets others repeat the analysis.
 
 > Key idea: An experiment is an argument. Its strength depends on a fair baseline, control of confounders, an honest account of uncertainty, and enough openness that someone else can check it.
 #Q A new algorithm is benchmarked on a new server and compared with published figures for the old algorithm measured on older hardware. What is wrong?
@@ -2611,6 +2670,21 @@ A talk is an advertisement for the paper, not a reading of it.
 ### Open science
 Sharing preprints, code and data speeds progress and allows verification. Choose open licences. Research funded by the public should be available to it.
 
+### Worked example
+A structured peer review of a submitted paper, written to help the authors improve it.
+
+```text
+Summary:      The paper claims a 30% faster build cache, evaluated on 4 projects.
+Strengths:    clear problem statement; artefact is available.
+Major issues: 1. Only small projects; the effect on large monorepos is unknown.
+              2. No variance reported; were runs repeated?
+Minor issues: Figure 3 axis lacks units.
+Questions:    How was the cache warmed before measuring?
+Recommendation: major revision.
+```
+
+Good reviews summarise fairly, separate major from minor problems, and make every criticism specific enough to act on.
+
 > Key idea: State your contribution in one sentence, support it with evidence a sceptic can check, claim no more than you showed, and credit everyone whose work you used.
 #Q Which belongs in the introduction of a research paper?
 - All of the experimental data
@@ -2693,6 +2767,21 @@ The usual failure is ambition beyond the time available. Plan a **minimum result
 - Version-control everything, including data-processing scripts.
 - Seek criticism early. Explain your idea to others, often.
 - Expect most ideas to fail. Failure that teaches something is progress.
+
+### Worked example
+A one-paragraph proposal and the ethics checks for a study of how students use AI assistants.
+
+```text
+Aim:      understand when students rely on AI help during programming labs.
+Method:   anonymised logs from 120 volunteers + 12 interviews.
+Consent:  opt-in; withdraw at any time without effect on grades.
+Data:     names replaced by codes; raw logs deleted after analysis;
+          stored on university servers only.
+Risk:     students fear judgement → researchers are not their graders.
+Approval: submitted to the ethics board before any data collection.
+```
+
+Ethical research protects participants by design: informed consent, minimal identifiable data, independence from power over them, and approval before starting.
 
 > Key idea: Good research is honest research. Treat participants and data with respect, test only what you may, report what you actually found, and propose work whose success or failure will be evident.
 #Q What does informed consent require?

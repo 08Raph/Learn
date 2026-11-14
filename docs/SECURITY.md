@@ -1,4 +1,4 @@
-# Learn 4.0: security review
+# Learn 4.2: security review
 
 Reviewed: the whole client application (`index.html`, `sw.js`, `uni/`), its use of the Firebase Realtime
 Database and Firebase Authentication, the GitHub cloud-sync feature, the online code runners and the
@@ -10,7 +10,7 @@ created. Items marked MANUAL need you to act.
 
 ## Summary
 
-| Area | State in 4.0 |
+| Area | State in 4.2 |
 |---|---|
 | Multiplayer database open to the world | **Fix built and tested locally; not live until you switch it on** (MANUAL, `docs/FIREBASE_SETUP.md`) |
 | Administrator access | Client-side passphrase replaced by a Firebase account listed in a console-only node (secure mode) |
@@ -18,6 +18,10 @@ created. Items marked MANUAL need you to act.
 | Leaderboards | Other players' entries protected (secure mode). A player's own score is still self-reported |
 | HTML injection through attributes | Fixed in 3.1, re-tested in 4.0 |
 | Secrets in the release | None. Scanned by `tests/e2e-app.js` |
+| Restoring a backup file (4.1) | The file is untrusted input: only known keys with the right types are read, `__proto__`/`constructor`/`prototype` keys are dropped while parsing, dates are validated, a preview is shown before anything changes, and the sign-in identity is never written into backups. Tested in `tests/e2e-tools.js` |
+| Self-service data deletion (4.1) | Rules allow an account to delete only its own `owners`/`uids` records; another account cannot. Background requests are paused during and after deletion so no new identity is created behind the player's back. Tested in suites 5 and 6 |
+| Real Python (4.2) | Pyodide is loaded from a version-pinned jsDelivr URL into a dedicated Web Worker, with no access to the page, its storage or the save. Output is shown as text. A CDN compromise could change what the worker runs, but the worker cannot read Learn data; Subresource Integrity is not available for `importScripts`. Off by default; never used for grading |
+| Git and terminal simulator (4.1) | Pure in-memory model: no `eval`, no real shell, no network, no access to the device's files. Output is inserted as text, never as HTML |
 
 ## Fixed or built in this release
 
