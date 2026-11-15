@@ -1,5 +1,42 @@
 # Changelog
 
+## 4.6 — 15 November 2026
+### Added
+- Accounts: 👤 Sign in / Account button in the top bar and `#/account` page. Create account (email + password,
+  8+ characters), sign in, forgot password (Firebase `sendOobCode` PASSWORD_RESET), sign out, sign out and clear
+  this device, delete account. Uses the existing secure-mode Firebase Authentication; creating an account upgrades
+  the device's anonymous online-play account, so the player ID is kept.
+- Progress saved in the account at `saves/<uid>` (backup payload, merged with `backupApply('merge')`, never
+  overwritten). Saved 15 s after a change, at start-up, when Learn comes back to the foreground (after 60 s), when
+  the connection returns, and with Save now. Pages with work in progress are not redrawn by a sync.
+- Rules: `saves/$uid` private to an email account; administrators cannot read; size and field validation.
+- Delete my online data (Multiplayer) also deletes the saved progress of an email account.
+- Tests: `e2e-account.js` (37, mocked backend) as suite 11; `firebase-rules.test.js` 85 → 101.
+### Notes
+- Without `FB_API_KEY` the page says accounts are not switched on and gives the owner's steps.
+- Not tested against Google's servers.
+
+## 4.5 — 14 November 2026
+### Fixed
+- "U.srsCounts is not a function" (and similar) on University pages after an update. Cause: an old copy of
+  `uni/university.js` used together with newer modules. The service worker matched cached files ignoring the
+  `?v=` version, so an old saved copy could answer a request for a newer version.
+### Added
+- Version stamps: `BUILD` in `uni/university.js` must equal `UNI_VER` in `index.html`, and every lazily loaded
+  module (`uni-assess`, `uni-campus`, `uni-professor`, `uni-studio`, `uni-tools`, `realpy`) records the same value
+  in `window.LEARN_MOD_BUILD`. On a mismatch Learn clears its saved copies and reloads once (per session and
+  version); if the mismatch remains, the page names the old file and offers Update now.
+- Service worker: a request with `?v=` is answered from the cache only by an exact copy; otherwise network first
+  (revalidating), with any saved copy only as an offline fallback.
+- "A new version of Learn is ready" bar with Reload now / Later when a new service worker takes over.
+- Repair and reload button on the start-up failure message.
+- University 🔎 Search tab (`#/uni/search/<words>`): courses, lessons, labs and projects, highlighted snippets.
+  Downloads all course files on first use (about 1.7 MB uncompressed). Home-page lesson search links to it.
+- `tests/e2e-mixed.js` (26 checks) as suite 10; `e2e-tools.js` 90 → 98 (search).
+### Changed
+- `audit-screens.js`: covers Search; fewer false reports (closed panels, off-screen file input).
+- `UNI_VER` 1.7.0; service worker cache `learn-v4.5`.
+
 ## 4.4 — 13 November 2026
 ### Added
 - 608 new quiz/multiplayer questions for Java, Go, Rust, PHP, Ruby, Swift, Kotlin and Bash. Those languages now

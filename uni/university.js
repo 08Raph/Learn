@@ -13,7 +13,8 @@
 (function () {
   'use strict';
   const CAT = window.UNI_CATALOG; const CFG = window.UNI_CONFIG || {};
-  const U = { ready: false, cat: CAT, cfg: CFG, content: {}, files: {}, views: {}, mods: {} };
+  const BUILD = '1.7.0'; // bump together with UNI_VER in index.html and the stamp at the top of each uni-*.js file
+  const U = { build: BUILD, ready: false, cat: CAT, cfg: CFG, content: {}, files: {}, views: {}, mods: {} };
   let A = null; // API handed over by index.html
   const PASS = 70, FINAL_PASS = 75;
   const $ = (s, r) => (r || document).querySelector(s), $$ = (s, r) => Array.from((r || document).querySelectorAll(s));
@@ -160,7 +161,7 @@
   async function loadCourse(id) { const c = courseById(id); if (!c) throw new Error('unknown course'); if (!U.content[id]) await loadFile(c.file); if (!U.content[id]) throw new Error('missing content'); return U.content[id]; }
   function loadMod(name) {
     if (U.mods[name]) return U.mods[name];
-    U.mods[name] = new Promise((ok, no) => { const el = document.createElement('script'); el.src = 'uni/' + name + '.js?v=' + A.ver; el.onload = ok; el.onerror = () => { el.remove(); delete U.mods[name]; no(new Error('offline')); }; document.head.appendChild(el); });
+    U.mods[name] = new Promise((ok, no) => { const el = document.createElement('script'); el.src = 'uni/' + name + '.js?v=' + A.ver; el.onload = () => { const b = (window.LEARN_MOD_BUILD || {})[name]; if (b === BUILD) return ok(); delete U.mods[name]; U.mixed = { file: 'uni/' + name + '.js', have: b || 'an older version', want: BUILD }; if (A.repair && !A.repairTried(BUILD)) A.repair(BUILD); no(new Error('mixed versions')); }; el.onerror = () => { el.remove(); delete U.mods[name]; no(new Error('offline')); }; document.head.appendChild(el); });
     return U.mods[name];
   }
 
@@ -247,7 +248,7 @@
   const fmtTime = (s) => { const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60); return h ? h + ' h ' + m + ' min' : m + ' min'; };
 
   /* ---------- 4. shell + views ---------- */
-  const NAV = [['', '🏛', 'Home'], ['dashboard', '📊', 'Dashboard'], ['study', '🎯', 'My study'], ['review', '🔁', 'Review'], ['departments', '🏫', 'Departments'], ['courses', '📚', 'Courses'], ['videos', '🎬', 'Videos'], ['labs', '🧪', 'Labs'], ['exams', '📝', 'Exams'], ['projects', '🗂', 'Projects'], ['career', '💼', 'Career'], ['professor', '🤖', 'AI Professor'], ['transcript', '🎓', 'Transcript']];
+  const NAV = [['', '🏛', 'Home'], ['search', '🔎', 'Search'], ['dashboard', '📊', 'Dashboard'], ['study', '🎯', 'My study'], ['review', '🔁', 'Review'], ['departments', '🏫', 'Departments'], ['courses', '📚', 'Courses'], ['videos', '🎬', 'Videos'], ['labs', '🧪', 'Labs'], ['exams', '📝', 'Exams'], ['projects', '🗂', 'Projects'], ['career', '💼', 'Career'], ['professor', '🤖', 'AI Professor'], ['transcript', '🎓', 'Transcript']];
   const href = (path) => '#/uni' + (path && path.length ? '/' + path.join('/') : '');
   const link = (path, html, cls, extra) => '<a class="' + (cls || '') + '" href="' + href(path) + '"' + (extra || '') + '>' + html + '</a>';
   function shell(active, inner, crumbs) {
@@ -331,8 +332,18 @@
     shell('courses', h, [['University', []], ['Courses', ['courses']], ['Stage ' + s.id]]);
   };
 
-  function offlineHtml(msg) { return '<div class="card u-off" role="alert"><h2>This part is not available right now</h2><p>' + E(msg || 'The course file could not be loaded. If you are offline, open this course once while online and it will be saved on this device.') + '</p><button class="btn small" id="uRetry" type="button">Try again</button></div>'; }
-  function bindRetry() { const r = $('#uRetry'); if (r) r.addEventListener('click', () => U.render(U.path)); }
+  /* Old and new files mixed (a half-finished upload, or an old copy kept by the browser). First time in this
+     session: clear Learn's offline copies and reload automatically. If that does not help, say which file is wrong. */
+  function mixedHtml() {
+    const m = U.mixed || {}; return '<div class="card u-off" role="alert"><h2>Learn needs to finish updating</h2><p>Some University files on this device or on the website are from different versions' + (m.file ? ': <code>' + E(m.file) + '</code> is ' + E(String(m.have)) + ', but version ' + E(m.want) + ' is needed' : '') + '.</p><p>Press <b>Update now</b>. If this message comes back, the website itself has an old copy of that file: upload the whole <code>uni</code> folder from the latest ZIP again.</p><button class="btn small" id="uRepair" type="button">Update now</button></div>';
+  }
+  function looksMixed(e) { return !!U.mixed || /is not a function|is not defined|Cannot read properties of undefined/.test(String(e && e.message || '')); }
+  function showMixed(active, crumbs) {
+    if (A.repair && !A.repairTried(BUILD)) { shell(active || '', '<div class="card" role="status" aria-live="polite"><p>Updating Learn to the latest version…</p></div>', crumbs || [['University', []]]); A.repair(BUILD); return; }
+    shell(active || '', mixedHtml(), crumbs || [['University', []]]); const b = $('#uRepair'); if (b) b.addEventListener('click', () => { if (A.repair) A.repair(BUILD, true); else location.reload(); });
+  }
+  function offlineHtml(msg) { if (U.mixed) return mixedHtml(); return '<div class="card u-off" role="alert"><h2>This part is not available right now</h2><p>' + E(msg || 'The course file could not be loaded. If you are offline, open this course once while online and it will be saved on this device.') + '</p><button class="btn small" id="uRetry" type="button">Try again</button></div>'; }
+  function bindRetry() { const r = $('#uRetry'); if (r) r.addEventListener('click', () => U.render(U.path)); const q = $('#uRepair'); if (q) q.addEventListener('click', () => { if (A.repair) A.repair(BUILD, true); else location.reload(); }); }
   function loading(active, crumbs) { shell(active, '<div class="card" role="status" aria-live="polite"><p>Loading…</p></div>', crumbs); }
 
   U.views.course = async function (path) {
@@ -463,6 +474,7 @@
   U.views.visual = studioView('visual', 'Algorithm visualiser');
   const toolView = (key, active, crumbs) => async function (path) { loading(active, crumbs); try { await loadMod('uni-tools'); } catch (e) { shell(active, offlineHtml('This section could not be loaded.'), crumbs); return bindRetry(); } if (U.path !== path) return; return U.tools[key](path); };
   U.views.review = toolView('review', 'review', [['University', []], ['Review']]);
+  U.views.search = toolView('search', 'search', [['University', []], ['Search']]);
   U.views.terminal = toolView('terminal', 'labs', [['University', []], ['Laboratories', ['labs']], ['Git and terminal simulator']]);
   U.views.portfolio = toolView('portfolio', 'projects', [['University', []], ['Projects', ['projects']], ['Portfolio']]);
   U.views.practice = studioView('practice', 'Practice studio');
@@ -473,8 +485,8 @@
   U.init = async function (api) { A = api; U.api = api; window.LEARN_UNI_VER = api.ver; st(); startClock(); U.ready = true; };
   U.render = function (path) {
     U.path = path = path || []; const v = U.views[path[0] || ''] || U.views[''];
-    try { const r = v(path); if (r && r.catch) r.catch((e) => { console.error(e); shell(path[0] || '', offlineHtml('Something went wrong while opening this page: ' + (e && e.message ? e.message : 'unknown error')), [['University', []]]); bindRetry(); }); }
-    catch (e) { console.error(e); shell('', offlineHtml('Something went wrong while opening this page.'), [['University', []]]); bindRetry(); }
+    try { const r = v(path); if (r && r.catch) r.catch((e) => { console.error(e); if (U.mixed || (looksMixed(e) && A.repair && !A.repairTried(BUILD))) return showMixed(path[0] || ''); shell(path[0] || '', offlineHtml('Something went wrong while opening this page: ' + (e && e.message ? e.message : 'unknown error')), [['University', []]]); bindRetry(); }); }
+    catch (e) { console.error(e); if (U.mixed || (looksMixed(e) && A.repair && !A.repairTried(BUILD))) return showMixed(''); shell('', offlineHtml('Something went wrong while opening this page.'), [['University', []]]); bindRetry(); }
   };
   window.LearnUniversity = U;
 })();

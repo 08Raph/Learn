@@ -1,4 +1,4 @@
-# Deploying Learn 4.4
+# Deploying Learn 4.6
 
 The site is static files. There is no build step and nothing to install.
 
@@ -18,9 +18,12 @@ from your repository.
 - **Local:** `python3 -m http.server 8000` in this folder, then open `http://localhost:8000/`.
 
 ## After uploading
-1. Open the site and reload once. The service worker (`learn-v4.4`) replaces the old cache; returning
+1. Open the site and reload once. The service worker (`learn-v4.6`) replaces the old cache; returning
    visitors get the new version on their second visit.
-2. Open the patch notes from the home page and confirm version 4.4.
+2. Open the patch notes from the home page and confirm version 4.6.
+   Accounts (4.6) need Firebase switched on: docs/FIREBASE_SETUP.md, sections 4b and 5.
+   Upload every file in one go (one commit). Since 4.5 the University checks that its files match; if a page says
+   "Learn needs to finish updating" and names a file, that file on the website is still old: upload it again.
    4.4 replaces `ranked_extra.json` again (1.6 MB) and the course files in `uni/data/`: upload both.
    4.3 replaces `ranked_extra.json` (now 1.2 MB): upload it, or quizzes keep the old repeated questions.
    New in 4.2: upload `uni/realpy.js` and `uni/realpy-worker.js`. Then do the real-Python check in `docs/TESTING.md`.

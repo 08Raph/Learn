@@ -295,3 +295,11 @@ label.u-check { display: flex; gap: 8px; align-items: center; margin: 8px 0; fon
 .u-crumbs a{display:inline-block;padding:9px 4px;margin:-9px -4px;border-radius:6px}
 .u-crumbs{margin-top:10px}
 .uni summary{min-height:44px;padding-top:10px;padding-bottom:10px;box-sizing:border-box;cursor:pointer}
+
+/* 4.5 search */
+.sr-list { list-style: none; padding: 0; margin: 10px 0 0; display: grid; gap: 10px; }
+.sr-item { margin: 0; padding: 14px 16px; }
+.sr-item > a { text-decoration: none; display: inline-block; min-height: 32px; }
+.sr-item > a b { text-decoration: underline; text-underline-offset: 3px; }
+.sr-item p { margin: 6px 0 0; line-height: 1.5; }
+.sr-item mark { background: #ffe58a; color: #141a33; border-radius: 3px; padding: 0 2px; }

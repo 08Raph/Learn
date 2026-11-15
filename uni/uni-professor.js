@@ -7,6 +7,7 @@
                server-side function YOU deploy (which holds the API key), chat
                messages are POSTed there. No key ever lives in this site.
    ============================================================ */
+(window.LEARN_MOD_BUILD = window.LEARN_MOD_BUILD || {})['uni-professor'] = '1.7.0'; // must equal BUILD in university.js
 (function () {
   'use strict';
   const U = window.LearnUniversity; const A = U.api; const { $, $$, E, md, inline, st, save, shell, link } = U;

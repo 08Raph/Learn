@@ -100,6 +100,27 @@ Use a **separate test project**, not `learn-a72fb`.
    If anything legitimate is refused, the browser console shows a `permission_denied` request: note the
    path and adjust the rules in the test project before going further.
 
+## 4b. Accounts and saved progress (4.6)
+
+The 👤 Sign in page (`#/account`) uses the same Firebase Authentication as online play. When a student creates
+an account or signs in, their progress (the same data as a backup file: no GitHub token, no device player ID) is
+stored at `saves/<account id>` as `{ d: text, at: server time, v: app version }`.
+
+The rules (`saves` section of `firebase/database.rules.json`):
+- only that account can read, write or delete it, and only if the account has an email (anonymous online-play
+  accounts cannot store progress);
+- administrators **cannot** read it; nobody can list `saves`;
+- `d` must be text of at most 3,000,000 characters, `at` a time not in the future, no other fields.
+
+Tested with the rules simulator (16 checks in `firebase-rules.test.js`) and end to end against a mocked backend
+that enforces this rules file (`e2e-account.js`, 37 checks). **Not tested against Google's servers.** One detail
+that only the real service can confirm: that the ID token of an account created by adding an email to an
+anonymous account carries the `email` claim (Firebase documents that it does). Check it once after going live:
+create an account on the site, then confirm `saves/<uid>` appears in the console.
+
+If you do not set `FB_API_KEY`, the Sign in page says that accounts are not switched on and shows these steps;
+no form is shown and nothing is sent anywhere.
+
 ## 5. Going live: exact production steps
 
 Do these in order, at a quiet time. Steps 1 to 3 change nothing for players.
@@ -119,7 +140,8 @@ Do these in order, at a quiet time. Steps 1 to 3 change nothing for players.
    (Console → Project settings → General → Web API key). Upload the site.
 7. **Publish the rules.** Console → Realtime Database → Rules: replace the contents with
    `firebase/database.rules.json` and press Publish. (Or `firebase deploy --only database --project production`.)
-8. **Check.** Open the site in a private window: Multiplayer → More should show "Online account". Set a
+8. **Check.** Open the site in a private window: 👤 Sign in → create a test account; the console should show
+   `saves/<its UID>`. Then  Multiplayer → More should show "Online account". Set a
    name, open the leaderboard. Sign in with your administrator email there: the administrator tools appear.
 
 Steps 6 and 7 belong together. If the rules are published before the new site is live, players on the old

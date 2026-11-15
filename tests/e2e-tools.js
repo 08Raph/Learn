@@ -114,7 +114,7 @@ const dayPlus = (n) => { const d = new Date(); d.setDate(d.getDate() + n); retur
     await p.reload(); await p.waitForTimeout(900); ok('backup: a reminder appears when there is progress and no backup', seeded && await p.locator('#bkNudge').count() === 1);
     await p.click('#bkNudgeGo'); ok('backup: the reminder opens the backup section', await p.evaluate(() => document.getElementById('bkDetails').open));
     const [bk] = await Promise.all([p.waitForEvent('download'), p.click('#bkFile')]); const bkText = fs.readFileSync(await bk.path(), 'utf8'); const bkObj = JSON.parse(bkText);
-    ok('backup: file is named by date and holds the app id, version and University progress', /^learn-backup-\d{4}-\d{2}-\d{2}\.json$/.test(bk.suggestedFilename()) && bkObj.app === 'learn' && bkObj.v === 3 && bkObj.ver === '4.4' && !!bkObj.d.uni && !!bkObj.d.uni.git.files);
+    ok('backup: file is named by date and holds the app id, version and University progress', /^learn-backup-\d{4}-\d{2}-\d{2}\.json$/.test(bk.suggestedFilename()) && bkObj.app === 'learn' && bkObj.v === 3 && bkObj.ver === '4.6' && !!bkObj.d.uni && !!bkObj.d.uni.git.files);
     ok('backup: the online sign-in identity is not copied into the file', !bkObj.d.duel || (!bkObj.d.duel.uid && !bkObj.d.duel.fc));
     ok('backup: the date of the last backup is shown and the reminder goes away', /Last backup file made on this device/.test(await p.innerText('#bkLast')) && await p.locator('#bkNudge').count() === 0);
     const pick = (name, content) => p.setInputFiles('#bkPick', { name, mimeType: 'application/json', buffer: Buffer.from(content) });
@@ -169,6 +169,19 @@ const dayPlus = (n) => { const d = new Date(); d.setDate(d.getDate() + n); retur
     const src = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8'); const L2 = (h) => { const c = [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16) / 255).map((x) => (x <= 0.03928 ? x / 12.92 : Math.pow((x + 0.055) / 1.055, 2.4))); return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]; }; const CR = (a, z) => { const x = L2(a), y = L2(z); return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05); };
     const acc = Array.from(src.matchAll(/kind: 'accent', name: ["']([^"']+)["'][^}]*?l: '(#[0-9a-f]{6})', d: '(#[0-9a-f]{6})'/g)); const accLow = acc.filter((m) => Math.min(CR(m[2], '#eef2f9'), CR('#ffffff', m[2]), CR(m[3], '#161c35'), CR('#0d1224', m[3])) < 4.5).map((m) => m[1]);
     ok('contrast: all ' + acc.length + ' unlockable accent colours reach 4.5:1 as text and as button backgrounds', acc.length >= 20 && accLow.length === 0, accLow.join(', '));
+    /* ---------- 9. University search (4.5) ---------- */
+    await p.goto(BASE + '#/uni/search'); await p.waitForSelector('#srQ', { timeout: 15000 });
+    ok('search: the page opens with an empty box and a hint', /All words must appear/.test(await text()));
+    await p.fill('#srQ', 'hash table'); await p.click('#srF button[type=submit]'); await p.waitForSelector('.sr-item', { timeout: 20000 });
+    const first = await UE(() => document.querySelector('.sr-item').innerText);
+    ok('search: "hash table" finds the Hash tables lesson first', /Hash tables/.test(first) && /lesson/.test(first), first.slice(0, 120));
+    ok('search: matching words are highlighted', await UE(() => document.querySelectorAll('.sr-item mark').length > 0));
+    ok('search: the address keeps the query', /#\/uni\/search\/hash-table$/.test(await UE(() => location.hash)));
+    ok('search: every lesson is indexed (327)', await UE(() => { let n = 0; Object.values(window.LearnUniversity.content).forEach((c) => { n += c.lessons.length; }); return n; }) === 327);
+    await UE(() => document.querySelector('.sr-item a').click()); await p.waitForTimeout(1200);
+    ok('search: a result opens its lesson', /#\/uni\/course\/c202\/lesson\/2$/.test(await UE(() => location.hash)), await UE(() => location.hash));
+    await p.goto(BASE + '#/uni/search/qqqzzzx'); await p.waitForTimeout(1500); ok('search: no results gives advice', /Nothing found/.test(await text()));
+    await p.goto(BASE + '#/uni/search/<script>'); await p.waitForTimeout(800); ok('search: unsafe text in the address is ignored', await UE(() => !document.querySelector('#app script')));
     ok('no page errors', errs.length === 0, errs.slice(0, 4).join(' | '));
   } catch (e) { ok('test run crashed', false, e.stack); }
   console.log(fail + ' failed of ' + (pass + fail) + ' (simulator unit checks in Node; browser checks on a local server with external hosts blocked)'); await b.close(); srv.close(); process.exit(fail ? 1 : 0);

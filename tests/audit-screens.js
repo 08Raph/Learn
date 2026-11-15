@@ -1,11 +1,11 @@
-/* Screen audit (4.3): every main-app and University route at iPad and phone sizes, light and dark. Reports script
+/* Screen audit (4.3, extended in 4.5): every main-app and University route at iPad and phone sizes, light and dark. Reports script
    errors, horizontal overflow, small tap targets, unnamed controls, low-contrast text and images without alt text.
    Start a local server first:  python3 -m http.server 8765   (in the site folder), then:  node tests/audit-screens.js
    Writes audit.json in the current folder. Screenshots are not saved. */
 // Screen audit: every route at iPad and phone sizes, light and dark. node audit.js > audit.json
 const { chromium, devices } = require('playwright'); const fs = require('fs');
-const MAIN = ['', 'py', 'js', 'ts', 'c', 'cpp', 'cs', 'sql', 'java', 'bash', 'term', 'cloud', 'play/py', 'play/js', 'project', 'web', 'quiz', 'stats', 'duel', 'shop', 'avatar', 'locker', 'catalog'];
-const UNI = ['', 'dashboard', 'study', 'review', 'notes', 'departments', 'departments/game', 'courses', 'stage/1', 'course/c101', 'course/c101/lesson/0', 'course/c101/lab', 'course/c101/exam', 'course/c101/project', 'videos', 'videos/karpathy-build-gpt', 'labs', 'labs/py', 'labs/sql', 'visual', 'practice', 'terminal', 'terminal/conflict', 'exams', 'final/1', 'projects', 'portfolio', 'career', 'career/cv', 'career/interview', 'career/interview/iv-two-sum', 'career/mock', 'career/present', 'career/guide', 'professor', 'transcript'];
+const MAIN = ['', 'account', 'py', 'js', 'ts', 'c', 'cpp', 'cs', 'sql', 'java', 'bash', 'term', 'cloud', 'play/py', 'play/js', 'project', 'web', 'quiz', 'stats', 'duel', 'shop', 'avatar', 'locker', 'catalog'];
+const UNI = ['', 'search', 'search/hash-table', 'dashboard', 'study', 'review', 'notes', 'departments', 'departments/game', 'courses', 'stage/1', 'course/c101', 'course/c101/lesson/0', 'course/c101/lab', 'course/c101/exam', 'course/c101/project', 'videos', 'videos/karpathy-build-gpt', 'labs', 'labs/py', 'labs/sql', 'visual', 'practice', 'terminal', 'terminal/conflict', 'exams', 'final/1', 'projects', 'portfolio', 'career', 'career/cv', 'career/interview', 'career/interview/iv-two-sum', 'career/mock', 'career/present', 'career/guide', 'professor', 'transcript'];
 const ROUTES = MAIN.map((r) => '#/' + r).concat(UNI.map((r) => '#/uni' + (r ? '/' + r : '')));
 (async () => {
   const b = await chromium.launch(); const out = [];
@@ -23,8 +23,8 @@ const ROUTES = MAIN.map((r) => '#/' + r).concat(UNI.map((r) => '#/uni' + (r ? '/
         const desc = (e) => (e.tagName.toLowerCase() + (e.id ? '#' + e.id : '') + (e.className && typeof e.className === 'string' ? '.' + e.className.trim().split(/\s+/).slice(0, 2).join('.') : '') + ' "' + (e.innerText || e.value || e.getAttribute('aria-label') || '').trim().slice(0, 30) + '"');
         document.querySelectorAll('#app *').forEach((e) => { const r = e.getBoundingClientRect(); if (r.right > vw + 2 && r.width > 0 && vis(e) && !inScroller(e)) R.wide.push(desc(e) + ' right=' + Math.round(r.right)); });
         document.querySelectorAll('#app a[href], #app button, #app input, #app select, #app textarea, #app summary, #app [role=button]').forEach((e) => { if (!vis(e)) return; const r = e.getBoundingClientRect(); const inline = e.tagName === 'A' && /^(P|LI|SPAN|SMALL|TD|LABEL)$/.test(e.parentElement.tagName) && getComputedStyle(e).display === 'inline';
-          if (!inline && e.type !== 'checkbox' && e.type !== 'radio' && (r.height < 32 || r.width < 32)) R.small.push(desc(e) + ' ' + Math.round(r.width) + 'x' + Math.round(r.height));
-          if (/^(A|BUTTON)$/.test(e.tagName) && !(e.innerText || '').trim() && !e.getAttribute('aria-label') && !e.title) R.unnamed.push(desc(e)); });
+          if (!inline && r.right > 0 && e.type !== 'checkbox' && e.type !== 'radio' && (r.height < 32 || r.width < 32)) R.small.push(desc(e) + ' ' + Math.round(r.width) + 'x' + Math.round(r.height));
+          if (/^(A|BUTTON)$/.test(e.tagName) && !(e.textContent || '').trim() && !e.getAttribute('aria-label') && !e.title) R.unnamed.push(desc(e)); });
         document.querySelectorAll('#app img').forEach((i) => { if (!i.hasAttribute('alt')) R.noalt++; });
         const rgb = (s) => { const m = s.match(/[\d.]+/g); return m ? m.map(Number) : null; }; const L = (c) => { const f = (x) => { x /= 255; return x <= 0.03928 ? x / 12.92 : Math.pow((x + 0.055) / 1.055, 2.4); }; return 0.2126 * f(c[0]) + 0.7152 * f(c[1]) + 0.0722 * f(c[2]); };
         const bgOf = (e) => { for (let x = e; x; x = x.parentElement) { const s = getComputedStyle(x); if (s.backgroundImage && s.backgroundImage !== 'none') return null; const c = rgb(s.backgroundColor); if (c && (c.length < 4 || c[3] > 0.9)) return c; } return rgb(getComputedStyle(document.body).backgroundColor); };

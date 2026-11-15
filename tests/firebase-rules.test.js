@@ -112,4 +112,25 @@ t('an administrator can delete a reward code', wr('codes/GIFT100', null, admin),
 t('an administrator can list codes and read the audit log', rd('codes', admin) && rd('audit', admin), true);
 t('an administrator still cannot read players\' private friend lists or inboxes', rd('fl/ualice0001', admin) || rd('inbox/ualice0001', admin), false);
 t('an administrator cannot edit another player\'s leaderboard entry', wr('lb/1/ualice0001', { n: 'Alice', r: 1, w: 0, l: 0, d: 0 }, admin), false);
+// --- saved progress in accounts (4.6): saves/<auth uid>, private to an email account ---
+{ const em = (uid, email) => ({ uid, token: { email, firebase: { sign_in_provider: 'password' } } }); const carol = em('authCarol', 'carol@example.test'), dave = em('authDave', 'dave@example.test'), anon = { uid: 'authAnon9', token: { firebase: { sign_in_provider: 'anonymous' } } };
+  db.saves = { authDave: { d: '{"app":"learn"}', at: 1, v: '4.6' } };
+  const sv = (uid, v, a) => canWrite(rules, db, 'saves/' + uid, v, a, NOW).ok, sr = (uid, a) => canRead(rules, db, 'saves/' + uid, a, NOW); const good = { d: '{"app":"learn","v":3,"d":{}}', at: NOW - 5, v: '4.6' };
+  t('saves: an email account can write its own saved progress', sv('authCarol', good, carol), true);
+  t('saves: an email account can read its own saved progress', sr('authDave', dave), true);
+  t('saves: an account cannot read another account\'s saved progress', sr('authDave', carol), false);
+  t('saves: an account cannot overwrite another account\'s saved progress', sv('authDave', good, carol), false);
+  t('saves: an account cannot delete another account\'s saved progress', sv('authDave', null, carol), false);
+  t('saves: an account can delete its own saved progress', sv('authDave', null, dave), true);
+  t('saves: an anonymous account (no email) cannot store progress', sv('authAnon9', good, anon), false);
+  t('saves: unauthenticated visitors can neither read nor write', sr('authDave', nobody) || sv('authDave', good, nobody), false);
+  t('saves: an administrator cannot read players\' saved progress', sr('authDave', admin), false);
+  t('saves: nobody can list all saved progress', canRead(rules, db, 'saves', dave, NOW), false);
+  t('saves: progress must be text no longer than 3,000,000 characters', sv('authCarol', { d: 'x'.repeat(3000001), at: NOW, v: '4.6' }, carol), false);
+  t('saves: a non-text progress value is refused', sv('authCarol', { d: { a: 1 }, at: NOW, v: '4.6' }, carol), false);
+  t('saves: a time in the future is refused', sv('authCarol', { d: 'x', at: NOW + 60000, v: '4.6' }, carol), false);
+  t('saves: missing fields are refused', sv('authCarol', { d: 'x' }, carol), false);
+  t('saves: extra fields are refused', sv('authCarol', Object.assign({ evil: 1 }, good), carol), false);
+  t('saves: a single field cannot be written on its own if it breaks the record', canWrite(rules, db, 'saves/authDave/d', 5, dave, NOW).ok, false);
+  delete db.saves; }
 console.log(R.join('\n')); console.log(fail + ' failed of ' + (pass + fail) + '  (rules simulator, not the Firebase emulator)'); process.exit(fail ? 1 : 0);

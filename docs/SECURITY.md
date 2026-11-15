@@ -77,10 +77,21 @@ There is no rate limiting, no App Check and no email verification. Anonymous acc
 freely. Firebase App Check (free) would make scripted abuse harder and is a sensible next step once secure
 mode is live.
 
+### J. Accounts and saved progress (4.6)
+- Passwords go only to Google Firebase Authentication over HTTPS; the site never stores them. Sign-in uses the
+  existing token refresh; the refresh token is kept in `localStorage` as before (anyone with access to the unlocked
+  device can use the account; "Sign out and clear this device" exists for shared devices).
+- `saves/<uid>` is private to an email account (rules, 16 simulator checks). The saved data is the backup payload,
+  which excludes the GitHub sync token.
+- Forgot password shows the same message whether or not the email has an account. Firebase's own sign-up still
+  answers "email already exists", which reveals that an address has an account; turning on Firebase *email
+  enumeration protection* reduces this (the app already treats `INVALID_LOGIN_CREDENTIALS` correctly).
+- Progress is not tamper-proof: a student can still edit their own progress (see G).
+
 ## Administrators and privacy
 Administrators can: create and delete reward codes, list codes, read the audit log, and, through the
 Firebase console, see account IDs and any email a player chose to add. The rules give administrators **no**
-read access to players' inboxes, friend lists or invitations, and the app has no screen for it. (The
+read access to players' inboxes, friend lists, invitations or saved progress (`saves`, 4.6), and the app has no screen for it. (The
 project owner can always read the whole database in the Firebase console; that is inherent in owning it.)
 
 ## Reviewed and found acceptable

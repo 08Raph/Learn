@@ -109,6 +109,11 @@ SQL tasks use `@setup` and `@rows`; HTML tasks use `@checks`; C, TypeScript and 
 `@out` (expected output). To add a course: add a `C(...)` entry in `data/catalog.js` and a `#COURSE` block in
 a stage file. Then bump `UNI_VER` in `index.html` and the cache name in `sw.js`.
 
+**Version stamps (since 4.5).** When `UNI_VER` changes, change three things together, or the University will
+refuse to load the mismatched file: `UNI_VER` in `index.html`, `const BUILD` in `uni/university.js`, and the
+`window.LEARN_MOD_BUILD[...]` line at the top of every file loaded with `loadMod()` (`uni-assess`, `uni-campus`,
+`uni-professor`, `uni-studio`, `uni-tools`, `realpy`). `tests/e2e-mixed.js` checks that they agree.
+
 **Rules that keep it honest:** every lab must have a `@solution` that passes its own tests and a `@starter`
 that does not. Do not add empty courses or placeholder lessons.
 

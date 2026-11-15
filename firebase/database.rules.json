@@ -2,6 +2,17 @@
   "rules": {
     ".read": false,
     ".write": false,
+    "saves": {
+      "$uid": {
+        ".read": "auth != null && auth.uid === $uid && auth.token.email != null",
+        ".write": "auth != null && auth.uid === $uid && auth.token.email != null",
+        ".validate": "newData.hasChildren(['d', 'at', 'v'])",
+        "d": { ".validate": "newData.isString() && newData.val().length <= 3000000" },
+        "at": { ".validate": "newData.isNumber() && newData.val() <= now" },
+        "v": { ".validate": "newData.isString() && newData.val().length <= 12" },
+        "$other": { ".validate": false }
+      }
+    },
     "duel": {
       "ping": { ".read": true },
 

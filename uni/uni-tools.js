@@ -6,6 +6,7 @@
      portfolio  one printable page of the student's real record
    Everything runs on the student's device and is stored in the Learn save.
    ============================================================ */
+(window.LEARN_MOD_BUILD = window.LEARN_MOD_BUILD || {})['uni-tools'] = '1.7.0'; // must equal BUILD in university.js
 (function () {
   'use strict';
   const U = window.LearnUniversity, A = U.api, D = window.UNI_DEPTS || { coding: [], concepts: [], behavioural: [] };
@@ -249,6 +250,55 @@
     $('#pfPrint').addEventListener('click', () => { document.body.classList.add('pf-printing'); setTimeout(() => { window.print(); setTimeout(() => document.body.classList.remove('pf-printing'), 500); }, 50); });
     $('#pfDown').addEventListener('click', () => { const pg = $('#pfPage').cloneNode(true); $$('.pf-off', pg).forEach((x) => x.remove()); const doc = '<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>' + (name ? E(name) + ' · ' : '') + 'Portfolio</title><style>body{font:16px/1.6 system-ui,sans-serif;max-width:820px;margin:32px auto;padding:0 20px;color:#141a33;background:#fff}h1{font-size:30px;margin:0}h2{font-size:20px;border-bottom:1px solid #d5dcec;padding-bottom:4px;margin-top:28px}.pf-sub{font-size:18px;color:#3a4366;margin:4px 0}.pf-meta,.pf-note{color:#4a5373;font-size:14px}table{border-collapse:collapse;width:100%}td,th{border-bottom:1px solid #e3e8f3;padding:6px 8px;text-align:left}.pf-stats{list-style:none;padding:0;display:flex;flex-wrap:wrap;gap:8px 20px}.pf-proj{border:1px solid #d5dcec;border-radius:10px;padding:10px 16px;margin:12px 0}a{color:#1d4ed8}</style></head><body>' + pg.innerHTML + '</body></html>';
       const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([doc], { type: 'text/html' })); a.download = 'portfolio.html'; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1500); });
+  };
+
+  /* ================= search (4.5) ================= */
+  // Searches every course, lesson, lab and project. Course files are downloaded the first time someone searches
+  // (about 1.7 MB in total, much less compressed) and are then kept for offline use like any opened course.
+  const plain = (s) => String(s || '').replace(/```[a-z]*\n?/g, ' ').replace(/[#>*`_|\[\]()]/g, ' ').replace(/\s+/g, ' ').trim();
+  let INDEX = null;
+  async function buildIndex(onStep) {
+    const all = U.cat.courses.concat(U.cat.electives || []); const files = [...new Set(all.map((c) => c.file))]; let done = 0, failed = 0;
+    await Promise.all(files.map((f) => U.loadFile(f).catch(() => { failed++; }).then(() => { done++; onStep(done, files.length); })));
+    const idx = [];
+    all.forEach((c) => {
+      const d = U.content[c.id]; idx.push({ kind: 'Course', title: c.code + ' · ' + c.title, text: plain((c.desc || '') + ' ' + (c.topics || []).join(', ')), path: ['course', c.id], where: c.elective ? 'Elective' : 'Stage ' + c.stage });
+      if (!d) return;
+      d.lessons.forEach((l, i) => idx.push({ kind: 'Lesson', title: l.t, text: plain(l.md), path: ['course', c.id, 'lesson', String(i)], where: c.code + ' · lesson ' + (i + 1) }));
+      if (d.lab) idx.push({ kind: 'Lab', title: d.lab.title || 'Laboratory', text: plain(d.lab.md || d.lab.prompt || ''), path: ['course', c.id, 'lab'], where: c.code });
+      if (d.project) idx.push({ kind: 'Project', title: d.project.title || 'Project', text: plain(d.project.md || ''), path: ['course', c.id, 'project'], where: c.code });
+    });
+    idx.forEach((x) => { x.lt = x.title.toLowerCase(); x.lx = x.text.toLowerCase(); });
+    return { idx, failed };
+  }
+  function find(q) {
+    const words = q.toLowerCase().split(/\s+/).filter((w) => w.length > 1).slice(0, 8); if (!words.length) return [];
+    const out = [];
+    INDEX.idx.forEach((x) => {
+      let score = 0; for (const w of words) { const t = x.lt.includes(w), b = x.lx.includes(w); if (!t && !b) return; score += t ? 10 : 0; if (b) score += Math.min(5, x.lx.split(w).length - 1); }
+      if (x.lt.includes(q.toLowerCase())) score += 20; if (x.kind === 'Course') score += 3; out.push([score, x]);
+    });
+    return out.sort((a, b) => b[0] - a[0]).slice(0, 60).map((p) => p[1]);
+  }
+  function snippet(x, words) {
+    const at = words.map((w) => x.lx.indexOf(w)).filter((i) => i >= 0).sort((a, b) => a - b)[0]; if (at === undefined) return E(x.text.slice(0, 150)) + (x.text.length > 150 ? '…' : '');
+    const s = Math.max(0, at - 60); let t = (s ? '…' : '') + x.text.slice(s, s + 190) + (s + 190 < x.text.length ? '…' : '');
+    t = E(t); words.forEach((w) => { t = t.replace(new RegExp('(' + w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + ')', 'gi'), '<mark>$1</mark>'); }); return t;
+  }
+  T.search = async function (path) {
+    const crumbs = [['University', []], ['Search']]; const q0 = String(path[1] || '').replace(/-/g, ' '); // the address keeps letters, digits and dots, with - for spaces
+    shell('search', '<h1 class="u-h1">🔎 Search the University</h1><div class="card"><form id="srF" role="search"><label for="srQ" class="u-fine">Find courses, lessons, labs and projects</label><div class="row" style="gap:8px;margin-top:6px"><input type="search" id="srQ" autocomplete="off" placeholder="e.g. recursion, hash table, SQL join" style="flex:1;min-width:0;min-height:44px" value="' + E(q0) + '"><button class="btn primary" type="submit">Search</button></div></form></div><div id="srOut" aria-live="polite"></div>', crumbs);
+    const out = $('#srOut'); const inp = $('#srQ');
+    const run = async (q) => {
+      q = q.trim(); if (!q) { out.innerHTML = '<p class="u-fine">Type a word or phrase. All words must appear.</p>'; return; }
+      if (!INDEX) { out.innerHTML = '<div class="card" role="status"><p>Preparing search… <span id="srP">0</span> of the course files ready.</p></div>'; INDEX = await buildIndex((d, n) => { const s = $('#srP'); if (s) s.textContent = d + '/' + n; }); if (!INDEX.idx.some((x) => x.kind === 'Lesson')) { const failed = INDEX.failed; INDEX = null; out.innerHTML = '<div class="card u-off" role="alert"><p>The course files could not be downloaded' + (navigator.onLine ? '.' : ' because you are offline.') + ' Search needs them once; after that it works offline.</p></div>'; return; } }
+      if (U.path[0] !== 'search') return;
+      const words = q.toLowerCase().split(/\s+/).filter((w) => w.length > 1); const r = find(q);
+      out.innerHTML = (INDEX.failed ? '<p class="pill">Some course files could not be downloaded, so some results may be missing.</p>' : '') + '<p class="u-fine">' + (r.length ? r.length + (r.length === 60 ? '+' : '') + ' result' + (r.length === 1 ? '' : 's') + ' for “' + E(q) + '”' : 'Nothing found for “' + E(q) + '”. Try fewer or shorter words.') + '</p>' +
+        '<ol class="sr-list">' + r.map((x) => '<li class="card sr-item">' + U.link(x.path, '<span class="pill">' + E(x.kind) + '</span> <b>' + E(x.title) + '</b>') + '<small class="u-fine"> · ' + E(x.where) + '</small><p>' + snippet(x, words) + '</p></li>').join('') + '</ol>';
+    };
+    $('#srF').addEventListener('submit', (e) => { e.preventDefault(); const q = inp.value; const slug = q.trim().toLowerCase().replace(/[^\w.]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40); history.replaceState(null, '', '#/uni/search' + (slug ? '/' + slug : '')); U.path = slug ? ['search', slug] : ['search']; run(q); });
+    if (q0) run(q0); else { out.innerHTML = '<p class="u-fine">Type a word or phrase. All words must appear.</p>'; inp.focus(); }
   };
 
   T._mock = () => MOCK; // used by tests/e2e-tools.js

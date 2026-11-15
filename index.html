@@ -295,6 +295,7 @@ details.backup textarea { width: 100%; min-height: 70px; margin-top: 8px; font-f
 .t-project{--tc:var(--prj)}.bar .f-project{background:var(--prj)}
 .ttabs{grid-template-columns:repeat(auto-fit,minmax(0,1fr))}
 .daily{display:grid;gap:10px;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));margin:22px 0 0}
+a.dcard{color:var(--text);text-decoration:none}
 .dcard{text-align:left;background:var(--surface);border:1.5px solid var(--border);border-radius:16px;padding:14px 16px;cursor:pointer;display:flex;flex-direction:column;gap:3px;min-height:44px}.dcard:hover{border-color:var(--accent)}.dcard small{color:var(--muted);font-weight:700;font-size:12px}.dcard b{font-family:var(--head);font-size:17px}.dcard span{color:var(--muted);font-size:14px}
 .shopgrid{display:grid;gap:12px;grid-template-columns:repeat(auto-fill,minmax(240px,1fr))}.shopitem{display:flex;flex-direction:column;gap:8px}.shopitem h3{font-size:19px}.shopitem p{margin:0;color:var(--muted);font-size:14px;flex:1}
 .ttitle{display:block;font-size:14px;font-weight:600;color:var(--muted)}
@@ -325,6 +326,11 @@ details.backup textarea { width: 100%; min-height: 70px; margin-top: 8px; font-f
 .pn-box{position:relative;width:100%;max-width:460px;max-height:86vh;display:flex;flex-direction:column;gap:12px;background:var(--surface);color:var(--text);border:1px solid var(--border);border-radius:20px;padding:20px;box-shadow:0 20px 60px rgba(0,0,0,.45)}
 .pn-box h2{margin:0;font-family:var(--head)}.pn-body{overflow:auto;padding-right:4px}
 .pn-ver h3{margin:10px 0 0;font-size:16px}.pn-date{margin:2px 0 6px;color:var(--muted);font-size:13px}.pn-ver ul{margin:0 0 10px;padding-left:20px}.pn-ver li{margin:5px 0;line-height:1.4}
+.updbar{position:fixed;left:50%;bottom:max(16px,env(safe-area-inset-bottom));transform:translateX(-50%);z-index:9999;display:flex;flex-wrap:wrap;align-items:center;gap:8px;max-width:calc(100% - 24px);padding:10px 12px 10px 16px;border-radius:16px;background:var(--surface);color:var(--text);border:1px solid var(--border, #8a93b0);box-shadow:0 10px 30px rgba(0,0,0,.25);font-weight:600}
+@media print{.updbar{display:none}}
+.acl{display:block;font-weight:700;margin:12px 0 6px}.acl small{font-weight:500;color:var(--muted)}
+.acin{width:100%;min-height:46px;font-size:16px;box-sizing:border-box}
+#acctBtn{text-decoration:none;white-space:nowrap;display:inline-flex;align-items:center;gap:6px}
 </style>
 <style id="tsim-css">
 .tsteps{list-style:none;margin:10px 0;padding:0;display:grid;gap:6px}
@@ -479,8 +485,10 @@ details.backup textarea { width: 100%; min-height: 70px; margin-top: 8px; font-f
     if(a && a.children.length) return;
     var d=document.createElement('div');
     d.style.cssText='font:15px/1.5 -apple-system,system-ui,sans-serif;max-width:600px;margin:40px auto;padding:20px;border:2px solid #b8302a;border-radius:14px;background:#fff;color:#141a33';
-    d.textContent='The app failed to start on this browser: '+msg;
-    document.body.appendChild(d);
+    d.textContent='The app failed to start on this browser: '+msg+'. If Learn was just updated, an old saved copy may be mixed with the new one.';
+    var b=document.createElement('button'); b.textContent='Repair and reload'; b.style.cssText='display:block;margin-top:12px;min-height:44px;padding:8px 16px;font:inherit;font-weight:700;border-radius:10px;border:2px solid #2333d6;background:#2333d6;color:#fff';
+    b.onclick=function(){ var done=function(){ location.reload(); }; try { if (window.caches) caches.keys().then(function(ks){ return Promise.all(ks.filter(function(k){ return !/pyodide/.test(k); }).map(function(k){ return caches.delete(k); })); }).then(done, done); else done(); } catch (e) { done(); } };
+    d.appendChild(b); document.body.appendChild(d);
   }
   window.addEventListener('error',function(e){setTimeout(function(){show(e.message||'unknown error')},300)});
 })();
@@ -11684,7 +11692,7 @@ const KEY = 'learn-code-v2';
 let S = { done: {}, code: {}, cur: {}, pg: {}, theme: null, quiz: {}, days: [], badges: {}, fs: 15, lastLang: null, spent: 0, bonus: 0, owned: {}, equip: {}, doneAt: {}, daily: {}, gh: {}, web: {}, quizDay: '' };
 const FIRST_RUN = (() => { try { return !localStorage.getItem(KEY); } catch (e) { return true; } })();
 try { const s = JSON.parse(localStorage.getItem(KEY) || 'null'); if (s && typeof s === 'object') S = Object.assign(S, s); } catch (e) {}
-const save = () => { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {} };
+const save = () => { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {} if (window.__acctTouch) window.__acctTouch(); };
 
 const $ = (s, r) => (r || document).querySelector(s);
 const $$ = (s, r) => Array.from((r || document).querySelectorAll(s));
@@ -12512,19 +12520,19 @@ const badge = (lang, big) => '<span class="badge' + (big ? ' big' : '') + '" sty
 const tierTag = (t) => '<span class="tier t-' + t + '">' + TIER_BY_KEY[t].name + '</span>';
 function toHash(v) {
   if (v.name === 'lesson' && LANGS[v.lang] && LANGS[v.lang].lessons[v.idx]) return '#/' + v.lang + '/' + LANGS[v.lang].lessons[v.idx].id;
-  if (v.name === 'uni') return '#/uni' + (v.path && v.path.length ? '/' + v.path.join('/') : ''); if (v.name === 'project') return '#/project'; if (v.name === 'play') return '#/play/' + v.lang; if (v.name === 'shop') return '#/shop'; if (v.name === 'avatar') return '#/avatar'; if (v.name === 'locker') return '#/locker'; if (v.name === 'catalog') return '#/catalog'; if (v.name === 'stats') return '#/stats'; if (v.name === 'quiz') return '#/quiz'; if (v.name === 'duel') return '#/duel'; if (v.name === 'web') return '#/web' + (v.id ? '/' + v.id : ''); return '#/';
+  if (v.name === 'uni') return '#/uni' + (v.path && v.path.length ? '/' + v.path.join('/') : ''); if (v.name === 'project') return '#/project'; if (v.name === 'play') return '#/play/' + v.lang; if (v.name === 'shop') return '#/shop'; if (v.name === 'account') return '#/account'; if (v.name === 'avatar') return '#/avatar'; if (v.name === 'locker') return '#/locker'; if (v.name === 'catalog') return '#/catalog'; if (v.name === 'stats') return '#/stats'; if (v.name === 'quiz') return '#/quiz'; if (v.name === 'duel') return '#/duel'; if (v.name === 'web') return '#/web' + (v.id ? '/' + v.id : ''); return '#/';
 }
 function fromHash() {
   const p = location.hash.replace(/^#\/?/, '').split('/').filter(Boolean);
   if (p[0] === 'c' && p[1] && !(LANGS.c && LANGS.c.lessons.some((l) => l.id === p[1]))) { try { window.__ch = JSON.parse(atob(p[1])); window.__chFresh = true; history.replaceState(null, '', location.pathname + '#/'); } catch (e) {} return { name: 'home' }; }
   if (p[0] === 'uni') return { name: 'uni', path: p.slice(1).map((x) => { try { return decodeURIComponent(x); } catch (e) { return x; } }).filter((x) => /^[\w.\-]{1,40}$/.test(x)).slice(0, 6) };
-  if (!p.length) return { name: 'home' }; if (p[0] === 'shop') return { name: 'shop' }; if (p[0] === 'avatar') return { name: 'avatar' }; if (p[0] === 'locker') return { name: 'locker' }; if (p[0] === 'catalog') return { name: 'catalog' };
+  if (!p.length) return { name: 'home' }; if (p[0] === 'shop') return { name: 'shop' }; if (p[0] === 'account') return { name: 'account' }; if (p[0] === 'avatar') return { name: 'avatar' }; if (p[0] === 'locker') return { name: 'locker' }; if (p[0] === 'catalog') return { name: 'catalog' };
   if (p[0] === 'stats' || p[0] === 'quiz' || p[0] === 'web' || p[0] === 'duel') return { name: p[0], id: p[1] };
   if (p[0] === 'project') return { name: 'project' }; if (p[0] === 'play') return { name: 'play', lang: LANGS[p[1]] ? p[1] : 'py' };
   if (LANGS[p[0]]) { const i = LANGS[p[0]].lessons.findIndex((l) => l.id === p[1]); return { name: 'lesson', lang: p[0], idx: i < 0 ? nextLessonIdx(p[0]) : i }; }
   return { name: 'home' };
 }
-function setTitle() { if (view.name === 'uni') { document.title = 'Software Engineering University · Learn to Code'; return; } const l = view.name === 'lesson' && LANGS[view.lang].lessons[view.idx]; document.title = l ? LANGS[view.lang].name + ': ' + l.title + ' · Learn to Code' : 'Learn to Code'; }
+function setTitle() { if (view.name === 'uni') { document.title = 'Software Engineering University · Learn to Code'; return; } const l = view.name === 'lesson' && LANGS[view.lang].lessons[view.idx]; document.title = l ? LANGS[view.lang].name + ': ' + l.title + ' · Learn to Code' : view.name === 'account' ? 'Account · Learn to Code' : 'Learn to Code'; }
 function go(v) {
   view = v; const h = toHash(v);
   if (location.hash !== h) { try { history.pushState(null, '', h); } catch (e) { location.hash = h; } }
@@ -12533,7 +12541,7 @@ function go(v) {
 function syncFromUrl() { const v = fromHash(); if (toHash(v) !== toHash(view) || window.__chFresh) { window.__chFresh = false; view = v; render(); window.scrollTo(0, 0); } }
 window.addEventListener('popstate', syncFromUrl); window.addEventListener('hashchange', syncFromUrl);
 function topbar(extraLeft, extraRight) {
-  return '<div class="top">' + extraLeft + '<div class="grow"></div>' + (extraRight || '') + '<span class="xpchip" title="Experience points">⭐ ' + xp() + ' XP</span><button class="btn small" id="themeBtn" aria-label="Switch light or dark theme" title="Switch theme"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" style="display:block"><circle cx="12" cy="12" r="8.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 3.5a8.5 8.5 0 0 1 0 17z" fill="currentColor"/></svg></button></div>';
+  return '<div class="top">' + extraLeft + '<div class="grow"></div>' + (extraRight || '') + acctBtnHtml() + '<span class="xpchip" title="Experience points">⭐ ' + xp() + ' XP</span><button class="btn small" id="themeBtn" aria-label="Switch light or dark theme" title="Switch theme"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" style="display:block"><circle cx="12" cy="12" r="8.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 3.5a8.5 8.5 0 0 1 0 17z" fill="currentColor"/></svg></button></div>';
 }
 function bindTheme() {
   $('#themeBtn').addEventListener('click', () => {
@@ -12541,7 +12549,7 @@ function bindTheme() {
     S.theme = dark ? 'light' : 'dark'; root.dataset.theme = S.theme; bump('theme'); save();
   });
 }
-function render() { try { if (view.name === 'duel' && render.last !== 'duel') FBA.paused = false; } catch (e) { /* FBA not created yet */ } render.last = view.name; /* online requests resume when Multiplayer is opened again after a deletion */ closeDrawer(); applyRewards(); setTitle(); { const f = checkBadges(); if (f.length) setTimeout(() => badgeToast(f), 600); } duelGuard(); if ((view.name === 'duel' || view.name === 'quiz') && RANKED_STATE !== 2) return rankedGate(); if (view.name === 'duel') return renderDuel(); if (view.name === 'uni') return renderUni(); if (view.name === 'home') renderHome(); else if (view.name === 'shop') renderShop(); else if (view.name === 'avatar') renderAvatar(); else if (view.name === 'locker') renderLocker(); else if (view.name === 'catalog') renderCatalog(); else if (view.name === 'stats') renderStats(); else if (view.name === 'quiz') renderQuiz(); else if (view.name === 'web') renderWeb(); else if (view.name === 'lesson') renderLesson(); else if (view.name === 'project') renderProject(); else renderPlay(); }
+function render() { try { if (view.name === 'duel' && render.last !== 'duel') FBA.paused = false; } catch (e) { /* FBA not created yet */ } render.last = view.name; /* online requests resume when Multiplayer is opened again after a deletion */ closeDrawer(); applyRewards(); setTitle(); { const f = checkBadges(); if (f.length) setTimeout(() => badgeToast(f), 600); } duelGuard(); if ((view.name === 'duel' || view.name === 'quiz') && RANKED_STATE !== 2) return rankedGate(); if (view.name === 'duel') return renderDuel(); if (view.name === 'uni') return renderUni(); if (view.name === 'home') renderHome(); else if (view.name === 'shop') renderShop(); else if (view.name === 'account') renderAccount(); else if (view.name === 'avatar') renderAvatar(); else if (view.name === 'locker') renderLocker(); else if (view.name === 'catalog') renderCatalog(); else if (view.name === 'stats') renderStats(); else if (view.name === 'quiz') renderQuiz(); else if (view.name === 'web') renderWeb(); else if (view.name === 'lesson') renderLesson(); else if (view.name === 'project') renderProject(); else renderPlay(); }
 
 
 /* Online account card (Multiplayer → More). Honest about which mode the site is in. */
@@ -12581,6 +12589,7 @@ async function fbDeleteMe(progress) {
   if (fbOn()) {
     progress('Removing your online identity…');
     await del('owners/' + pid); await del('uids/' + FBA.uid);
+    if (acctEmail()) { try { await savesReq('DELETE'); done.push('saved progress'); } catch (e) { failed.push('saved progress'); } }
     try { const tok = await fbToken(); await fbPost(FB_IDT + 'delete', { idToken: tok }); done.push('auth account'); } catch (e) { failed.push('auth account'); }
     fbSignOut();
   }
@@ -12605,6 +12614,145 @@ function fbAccountBind() {
   if (out) out.addEventListener('click', () => { fbSignOut(); const d = duelInit(); d.uid = ''; d.fc = null; save(); renderDuel(); });
 }
 
+/* ===== Account: create an account, sign in, and keep progress in the account (4.6) =====
+   Uses the same Firebase Authentication as online play (secure mode, FB_API_KEY set). Progress is the same data
+   as a backup file (backupPayload: no GitHub token, no device player ID) and is stored at saves/<account id> in the
+   Realtime Database, readable and writable only by that account (firebase/database.rules.json). Syncing always
+   MERGES (backupApply 'merge'): completed lessons, XP, badges and University results from both copies are kept, so
+   signing in on a second device never loses progress. Without FB_API_KEY the page explains that accounts are off. */
+const ACCT_META = 'learn-acct-sync', ACCT_MAX = 3e6;
+const ACCT = { busy: null, again: false, timer: 0, state: '', err: '', on: false };
+function acctMeta(v) { try { if (v === null) localStorage.removeItem(ACCT_META); else if (v) localStorage.setItem(ACCT_META, JSON.stringify(v)); return JSON.parse(localStorage.getItem(ACCT_META) || '{}') || {}; } catch (e) { return {}; } }
+const acctEmail = () => (fbOn() ? (FBA.email || (fbLoad() || {}).email || '') : '');
+function strHash(s) { let h = 2166136261; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return (h >>> 0).toString(36) + '.' + s.length; }
+async function savesReq(method, sub, body) {
+  const tok = await fbToken(); if (!FBA.uid) throw new Error('not signed in');
+  const r = await fetch(dbUrl() + '/saves/' + encodeURIComponent(FBA.uid) + (sub ? '/' + sub : '') + '.json?auth=' + encodeURIComponent(tok), { method, body: body === undefined ? undefined : JSON.stringify(body) });
+  if (r.status === 401) { FBA.tok = null; FBA.exp = 0; }
+  if (!r.ok) { const e = new Error('saves ' + r.status); e.status = r.status; throw e; }
+  return r.json();
+}
+const ACCT_QUIET = ['lesson', 'play', 'project', 'web', 'quiz', 'duel', 'uni']; // pages with work in progress: never redrawn by a sync
+function acctSync() {
+  if (!acctEmail() || FBA.paused) return Promise.resolve(false);
+  if (ACCT.busy) { ACCT.again = true; return ACCT.busy; }
+  ACCT.state = 'sync'; acctPaint();
+  ACCT.busy = (async () => {
+    const m = acctMeta(); let merged = false;
+    const cloud = await savesReq('GET');
+    if (cloud && typeof cloud.d === 'string' && cloud.at !== m.at) {
+      const before = JSON.stringify(backupPayload().d); backupApply(backupParse(cloud.d).d, 'merge'); merged = JSON.stringify(backupPayload().d) !== before;
+    }
+    const h = strHash(JSON.stringify(backupPayload().d)); let at = cloud && cloud.at;
+    if (!cloud || typeof cloud.d !== 'string' || h !== m.h || merged) {
+      const s = JSON.stringify(backupPayload()); if (s.length > ACCT_MAX) throw Object.assign(new Error('too large'), { big: true });
+      await savesReq('PUT', '', { d: s, at: TS, v: APP_VERSION });
+      at = await savesReq('GET', 'at');
+    }
+    acctMeta({ at, h, last: new Date().toISOString(), email: acctEmail() });
+    ACCT.state = 'ok'; ACCT.err = '';
+    if (merged) { if (ACCT_QUIET.includes(view.name)) toast('☁️ Progress from your account was added. It shows when you open the next page.'); else { render(); toast('☁️ Progress from your account was added on this device'); } }
+    return merged;
+  })().catch((e) => {
+    ACCT.state = 'err';
+    ACCT.err = e.big ? 'Your progress is too large to keep in your account (over 3 MB, usually because of very large saved code). It is still saved on this device; use a backup file as well.'
+      : !navigator.onLine ? 'You are offline. Your progress is saved on this device and goes to your account when you are back online.'
+      : e.status === 401 ? 'Your account could not save progress (permission denied). The site owner may still need to publish the updated database rules.'
+      : 'Could not reach your account just now. Learn will try again.';
+    return false;
+  }).finally(() => { ACCT.busy = null; acctPaint(); if (ACCT.again) { ACCT.again = false; acctSchedule(3000); } });
+  return ACCT.busy;
+}
+function acctSchedule(ms) { if (!ACCT.on || !acctEmail()) return; clearTimeout(ACCT.timer); ACCT.timer = setTimeout(acctSync, ms || 15000); }
+function acctStatusText() {
+  const m = acctMeta();
+  if (ACCT.state === 'sync') return 'Saving to your account…';
+  if (ACCT.state === 'err') return ACCT.err;
+  return m.last ? 'Progress saved to your account ' + new Date(m.last).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' }) + '.' : 'Not saved to your account yet.';
+}
+function acctPaint() {
+  const s = $('#acSync'); if (s) s.textContent = acctStatusText();
+  const b = $('#acctBtn'); if (b) b.innerHTML = acctBtnInner();
+}
+const acctBtnInner = () => (acctEmail() ? '<span aria-hidden="true">👤</span> Account' + (ACCT.state === 'err' ? ' <span aria-hidden="true">⚠️</span>' : '') : '<span aria-hidden="true">👤</span> Sign in');
+const acctBtnHtml = () => '<a class="btn small" id="acctBtn" href="#/account" aria-label="' + (acctEmail() ? 'Your account' : 'Sign in or create an account') + '">' + acctBtnInner() + '</a>';
+function acctProgressLine() { const s = backupSummary(backupPayload().d); return s.slice(0, 3).join(' · '); }
+let acctMode = 'up';
+function renderAccount() {
+  const em = acctEmail(); let body;
+  if (!fbOn()) {
+    body = '<div class="card"><h2 style="margin-top:0">Accounts are not switched on yet</h2><p>Signing in needs the website owner to connect Learn to its Firebase project. Until then your progress is saved on this device only.</p><p>To move progress to another device now, use <b>Backup file</b> on the home page (download it here, then restore it there).</p>' +
+      '<details style="margin-top:10px"><summary><b>For the website owner: how to switch accounts on</b></summary><ol style="line-height:1.6"><li>In the Firebase console, open your project, then <b>Authentication → Sign-in method</b>, and enable <b>Email/Password</b> and <b>Anonymous</b>.</li><li>Publish <code>firebase/database.rules.json</code> from this release (it adds the <code>saves</code> section that keeps each account\'s progress private). Test it first as described in <code>docs/FIREBASE_SETUP.md</code>.</li><li>Copy the <b>Web API key</b> from <b>Project settings → General</b> and put it in <code>index.html</code> as <code>const FB_API_KEY = \'…\';</code>. This key is public by design; never paste a service-account key.</li><li>Upload the files. The 👤 Sign in button then works for everyone.</li></ol></details></div>';
+  } else if (em) {
+    body = '<div class="card"><h2 style="margin-top:0">👤 Your account</h2><p>Signed in as <b>' + esc(em) + '</b>.</p><p class="pill" id="acSync" role="status" aria-live="polite" style="margin:0 0 10px">' + esc(acctStatusText()) + '</p><p style="margin:0 0 10px">On this device: ' + esc(acctProgressLine()) + '.</p>' +
+      '<div class="row" style="gap:8px;flex-wrap:wrap"><button class="btn small primary" id="acNow" type="button">Save now</button><button class="btn small" id="acOut" type="button">Sign out</button><button class="btn small" id="acOutClear" type="button">Sign out and clear this device</button></div>' +
+      '<p class="pill" id="acMsg" role="status" aria-live="polite" style="margin:10px 0 0"></p></div>' +
+      '<div class="card" style="margin-top:12px"><h3 style="margin-top:0">How saving works</h3><ul style="line-height:1.6;margin:0;padding-left:20px"><li>Your progress is saved to your account a few seconds after it changes, and checked again when you come back to Learn.</li><li>Sign in on another device to continue there. Progress from both devices is combined: finished lessons, XP, badges and University results are never lost.</li><li>If you change the code of the same lesson on two devices, each device keeps its own version of that code.</li><li>Resetting progress on one device does not reset the account copy.</li></ul></div>' +
+      '<div class="card" style="margin-top:12px"><h3 style="margin-top:0">🗑 Delete account</h3><p>Deletes your sign-in account, the progress saved in it, and your online name, friends and leaderboard entries. Progress on this device stays unless you clear it.</p><button class="btn small" id="acDel" type="button">Delete my account</button><p class="pill" id="acDelMsg" role="status" aria-live="polite" style="margin:10px 0 0"></p></div>';
+  } else {
+    const up = acctMode === 'up';
+    body = '<div class="card"><div class="row" role="tablist" aria-label="Account" style="gap:8px;margin-bottom:12px"><button class="btn small' + (up ? ' primary' : '') + '" role="tab" aria-selected="' + up + '" id="acTabUp" type="button">Create account</button><button class="btn small' + (!up ? ' primary' : '') + '" role="tab" aria-selected="' + !up + '" id="acTabIn" type="button">Sign in</button></div>' +
+      '<form id="acForm" novalidate><h2 style="margin-top:0">' + (up ? 'Create your account' : 'Sign in') + '</h2><p style="margin-top:0">' + (up ? 'Keep your progress safe and continue on any device. Everything you have already done on this device is saved into the new account.' : 'Progress on this device is combined with the progress saved in your account. Nothing is lost.') + '</p>' +
+      '<label class="acl" for="acEm">Email</label><input class="dinput acin" id="acEm" type="email" autocomplete="email" inputmode="email" autocapitalize="off" spellcheck="false" required>' +
+      '<label class="acl" for="acPw">Password' + (up ? ' <small>(at least 8 characters)</small>' : '') + '</label><div class="row" style="gap:8px"><input class="dinput acin" id="acPw" type="password" autocomplete="' + (up ? 'new-password' : 'current-password') + '" required minlength="' + (up ? 8 : 6) + '" style="flex:1;min-width:0"><button class="btn small" id="acShow" type="button" aria-pressed="false">Show</button></div>' +
+      '<div class="row" style="gap:8px;margin-top:14px;flex-wrap:wrap"><button class="btn primary" id="acGo" type="submit">' + (up ? 'Create account' : 'Sign in') + '</button>' + (up ? '' : '<button class="btn small" id="acForgot" type="button">Forgot password?</button>') + '</div>' +
+      '<p class="pill" id="acMsg" role="status" aria-live="polite" style="margin:12px 0 0"></p></form>' +
+      '<p class="u-fine" style="margin:12px 0 0;font-size:13px;opacity:.85">Your email is used only to sign in and to reset your password. It is stored by Google Firebase Authentication and is never shown to other players. Accounts are optional: you can keep learning without one.</p></div>';
+  }
+  app.innerHTML = '<div class="wrap">' + topbar('<button class="btn small" id="back">← Home</button><div class="crumb">👤 Account</div>') + body + '</div>';
+  bindTheme(); $('#back').addEventListener('click', () => go({ name: 'home' }));
+  if (!fbOn()) return;
+  const msg = $('#acMsg');
+  if (!em) {
+    $('#acTabUp').addEventListener('click', () => { acctMode = 'up'; renderAccount(); $('#acEm').focus(); });
+    $('#acTabIn').addEventListener('click', () => { acctMode = 'in'; renderAccount(); $('#acEm').focus(); });
+    const pw = $('#acPw'), sh = $('#acShow'); sh.addEventListener('click', () => { const v = pw.type === 'password'; pw.type = v ? 'text' : 'password'; sh.textContent = v ? 'Hide' : 'Show'; sh.setAttribute('aria-pressed', String(v)); });
+    $('#acForm').addEventListener('submit', async (e) => {
+      e.preventDefault(); const em2 = $('#acEm').value.trim(), p = pw.value, up = acctMode === 'up';
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(em2)) { msg.textContent = 'Enter a valid email address.'; $('#acEm').focus(); return; }
+      if (p.length < (up ? 8 : 6)) { msg.textContent = up ? 'Choose a password of at least 8 characters.' : 'Enter your password.'; pw.focus(); return; }
+      const go2 = $('#acGo'); go2.disabled = true; msg.textContent = up ? 'Creating your account…' : 'Signing in…';
+      try { await fbEmail(up ? 'up' : 'in', em2, p); acctMeta(null); msg.textContent = 'Saving your progress…'; await acctSync(); toast(up ? '🎉 Account created. Your progress is saved.' : '👋 Signed in'); renderAccount(); }
+      catch (er) { msg.textContent = fbErrText(er); go2.disabled = false; }
+    });
+    const fg = $('#acForgot'); if (fg) fg.addEventListener('click', async () => {
+      const em2 = $('#acEm').value.trim(); if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(em2)) { msg.textContent = 'Type your email above first, then press Forgot password.'; $('#acEm').focus(); return; }
+      fg.disabled = true; try { await fbPost(FB_IDT + 'sendOobCode', { requestType: 'PASSWORD_RESET', email: em2 }); msg.textContent = 'If an account exists for ' + em2 + ', an email with a link to choose a new password is on its way. Check your spam folder too.'; }
+      catch (er) { msg.textContent = /EMAIL_NOT_FOUND/.test(er.code) ? 'If an account exists for ' + em2 + ', an email with a link to choose a new password is on its way.' : fbErrText(er); } fg.disabled = false;
+    });
+    return;
+  }
+  $('#acNow').addEventListener('click', async () => { await acctSync(); msg.textContent = ACCT.state === 'ok' ? 'Saved.' : ''; });
+  const out = async (clear) => {
+    if (clear) { msg.textContent = 'Saving to your account before clearing…'; await acctSync(); if (ACCT.state !== 'ok') { msg.textContent = 'Your latest progress could not be saved to your account, so nothing was cleared. Try again when you are online.'; return; } }
+    clearTimeout(ACCT.timer); fbSignOut(); acctMeta(null); const d = duelInit(); d.uid = ''; d.fc = null; save();
+    if (clear) { const th = S.theme; try { localStorage.removeItem(KEY); if (th) localStorage.setItem(KEY, JSON.stringify({ theme: th })); } catch (e) {} location.hash = '#/'; location.reload(); return; }
+    toast('Signed out. Your progress stays on this device.'); acctMode = 'in'; renderAccount();
+  };
+  $('#acOut').addEventListener('click', () => out(false));
+  let armOut = false; $('#acOutClear').addEventListener('click', (e) => { if (!armOut) { armOut = true; e.target.textContent = 'Press again to sign out and clear'; msg.textContent = 'Use this on a shared or borrowed device. Your progress is saved to your account first, then removed from this device.'; return; } out(true); });
+  let armDel = false; const del = $('#acDel'), dm = $('#acDelMsg');
+  del.addEventListener('click', async () => {
+    if (!armDel) { armDel = true; del.textContent = 'Press again to delete permanently'; dm.textContent = 'This cannot be undone. The progress saved in your account will be gone.'; return; }
+    del.disabled = true; dm.textContent = 'Deleting the progress saved in your account…';
+    try { await savesReq('DELETE'); } catch (er) { dm.textContent = 'Could not reach your account, so nothing was deleted. Try again when you are online.'; del.disabled = false; armDel = false; del.textContent = 'Delete my account'; return; }
+    clearTimeout(ACCT.timer); ACCT.on = false;
+    try { const r = await fbDeleteMe((t) => { dm.textContent = t; }); acctMeta(null);
+      if (!r.done.includes('auth account') && !r.failed.includes('auth account')) { // no online player yet: delete the sign-in account directly
+        try { const tok = await fbToken(); await fbPost(FB_IDT + 'delete', { idToken: tok }); fbSignOut(); } catch (e2) { r.failed.push('auth account'); } }
+      if (r.failed.includes('auth account')) dm.textContent = 'Your saved progress and online data were deleted, but the sign-in account itself could not be removed. Sign in again and repeat this to finish.';
+      else { FBA.paused = false; toast('🗑 Account deleted'); ACCT.on = true; acctMode = 'up'; renderAccount(); }
+    } catch (er) { dm.textContent = 'Partly done: your saved progress was deleted, but not everything else. Check your connection and try again.'; del.disabled = false; ACCT.on = true; }
+  });
+}
+function acctStart() {
+  ACCT.on = true;
+  if (!acctEmail()) return;
+  setTimeout(acctSync, 1500);
+  document.addEventListener('visibilitychange', () => { if (document.hidden) return; const m = acctMeta(); if (!m.last || Date.now() - Date.parse(m.last) > 60000) acctSync(); });
+  window.addEventListener('online', () => acctSchedule(1000));
+}
+
 /* Quiz and match pages wait for the question bank (loaded on demand, see loadRanked). */
 function rankedGate() {
   const want = toHash(view);
@@ -12617,7 +12765,7 @@ function rankedGate() {
 /* ===== Software Engineering University (lazy-loaded from ./uni/) =====
    Nothing in ./uni/ is downloaded until the student opens #/uni. The module gets
    the page internals it needs through this API object instead of globals. */
-const UNI_VER = '1.6.0';
+const UNI_VER = '1.7.0';
 let uniLoad = null;
 function uniApi() {
   return {
@@ -12629,8 +12777,17 @@ function uniApi() {
     openLesson: (lang) => { if (LANGS[lang]) go({ name: 'lesson', lang, idx: nextLessonIdx(lang) }); },
     addXp: (n) => { n = Math.max(0, Math.min(500, Math.floor(+n || 0))); if (n) { S.bonus = (S.bonus || 0) + n; save(); } return n; },
     markDay: () => { const d = dayStr(new Date()); if (!S.days.includes(d)) { S.days.push(d); save(); } },
-    dayStr,
+    dayStr, repair: learnRepair, repairTried: learnRepairTried,
   };
+}
+/* Repair a mix of old and new files: delete Learn's offline copies (not the Pyodide download), ask the service
+   worker to update, reload. Runs automatically at most once per session for each version. */
+function learnRepairTried(tag) { try { return sessionStorage.getItem('learn-repair') === String(tag); } catch (e) { return true; } }
+async function learnRepair(tag) {
+  try { sessionStorage.setItem('learn-repair', String(tag || APP_VERSION)); } catch (e) {}
+  try { if (window.caches) { const ks = await caches.keys(); await Promise.all(ks.filter((k) => !/pyodide/.test(k)).map((k) => caches.delete(k))); } } catch (e) {}
+  try { const r = navigator.serviceWorker && await navigator.serviceWorker.getRegistration(); if (r) await r.update(); } catch (e) {}
+  location.reload();
 }
 function uniScript(src) { return new Promise((ok, no) => { const el = document.createElement('script'); el.src = src; el.onload = ok; el.onerror = () => { el.remove(); no(new Error('Could not load ' + src)); }; document.head.appendChild(el); }); }
 function renderUni() {
@@ -12642,11 +12799,14 @@ function renderUni() {
     uniLoad = (async () => {
       if (!document.getElementById('uniCss')) { const l = document.createElement('link'); l.id = 'uniCss'; l.rel = 'stylesheet'; l.href = 'uni/university.css?v=' + UNI_VER; document.head.appendChild(l); }
       await uniScript('uni/config.js?v=' + UNI_VER); await uniScript('uni/data/catalog.js?v=' + UNI_VER); await uniScript('uni/data/departments.js?v=' + UNI_VER); await uniScript('uni/university.js?v=' + UNI_VER);
+      if (!window.LearnUniversity || window.LearnUniversity.build !== UNI_VER) { const e = new Error('mixed versions'); e.mixed = (window.LearnUniversity && window.LearnUniversity.build) || 'an older version'; throw e; }
       await window.LearnUniversity.init(uniApi());
     })();
   }
   uniLoad.then(() => { if (view.name === 'uni') window.LearnUniversity.render(view.path || []); }).catch((e) => {
-    uniLoad = null; const m = $('#uniLoadMsg'); if (m) m.innerHTML = 'The university files could not be loaded' + (navigator.onLine ? '.' : ' because you are offline and they have not been saved on this device yet.') + ' <br><button class="btn small" id="uniRetry" style="margin-top:10px">Try again</button>';
+    uniLoad = null; const m = $('#uniLoadMsg');
+    if (e && e.mixed) { if (!learnRepairTried(UNI_VER)) { if (m) m.textContent = 'Updating Learn to the latest version…'; learnRepair(UNI_VER); return; } if (m) { m.innerHTML = 'Learn needs to finish updating: <code>uni/university.js</code> is ' + esc(String(e.mixed)) + ', but version ' + UNI_VER + ' is needed. If pressing Update now does not help, the website has an old copy of that file: upload the whole <code>uni</code> folder from the latest ZIP again. <br><button class="btn small" id="uniRepair" style="margin-top:10px">Update now</button>'; $('#uniRepair').addEventListener('click', () => learnRepair(UNI_VER)); } return; }
+    if (m) m.innerHTML = 'The university files could not be loaded' + (navigator.onLine ? '.' : ' because you are offline and they have not been saved on this device yet.') + ' <br><button class="btn small" id="uniRetry" style="margin-top:10px">Try again</button>';
     const r = $('#uniRetry'); if (r) r.addEventListener('click', renderUni);
   });
 }
@@ -15221,7 +15381,7 @@ function bindHome() {
   if (q) q.addEventListener('input', () => {
     const t = q.value.trim().toLowerCase().split(/\s+/).filter(Boolean); if (!t.length) { box.innerHTML = ''; return; }
     const out = []; LANG_ORDER.forEach((k) => lessonsOf(k).forEach((l, i) => { const h = (l.title + ' ' + l.concept + ' ' + LANGS[k].name + ' ' + l.tier).toLowerCase(); if (t.every((w) => h.includes(w))) out.push([k, i]); }));
-    box.innerHTML = out.slice(0, 12).map(([k, i]) => { const l = lessonsOf(k)[i]; return '<button class="dcard" data-dk="' + k + '" data-di="' + i + '"><small>' + LANGS[k].name + ' · ' + TIER_BY_KEY[l.tier].name + '</small><b>' + esc(l.title) + '</b><span>' + esc(l.concept) + '</span></button>'; }).join('') || '<p class="pill">No lessons match.</p>';
+    box.innerHTML = out.slice(0, 12).map(([k, i]) => { const l = lessonsOf(k)[i]; return '<button class="dcard" data-dk="' + k + '" data-di="' + i + '"><small>' + LANGS[k].name + ' · ' + TIER_BY_KEY[l.tier].name + '</small><b>' + esc(l.title) + '</b><span>' + esc(l.concept) + '</span></button>'; }).join('') + (out.length ? '' : '<p class="pill">No language lessons match.</p>') + (function () { const slug = q.value.trim().toLowerCase().replace(/[^\w.]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40); return slug ? '<a class="dcard" href="#/uni/search/' + slug + '"><small>🎓 UNIVERSITY</small><b>Search the University for “' + esc(q.value.trim().slice(0, 40)) + '”</b><span>Courses, lessons, labs and projects</span></a>' : ''; })();
     $$('.dcard[data-dk]', box).forEach((b) => b.addEventListener('click', () => go({ name: 'lesson', lang: b.dataset.dk, idx: +b.dataset.di })));
   });
   [['duelBtn', 'duel'], ['webBtn', 'web'], ['quizBtn', 'quiz'], ['statsBtn', 'stats']].forEach(([id, nm]) => { const e = $('#' + id); if (e) e.addEventListener('click', () => go({ name: nm })); });
@@ -17221,8 +17381,24 @@ function makeCard(lang) {
 document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeDrawer(); });
 
 /* ---------- patch notes (pop up once per update; brand-new players never see old notes) ---------- */
-const APP_VERSION = '4.4';
+const APP_VERSION = '4.6';
 const PATCH_NOTES = [
+  { v: '4.6', date: 'Nov 14, 2026', title: '👤 Accounts: sign up, sign in, and your progress on every device', items: [
+    'New 👤 Sign in button at the top. Create an account with an email and password, or sign in to one you already have.',
+    'Your progress is saved to your account a few seconds after it changes: language lessons, XP, badges, University lessons, examinations and notes. Sign in on another device to continue there.',
+    'Progress from different devices is combined, never overwritten. Finished lessons and results from both devices are kept.',
+    'Forgot password sends a reset link to your email. "Sign out and clear this device" is for shared or borrowed iPads. You can delete your account and everything saved in it at any time.',
+    'Accounts are optional. Your email is used only to sign in and is never shown to other players.',
+    'Note for the website owner: accounts need Firebase switched on (Email/Password sign-in, the updated rules file, and the web API key in index.html). Until then the Sign in page explains this instead of showing a form.',
+  ] },
+  { v: '4.5', date: 'Nov 14, 2026', title: '🔎 University search, and no more broken pages after an update', items: [
+    'Fixed: after an update, a University page could show "U.srsCounts is not a function". This happened when the browser kept an old copy of one file and used it with new copies of the others. Learn now checks that all University files belong to the same version. If they do not, it clears its saved copies and reloads once by itself. If the problem is still there, the page names the old file, so you know which one to upload again.',
+    'The offline copy is now version-exact: a page that asks for a new version of a file is never given an old saved copy of it.',
+    'When a new version arrives while Learn is open, a bar says "A new version of Learn is ready" with a Reload now button. Nothing reloads without asking, so nothing you are typing is lost.',
+    'New 🔎 Search tab in the University: find any course, lesson, lab or project by words in its title or text, with the matching words highlighted. The first search downloads all course files once (about 1.7 MB); after that search also works offline.',
+    'The lesson search on the home page now also offers "Search the University for …".',
+    'If Learn fails to start, the message now has a Repair and reload button.',
+  ] },
   { v: '4.4', date: 'Nov 13, 2026', title: '📚 More questions for eight languages, and a worked example in every lesson', items: [
     'Quiz and match questions: 608 new questions for Java, Go, Rust, PHP, Ruby, Swift, Kotlin and Bash. Each of those languages now has between 109 and 126 distinct questions (it was 15 before 4.3, and 30–40 in 4.3). The whole bank now holds 5,671 distinct questions.',
     'Every "What does this print?" question for Java, Go, Rust, PHP, Ruby and Bash was run with the real compiler or interpreter to confirm the answer, as were the Python and JavaScript ones. Swift and Kotlin questions were checked by hand only, because those compilers were not available.',
@@ -17356,9 +17532,23 @@ function maybeShowPatchNotes() {
 }
 document.addEventListener('click', (e) => { const b = e.target.closest && e.target.closest('#pnOpen'); if (b) openPatchNotes(PATCH_NOTES.slice(0, 5), false); });
 view = fromHash();
+window.__acctTouch = () => acctSchedule(15000);
 render();
+acctStart();
 maybeShowPatchNotes();
-if ('serviceWorker' in navigator) window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
+if ('serviceWorker' in navigator) {
+  // When a new version takes over from an older one, offer a reload instead of mixing old and new pages (4.5).
+  const hadController = !!navigator.serviceWorker.controller;
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (!hadController || document.getElementById('updBar')) return;
+    const d = document.createElement('div'); d.id = 'updBar'; d.className = 'updbar'; d.setAttribute('role', 'status');
+    d.innerHTML = '<span>✨ A new version of Learn is ready.</span><button class="btn small primary" type="button" id="updGo">Reload now</button><button class="btn small" type="button" id="updLater">Later</button>';
+    document.body.appendChild(d);
+    d.querySelector('#updGo').addEventListener('click', () => location.reload());
+    d.querySelector('#updLater').addEventListener('click', () => d.remove());
+  });
+  window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
+}
 (function () { const b = document.createElement('div'); b.id = 'offBadge'; b.textContent = '📴 Offline mode · multiplayer needs internet'; b.style.cssText = 'position:fixed;left:50%;bottom:14px;transform:translateX(-50%);z-index:99999;background:#1b2347;color:#cfe3ff;border:1px solid #35d4ff;border-radius:999px;padding:7px 14px;font:600 13px system-ui,sans-serif;box-shadow:0 4px 18px rgba(0,0,0,.4);display:none;pointer-events:none'; const u = () => { b.style.display = navigator.onLine ? 'none' : 'block'; }; document.body.appendChild(b); window.addEventListener('online', u); window.addEventListener('offline', u); u(); })();
 window.__app = { go, S: () => S };
 })();

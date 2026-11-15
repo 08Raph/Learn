@@ -1,4 +1,4 @@
-# Learn 4.2: what data the site handles, why, and how to remove it
+# Learn 4.6: what data the site handles, why, and how to remove it
 
 Written for the site owner. Adapt it into a notice for your users.
 
@@ -24,6 +24,7 @@ are saved wherever the user chooses and are never sent anywhere by the site.
 |---|---|---|
 | Online play, friends, rooms, leaderboards, reward codes | Display name, avatar, scores, invitations and room messages, presence, which reward codes were redeemed | Your Firebase Realtime Database. **Legacy mode:** readable and writable by anyone. **Secure mode:** readable by signed-in players as the rules allow, writable only by the owner (see SECURITY.md). |
 | Secure mode sign-in | A random account ID; sign-in times; **an email address and password only if the player chooses to add them** | Google Firebase Authentication. The password is stored by Google as a hash; the site never stores it. The email is used for sign-in only and is not shown to other players. |
+| Accounts (4.6), if the student creates one | Email and password (to Google Firebase Authentication, password stored as a hash). Their progress — the same data as a backup file — at `saves/<account id>` in your database | Readable and writable **only by that account**. Administrators cannot read it (the rules forbid it). |
 | Administrator actions and code redemptions (secure mode) | Account ID, action, a short detail, time | `duel/audit` in your database, readable by administrators |
 | Cloud sync, if the user sets it up | Their whole save, as a private Gist | GitHub, in the user's own account |
 | Running Java, Go, Rust, PHP, Ruby, Swift, Kotlin or Bash | The code being run | Judge0 CE, Piston or Wandbox (public services) |
@@ -47,7 +48,8 @@ Nothing is collected for advertising or analytics, and nothing is sold or shared
 |---|---|
 | Everything on the device | The user presses "Erase" in the backup section at the foot of the home page, or clears the site's data in their browser. |
 | A player's online name, friends and scores | **The player:** Multiplayer → More → Delete my online data (since 4.1). It removes presence, leaderboard entries, name, friend code, both sides of every friendship, friend requests and invitations received, inbox and party, and in secure mode the ownership records and the sign-in account. Requests the player sent to others stay in those players' lists until they dismiss them. **The owner:** Firebase console → Realtime Database: delete the player's ID under `duel/names`, `duel/lb/*`, `duel/fl`, `duel/frq`, `duel/inv`, `duel/inbox`, `duel/presence`, and `duel/owners/<id>` with its `duel/uids/<uid>`. |
-| A sign-in account and its email | Firebase console → Authentication → Users → delete the user. |
+| An account, its email and its saved progress | **The student:** 👤 Account → Delete my account (deletes `saves/<id>`, online data and the sign-in account). **The owner:** delete `saves/<uid>` in the database and the user under Authentication → Users. |
+| A sign-in account and its email (older method) | Firebase console → Authentication → Users → delete the user. |
 | A cloud-sync copy | The user deletes the Gist in their own GitHub account and revokes the token. |
 | Audit entries | Firebase console → `duel/audit`. Decide how long you keep them; 90 days is a reasonable default. |
 

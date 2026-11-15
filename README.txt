@@ -1,3 +1,21 @@
+08Raph Learn 4.6: accounts (sign up, sign in, progress on every device)
+
+NEW IN 4.6
+- 👤 Sign in button: create an account or sign in; progress is saved to the account and combined
+  across devices. Forgot password, sign out (and clear device), delete account.
+- To switch it on (website owner): see docs/FIREBASE_SETUP.md section 4b and 5. In short: enable
+  Email/Password and Anonymous sign-in, publish firebase/database.rules.json, set FB_API_KEY in index.html.
+  Until then the Sign in page explains that accounts are not switched on.
+
+08Raph Learn 4.5: University search, and no more broken pages after an update
+
+NEW IN 4.5
+- Fixes "U.srsCounts is not a function": an old saved copy of one University file was used with new
+  copies of the others. Learn now detects this, repairs itself once, and otherwise names the old file.
+- New Search tab in the University. A "new version is ready" bar instead of mixed versions.
+- Upload EVERYTHING in the ZIP, including the whole uni folder and sw.js. If a University page says
+  "Learn needs to finish updating" and names a file, that file on GitHub is still the old one.
+
 08Raph Learn 4.4: more questions for eight languages, a worked example in every lesson
 
 NEW IN 4.4
