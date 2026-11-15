@@ -1,0 +1,2870 @@
+#COURSE c506
+#LESSON Storage engines and query optimisation | 14
+A database must answer a declarative query, which says what is wanted and not how to find it, quickly and correctly. This lesson looks inside.
+
+### Two families of storage engine
+**B-tree engines** keep data in fixed-size **pages** arranged as a balanced tree and update pages **in place**. Reads are fast and predictable: a lookup touches a handful of pages. Most relational databases use them.
+
+**Log-structured merge trees** (LSM) never update in place. Writes go to an in-memory table and an append-only log. When the memory table fills, it is written out as an immutable sorted file. Background **compaction** merges files and discards overwritten values.
+
+```diagram
+   write --> memtable (memory) --> flushed to sorted files on disk
+                                     level 0:  [file][file][file]
+                                     level 1:  [   merged, larger files   ]
+                                     level 2:  [        larger still        ]
+```
+
+LSM engines turn random writes into sequential ones, so they sustain very high write rates and compress well. Reads may have to check several files, so each file carries a **Bloom filter** that says quickly "this key is definitely not here".
+
+| | B-tree | LSM tree |
+|---|---|---|
+| Writes | In place; random I/O | Sequential; very fast |
+| Reads | Fast, predictable | May consult several files |
+| Space | Some fragmentation | Compact; needs compaction |
+
+### The buffer pool
+Disk pages are cached in memory in a **buffer pool**. The database, not the operating system, decides what to keep and when to write, because it must control the order of writes for crash safety.
+
+### Row and column storage
+**Row stores** keep each record together, which suits transactions that read or write whole rows. **Column stores** keep each column together, which suits analytics: a query summing one column over a billion rows reads only that column. Similar values sit together, so columns compress very well, and operations can be **vectorised**.
+
+### How a query runs
+```diagram
+   SQL text --> parser --> logical plan --> optimiser --> physical plan --> executor
+```
+
+The **logical plan** is a tree of relational-algebra operators: select, project, join, aggregate. The optimiser transforms it into an equivalent, cheaper tree and chooses an algorithm for each operator.
+
+### Rewrite rules
+- **Predicate pushdown:** filter rows as early as possible.
+- **Projection pushdown:** drop unneeded columns early.
+- **Join reordering:** joins are associative and commutative, so any order gives the same result at very different cost.
+
+### Join algorithms
+- **Nested loop:** for each row of one table, scan the other. Good only when one side is tiny or indexed.
+- **Hash join:** build a hash table on the smaller input, probe it with the larger. O(n + m). The usual choice for equality joins.
+- **Sort-merge join:** sort both inputs and merge. Good when the inputs are already sorted.
+
+### Cost-based optimisation
+The optimiser estimates the cost of candidate plans from **statistics**: table sizes, the number of distinct values per column, histograms. The central quantity is **cardinality**: how many rows each step will produce.
+
+With n tables there are factorially many join orders. Dynamic programming over subsets of tables (the Selinger algorithm, from 1979) finds the best order for moderate n; heuristics take over beyond that.
+
+Estimates go wrong when statistics are stale or columns are correlated (city and postcode are not independent). A bad cardinality estimate is the most common cause of a suddenly slow query.
+
+### Reading a plan
+`EXPLAIN ANALYZE` shows the plan, the estimated and actual row counts, and the time per step. Compare estimates with actuals: a large gap marks the step where the optimiser was misled.
+
+> Key idea: A SQL query is a specification. The optimiser chooses among many equivalent plans by estimating row counts, and when those estimates are wrong, performance collapses.
+#Q Why do LSM-tree engines handle heavy write loads well?
+- They never write to disk
+* They turn random writes into sequential appends and merge files in the background
+- They keep no indexes
+! Sequential I/O is far cheaper than random I/O.
+#Q What does a cost-based optimiser most depend on?
+- The order in which tables were created
+* Statistics used to estimate how many rows each operation will produce
+- The length of the SQL text
+! Cardinality estimates drive the choice of plan.
+
+#LESSON Transactions, concurrency control and recovery | 15
+### Serialisability
+Running transactions one at a time is correct and slow. A database runs them concurrently, and the gold standard for correctness is **serialisability**: the result must equal that of **some** serial order.
+
+Two operations **conflict** if they are from different transactions, on the same item, and at least one is a write. Build a **precedence graph**: an edge from T1 to T2 whenever an operation of T1 conflicts with a later one of T2.
+
+**Theorem.** A schedule is conflict-serialisable **if and only if its precedence graph has no cycle**.
+
+```text
+T1: read(x)                write(x)
+T2:           write(x)
+
+edges:  T1 -> T2  (T1 read x before T2 wrote it)
+        T2 -> T1  (T2 wrote x before T1 wrote it)       a cycle: not serialisable
+```
+
+### Anomalies
+Weaker isolation permits specific anomalies.
+
+| Anomaly | What happens |
+|---|---|
+| Dirty read | Reading another transaction's uncommitted change |
+| Non-repeatable read | Reading a row twice and seeing different values |
+| Phantom | A repeated query returns new rows |
+| Lost update | Two transactions read, modify and write; one update vanishes |
+| Write skew | Two transactions read overlapping data, make disjoint writes, and together break a rule |
+
+**Write skew** example: a rule says at least one doctor must be on call. Two doctors each check that the other is on call, and both sign off. Each transaction was valid alone.
+
+### Two-phase locking
+A transaction acquires locks as it goes and releases them only at the end. Shared locks for reading, exclusive for writing. This guarantees serialisability, at the cost of blocking and the possibility of **deadlock**, which the database detects by finding a cycle in the waits-for graph and aborting one transaction.
+
+### Multi-version concurrency control
+**MVCC** keeps several versions of each row. A transaction reads a consistent **snapshot** as of its start, so **readers never block writers and writers never block readers**. Most modern databases use it.
+
+**Snapshot isolation** prevents dirty reads, non-repeatable reads and lost updates, but **permits write skew**. **Serialisable snapshot isolation** adds detection of the dangerous patterns and aborts one transaction.
+
+Old versions must eventually be removed: garbage collection, or "vacuum".
+
+### Optimistic concurrency control
+Proceed without locks, and **validate** at commit that nothing read has changed. If it has, abort and retry. This is efficient when conflicts are rare and wasteful when they are common.
+
+### Durability and recovery
+**Write-ahead logging** (WAL): before any change reaches a data page on disk, a log record describing it is written and flushed. The log is sequential, so this is fast.
+
+After a crash, the **ARIES** recovery algorithm runs three passes:
+
+1. **Analysis:** find which transactions were active and which pages may be out of date.
+2. **Redo:** replay the log to bring the database to its exact state at the moment of the crash, including the changes of uncommitted transactions.
+3. **Undo:** roll back the transactions that had not committed.
+
+**Checkpoints** limit how much log must be replayed.
+
+### Group commit
+Flushing the log for every transaction is costly. **Group commit** batches several commits into one flush, trading a small delay for much greater throughput.
+
+### Choosing isolation
+Stronger isolation is safer and slower. Many databases default to a level weaker than serialisable. Know your database's default, know which anomalies it allows, and for invariants that span rows use serialisable isolation or explicit locks.
+
+> Key idea: Serialisability means the outcome matches some one-at-a-time order. Anything weaker is a list of specific anomalies you have agreed to tolerate.
+#Q How is conflict-serialisability tested?
+- By running the transactions twice
+* By checking that the precedence graph has no cycle
+- By counting the operations
+! A cycle means no serial order is consistent with all the conflicts.
+#Q Which anomaly does snapshot isolation still allow?
+- Dirty read
+- Lost update
+* Write skew
+! Two transactions read the same snapshot and write different rows, together violating a rule.
+
+#LESSON Distributed and analytical databases | 14
+### Partitioning and replication together
+A distributed database splits data into **partitions**, and keeps several **replicas** of each for fault tolerance.
+
+```diagram
+   partition 1:  [leader on node A]  [follower on B]  [follower on C]
+   partition 2:  [leader on node B]  [follower on C]  [follower on A]
+   partition 3:  [leader on node C]  [follower on A]  [follower on B]
+```
+
+Each partition's replicas agree on the order of writes using a consensus protocol such as Raft.
+
+### Distributed transactions
+A transaction that touches several partitions needs **atomic commit**: all commit or none.
+
+**Two-phase commit (2PC):**
+
+1. **Prepare:** the coordinator asks every participant to prepare. Each makes the change durable but not final, and votes yes or no.
+2. **Commit:** if all voted yes, the coordinator records the decision and tells everyone to commit. Otherwise, abort.
+
+Its weakness: a participant that has voted yes must wait for the decision. If the coordinator fails at that moment, participants are **blocked**, holding locks. Modern systems make the coordinator's state fault-tolerant by replicating it with consensus.
+
+### Global ordering
+To give serialisable transactions across the world, a database needs a global order of commits.
+
+- **Spanner** uses tightly synchronised clocks (GPS and atomic) with a known error bound, and waits out the uncertainty before committing.
+- Others use **hybrid logical clocks**, or a central timestamp service.
+
+These **distributed SQL** databases offer SQL, ACID transactions and horizontal scaling together. The price is latency: every commit involves consensus across replicas.
+
+### Choosing a data model
+| Model | Good for |
+|---|---|
+| Relational | General purpose; strong consistency; ad hoc queries |
+| Key-value | Simple lookups at very large scale |
+| Document | Self-contained, variably shaped records |
+| Wide-column | Very large, sparse, write-heavy data |
+| Graph | Highly connected data and traversals |
+| Time-series | Measurements indexed by time |
+| Vector | Similarity search over embeddings |
+
+Do not choose by fashion. Start from the access patterns and the consistency you need.
+
+### Analytical systems
+**OLTP** (transaction processing) handles many small reads and writes. **OLAP** (analytical processing) runs few, large queries that scan much of the data. They need opposite designs.
+
+Analytical engines use:
+
+- **Columnar storage** with compression.
+- **Vectorised execution:** process a batch of values per operation, exploiting SIMD.
+- **Massively parallel processing:** split the query across many nodes.
+- **Separation of storage and compute:** data sits in cheap object storage; compute clusters start and stop as needed.
+
+A **data warehouse** holds cleaned, structured data. A **data lake** holds raw files. The **lakehouse** pattern adds transactions and schemas to files in object storage.
+
+### Moving data
+- **ETL / ELT:** extract, transform and load in batches.
+- **Change data capture:** stream every change from the transactional database's log to other systems.
+- **Stream processing:** compute continuously over events as they arrive.
+
+### Indexing beyond B-trees
+- **Inverted indexes** map each word to the documents containing it: the basis of text search.
+- **Spatial indexes** (R-trees, geohashes) answer "what is near here?".
+- **Vector indexes** find approximate nearest neighbours among high-dimensional embeddings, trading a little accuracy for great speed. They power semantic search and retrieval for language models.
+
+### The honest default
+Most applications should start with one well-run relational database. Distribution adds latency and operational complexity. Adopt it when measurements show a single node cannot meet the need.
+
+> In industry: "Which database?" is answered by the workload: read and write rates, data size, query shapes, and how much inconsistency the business can tolerate.
+#Q What is the main weakness of basic two-phase commit?
+- It cannot abort
+* If the coordinator fails after participants have prepared, they are blocked until it recovers
+- It works only for two nodes
+! Prepared participants cannot decide alone.
+#Q Why do analytical databases store data by column?
+- Columns are easier to update
+* Queries read only the columns they need, and similar values compress and vectorise well
+- Rows cannot hold numbers
+! Scanning one column of a billion rows avoids reading the rest.
+
+#LESSON Information theory: entropy and compression | 14
+In 1948 Claude Shannon founded **information theory** with a single paper that defined information mathematically and proved the limits of compression and communication.
+
+### Information
+How much information does a message carry? Shannon's answer: the amount of **surprise**. An event with probability p carries
+
+```text
+I = log₂(1 / p)   bits
+```
+
+A certain event carries none. A fair coin toss carries 1 bit. An event with probability 1/8 carries 3 bits. Information from independent events adds, which is why the logarithm appears.
+
+### Entropy
+The **entropy** of a source is its average information per symbol:
+
+```text
+H = sum over symbols of  p · log₂(1 / p)
+```
+
+| Source | Entropy |
+|---|---|
+| A fair coin | 1 bit |
+| A coin landing heads 90% of the time | about 0.47 bits |
+| A coin that always lands heads | 0 bits |
+| A fair eight-sided die | 3 bits |
+
+Entropy is largest when all outcomes are equally likely, and it measures **uncertainty**.
+
+### The source coding theorem
+> A source with entropy H cannot be compressed, without loss, to fewer than H bits per symbol on average. And it can be compressed to arbitrarily close to H.
+
+Entropy is the exact limit of lossless compression. No algorithm can beat it, however clever.
+
+Two consequences:
+
+- **Random data cannot be compressed.** It is already at maximum entropy.
+- **No compressor shrinks every input.** By the pigeonhole principle, there are more files of n bits than shorter files. Any compressor that shrinks some inputs must enlarge others.
+
+### Prefix codes
+A **prefix code** assigns each symbol a bit string such that no code is a prefix of another, so a stream decodes unambiguously without separators. Give frequent symbols short codes.
+
+### Huffman coding
+Huffman's algorithm (1952) builds the **optimal prefix code** for known symbol frequencies:
+
+1. Make a leaf for each symbol, weighted by its frequency.
+2. Repeatedly remove the two lightest nodes and join them under a new node whose weight is their sum.
+3. When one node remains, it is the root. Label left branches 0 and right branches 1.
+
+```diagram
+   frequencies:  a 45,  b 13,  c 12,  d 16,  e 9,  f 5
+
+                     (100)
+                    /     \
+                 a:45     (55)
+                         /     \
+                      (25)     (30)
+                     /   \     /   \
+                  c:12  b:13 (14)  d:16
+                             /  \
+                           f:5  e:9
+
+   codes:  a 0   c 100   b 101   f 1100   e 1101   d 111
+```
+
+Total cost is 224 bits for 100 symbols, against 300 for a fixed 3-bit code.
+
+**Why it is optimal (sketch).** In an optimal code the two least frequent symbols can be taken to be siblings at the deepest level (an exchange argument). Merging them gives a smaller problem, and induction completes the proof.
+
+Huffman coding is within one bit per symbol of the entropy. **Arithmetic coding** and its modern relatives come closer by encoding the whole message as one number.
+
+### Dictionary methods
+Real data has structure beyond symbol frequencies: repeated phrases. **Lempel-Ziv** algorithms replace a repeated string with a reference to its earlier occurrence. Combined with entropy coding, they form the general-purpose compressors in everyday use.
+
+### Lossy compression
+For images, audio and video, exact reproduction is unnecessary. **Lossy** compression discards what people will not notice: transform the signal to a frequency representation, quantise the less perceptible components, then entropy-code the result. **Rate-distortion theory** describes the trade between size and fidelity.
+
+### Kolmogorov complexity
+The **Kolmogorov complexity** of a string is the length of the shortest program that outputs it. A million digits of π have low complexity: a short program generates them. It is the ultimate measure of compressibility, and it is **uncomputable**, by an argument related to the halting problem.
+
+### Entropy elsewhere
+- **Cryptography:** a key's strength is its entropy. A password chosen from common words has far less than its length suggests.
+- **Machine learning:** **cross-entropy** is the standard loss for classification, and decision trees choose splits by **information gain**.
+
+> Key idea: Entropy is the true information content of a source, and the hard floor for lossless compression.
+#Q What is the entropy of a source that emits four symbols with equal probability?
+- 1 bit
+* 2 bits
+- 4 bits
+! log₂ 4 = 2.
+#Q Why can no lossless compressor shrink every possible file?
+- Compressors are not yet advanced enough
+* There are fewer short files than long ones, so some inputs must map to outputs at least as long
+- Files contain too many zeros
+! This is a counting (pigeonhole) argument.
+
+#LESSON Channels, noise and error-correcting codes | 13
+Compression removes redundancy. Reliable communication **adds** it, carefully, to survive noise.
+
+### The noisy channel
+A channel carries bits from sender to receiver and sometimes corrupts them. A simple model, the **binary symmetric channel**, flips each bit independently with probability p.
+
+### Channel capacity
+Every channel has a **capacity** C: the maximum rate, in bits per use, at which information can be sent reliably.
+
+**Shannon's noisy-channel coding theorem:**
+
+> At any rate below C, there exist codes that make the probability of error as small as desired. At any rate above C, reliable communication is impossible.
+
+This was astonishing. It had been assumed that noise always forced a trade between speed and accuracy. Shannon showed that below capacity, errors can be driven toward zero without slowing to a crawl. The proof showed such codes exist without constructing them, and it took fifty years to find practical codes that approach the limit.
+
+For a channel with bandwidth B and signal-to-noise ratio S/N, the **Shannon-Hartley** formula gives C = B · log₂(1 + S/N). Every wireless standard is designed against it.
+
+### Detecting errors
+- A **parity bit** makes the number of 1s even. It detects any single-bit error and cannot locate it.
+- A **checksum** sums the data.
+- A **cyclic redundancy check** (CRC) treats the data as a polynomial and appends the remainder of a division. It detects burst errors very reliably and is used in network frames and storage.
+- A **cryptographic hash** detects deliberate tampering, which a CRC does not.
+
+### Hamming distance
+The **Hamming distance** between two equal-length strings is the number of positions in which they differ. A code's **minimum distance** d is the smallest distance between any two valid codewords.
+
+- It can **detect** up to d − 1 errors.
+- It can **correct** up to ⌊(d − 1) / 2⌋ errors, by choosing the nearest valid codeword.
+
+```diagram
+   valid codewords far apart:       000 ............ 111     (distance 3)
+   received 010: nearest is 000, so one flipped bit is corrected
+```
+
+### Hamming codes
+The **Hamming(7,4)** code adds 3 parity bits to 4 data bits, each covering a different overlapping subset of positions. If one bit flips, the pattern of failed parity checks (the **syndrome**) spells out the position of the error in binary. Minimum distance 3: it corrects any single-bit error. Adding one more parity bit also detects double errors, which is how **ECC memory** in servers works.
+
+### Stronger codes
+- **Reed-Solomon** codes work on symbols, not bits, and handle **bursts** of errors. They protect optical discs, QR codes (which still scan when partly obscured) and deep-space links.
+- **LDPC** and **turbo** codes come within a fraction of a decibel of the Shannon limit. They are used in mobile networks, Wi-Fi and satellite links.
+
+### Erasure coding in storage
+An **erasure** is a loss whose position is known: a failed disk. A code can recover from more erasures than errors.
+
+Storing three full copies of data survives two failures at 200% overhead. A **Reed-Solomon (10, 4)** scheme splits data into 10 pieces and adds 4 parity pieces: **any 10 of the 14** rebuild the data. It survives four failures at 40% overhead. Large storage systems use erasure coding for this reason, accepting more computation and slower repair. RAID uses the same principle on a smaller scale.
+
+### Retransmission or correction
+- **ARQ:** detect the error and ask for the data again. Efficient when errors are rare and a return channel exists; this is what TCP does.
+- **Forward error correction:** send enough redundancy to repair errors without asking. Essential when retransmission is slow or impossible: live video, satellites, storage.
+
+### Why engineers should know this
+Checksums catch silent corruption in storage and networks, which really happens at scale. Erasure coding sets the cost and durability of storage. Capacity sets what a network link can ever deliver.
+
+> Key idea: Compression removes redundancy that carries no information. Error correction adds structured redundancy that lets the receiver repair damage. Shannon proved the exact limits of both.
+#Q A code has minimum Hamming distance 5. How many errors can it correct?
+- 1
+* 2
+- 4
+! ⌊(5 − 1) / 2⌋ = 2.
+#Q Why do large storage systems prefer erasure coding to keeping three full copies?
+- It is simpler
+* It tolerates as many or more failures with far less extra storage
+- It needs no computation
+! For example 40% overhead instead of 200%.
+
+#LAB js | Entropy, Huffman cost and serialisability
+Implement four functions from this course.
+
+- `entropy(probabilities)` returns the Shannon entropy in bits, rounded to 4 decimal places. Ignore probabilities of 0.
+- `huffmanCost(frequencies)` returns the total number of bits used by an optimal Huffman code: the sum, over all symbols, of frequency × code length. Compute it by repeatedly removing the two smallest weights, adding their sum to a running total, and inserting the sum back. With fewer than two symbols the cost is 0.
+- `hammingDistance(a, b)` returns the number of positions at which two equal-length strings differ.
+- `conflictSerializable(schedule)` takes an array of operations written as `"T1:R:x"` or `"T2:W:y"` (transaction, Read or Write, item) in the order they execute. Build the precedence graph: add an edge from Ti to Tj when an operation of Ti is followed later by a conflicting operation of Tj (different transactions, same item, at least one a write). Return `true` if the graph has no cycle.
+@starter
+function entropy(probabilities) {
+  return 0;
+}
+
+function huffmanCost(frequencies) {
+  return 0;
+}
+
+function hammingDistance(a, b) {
+  return 0;
+}
+
+function conflictSerializable(schedule) {
+  return true;
+}
+@solution
+function entropy(probabilities) {
+  let h = 0;
+  for (const p of probabilities) {
+    if (p > 0) h -= p * Math.log2(p);
+  }
+  return Math.round(h * 10000) / 10000;
+}
+
+function huffmanCost(frequencies) {
+  const weights = frequencies.slice();
+  let cost = 0;
+  while (weights.length > 1) {
+    weights.sort((x, y) => x - y);
+    const merged = weights.shift() + weights.shift();
+    cost += merged;
+    weights.push(merged);
+  }
+  return cost;
+}
+
+function hammingDistance(a, b) {
+  let d = 0;
+  for (let i = 0; i < a.length; i++) {
+    if (a[i] !== b[i]) d++;
+  }
+  return d;
+}
+
+function conflictSerializable(schedule) {
+  const ops = schedule.map((s) => { const [txn, kind, item] = s.split(":"); return { txn, kind, item }; });
+  const edges = {};
+  for (const op of ops) { edges[op.txn] = edges[op.txn] || new Set(); }
+  for (let i = 0; i < ops.length; i++) {
+    for (let j = i + 1; j < ops.length; j++) {
+      const a = ops[i], b = ops[j];
+      if (a.txn !== b.txn && a.item === b.item && (a.kind === "W" || b.kind === "W")) edges[a.txn].add(b.txn);
+    }
+  }
+  const state = {};
+  function hasCycle(node) {
+    state[node] = 1;
+    for (const next of edges[node]) {
+      if (state[next] === 1) return true;
+      if (!state[next] && hasCycle(next)) return true;
+    }
+    state[node] = 2;
+    return false;
+  }
+  for (const node of Object.keys(edges)) {
+    if (!state[node] && hasCycle(node)) return false;
+  }
+  return true;
+}
+@tests
+entropy([0.5, 0.5]) => 1
+entropy([1]) => 0
+entropy([0.25, 0.25, 0.25, 0.25]) => 2
+entropy([0.5, 0.25, 0.25]) => 1.5
+entropy([0.9, 0.1]) => 0.469
+entropy([0.5, 0.25, 0.125, 0.125]) => 1.75
+entropy([1, 0]) => 0
+entropy([0.7, 0.2, 0.1]) => 1.1568
+huffmanCost([5, 9, 12, 13, 16, 45]) => 224
+huffmanCost([1, 1]) => 2
+huffmanCost([7]) => 0
+huffmanCost([]) => 0
+huffmanCost([1, 1, 1, 1]) => 8
+huffmanCost([1, 2, 3]) => 9
+huffmanCost([10, 20, 30, 40]) => 190
+hammingDistance("1011101", "1001001") => 2
+hammingDistance("abc", "abc") => 0
+hammingDistance("", "") => 0
+hammingDistance("000", "111") => 3
+conflictSerializable(["T1:R:x", "T2:W:x", "T1:W:x"]) => false
+conflictSerializable(["T1:R:x", "T1:W:x", "T2:R:x", "T2:W:x"]) => true
+conflictSerializable(["T1:R:x", "T2:R:x"]) => true
+conflictSerializable(["T1:W:x", "T2:W:y"]) => true
+conflictSerializable(["T1:R:x", "T2:W:y", "T1:W:y", "T2:W:x"]) => false
+conflictSerializable(["T1:W:x", "T2:R:x", "T2:W:y", "T3:R:y", "T3:W:z", "T1:R:z"]) => false
+conflictSerializable(["T1:W:x", "T2:R:x", "T2:W:y", "T3:R:y", "T3:W:z"]) => true
+conflictSerializable([]) => true
+@hints
+Entropy is the sum of `p * log2(1 / p)`, which equals minus the sum of `p * Math.log2(p)`. Skip zeros, since log of 0 is undefined.
+For the Huffman cost you do not need to build the tree: each merge adds the merged weight to the total, because every symbol under that node gets one bit longer.
+Parse each operation with `split(":")`. Two operations conflict only if the transactions differ, the item is the same, and at least one is a write.
+Detect a cycle with a depth-first search that marks nodes as "in progress": meeting an in-progress node again means a cycle.
+
+#EXAM 25
+#Q Which join algorithm builds an in-memory table on the smaller input and probes it with the larger?
+- Nested-loop join
+* Hash join
+- Sort-merge join
+! It runs in time proportional to the sum of the input sizes.
+#Q A query suddenly becomes slow after a large data load. What is the most likely cause?
+- The SQL text changed
+* Out-of-date statistics led the optimiser to a bad plan through wrong cardinality estimates
+- The network is down
+! Refreshing statistics often restores the good plan.
+#Q In MVCC, what do readers see?
+- The latest uncommitted data
+* A consistent snapshot, without blocking writers
+- Only data they wrote themselves
+! Multiple versions let readers and writers proceed together.
+#Q What is the first rule of write-ahead logging?
+- Write data pages before the log
+* A log record describing a change must reach durable storage before the changed data page does
+- Never write the log
+! This guarantees the change can be redone or undone after a crash.
+#Q A source emits symbol A with probability 1/2, B with 1/4, C with 1/8 and D with 1/8. What is its entropy?
+- 1.5 bits
+* 1.75 bits
+- 2 bits
+! 0.5·1 + 0.25·2 + 0.125·3 + 0.125·3.
+#Q What does Shannon's noisy-channel theorem guarantee for rates below capacity?
+- Error-free transmission is impossible
+* Codes exist that make the probability of error arbitrarily small
+- The channel becomes noiseless
+! Above capacity, reliable communication is impossible.
+#Q A storage system splits data into 6 pieces plus 3 parity pieces, any 6 of which rebuild the data. How many simultaneous failures does it survive, and at what storage overhead?
+- 6 failures, 100%
+* 3 failures, 50%
+- 9 failures, 33%
+! Three extra pieces on six is 50% overhead.
+#W Consider the schedule: T1 reads x; T2 reads x; T1 writes x; T2 writes x. Draw (describe) its precedence graph, state whether it is conflict-serialisable, name the anomaly it produces, and explain two different mechanisms by which a database could prevent it.
++ Edges T1 → T2 (T1's read precedes T2's write, and T1's write precedes T2's write) and T2 → T1 (T2's read precedes T1's write)
++ The graph has a cycle, so the schedule is not conflict-serialisable
++ Names the lost update anomaly
++ Mechanism one, such as two-phase locking or an explicit row lock, with how it prevents the interleaving
++ Mechanism two, such as snapshot isolation's first-committer-wins rule or optimistic validation, aborting one transaction
+#W Prove that no lossless compression algorithm can make every file smaller. Then explain what this implies about compressing data that is already compressed or encrypted.
++ Sets up a counting argument: there are 2ⁿ files of n bits and only 2ⁿ − 1 shorter files
++ Applies the pigeonhole principle: two inputs would share an output, so decompression could not be unique
++ Concludes that some input must not shrink
++ Explains that compressed or encrypted data looks random (high entropy), so it does not compress further
++ Notes the practical rule: compress before encrypting
+
+#PROJECT Storage engine and codec
+Build a small database storage engine and a compression tool, and evaluate both against theory.
+@requirements
+A key-value storage engine with a write-ahead log and crash recovery, shown by a test that kills the process mid-write and verifies that committed data survives
+Either a B-tree or an LSM design with compaction; the choice justified
+Transactions with a stated isolation level, and a test demonstrating one anomaly it prevents and (if not serialisable) one it permits
+A benchmark of read and write throughput, compared with the predictions for your chosen design
+A Huffman coder and decoder that round-trips arbitrary files
+For three files of different kinds, the measured compressed size compared with the entropy bound, with an explanation of the gap
+A Hamming(7,4) encoder and decoder with a test that flips single bits and shows correction
+@deliverables
+The code and tests
+The benchmark results and graphs
+A report relating each measurement to the theory
+@rubric
+Storage engine correctness, including recovery | 30
+Transaction isolation is implemented and demonstrated | 20
+Compression and error-correction implementations | 20
+Evaluation against theoretical bounds | 20
+Report quality | 10
+
+#COURSE c507
+#LESSON Learning from data | 14
+**Machine learning** is building programs that improve at a task through experience, in place of being given explicit rules. You do not write the rules for recognising a cat. You show examples and let an algorithm find them.
+
+### Three kinds of learning
+- **Supervised learning:** learn a mapping from inputs to known outputs, using labelled examples. **Classification** predicts a category; **regression** predicts a number.
+- **Unsupervised learning:** find structure in unlabelled data: clusters, lower-dimensional representations.
+- **Reinforcement learning:** learn by acting and receiving rewards.
+
+A fourth, **self-supervised learning**, creates labels from the data itself, for instance predicting the next word. It is how large language models are trained.
+
+### The supervised setup
+- **Features** x: the inputs.
+- **Label** y: the desired output.
+- **Model** f with **parameters** θ: a family of functions.
+- **Loss function** L: how wrong a prediction is.
+- **Training:** find the parameters that minimise the average loss on the training data.
+
+```diagram
+   training data (x, y)  -->  [ learning algorithm ]  -->  model f
+   new input x           -->  [ model f ]             -->  prediction
+```
+
+### Generalisation is the goal
+A model that memorises its training data is useless. What matters is performance on **new** data. Everything in machine learning turns on this distinction.
+
+- **Underfitting:** the model is too simple to capture the pattern. It does badly on training data and on new data.
+- **Overfitting:** the model fits the noise in the training data. It does very well on training data and badly on new data.
+
+```diagram
+   error
+     |  \                          . test error rises again
+     |   \            .  '  '
+     |    \ .  '  '
+     |      \__________  training error keeps falling
+     +--------------------------------  model complexity
+         underfit     good      overfit
+```
+
+### Splitting the data
+Never evaluate on the data you trained on.
+
+- **Training set:** fit the parameters.
+- **Validation set:** choose between models and tune settings.
+- **Test set:** touched **once**, at the end, to estimate real performance.
+
+If you tune repeatedly against the test set, it stops being an honest estimate.
+
+### Bias and variance
+Expected error decomposes into:
+
+- **Bias:** error from wrong assumptions. Simple models have high bias.
+- **Variance:** error from sensitivity to the particular training sample. Complex models have high variance.
+- **Irreducible noise.**
+
+Reducing one tends to raise the other. Remedies for high variance: more data, a simpler model, **regularisation**. Remedies for high bias: a richer model, better features.
+
+### Regularisation
+Add a penalty for complexity to the loss, for example the sum of squared weights (**L2**). The model is pushed to fit the data with small weights, which generalise better. **L1** regularisation drives some weights to exactly zero, selecting features.
+
+### Data matters most
+More and better data usually beats a cleverer algorithm. A model can only learn what its data contains, including its errors and its biases.
+
+**Data leakage** is the most common serious mistake: information that would not be available at prediction time slips into training, such as a feature computed from the label, or the same person appearing in both training and test sets. The result looks excellent and fails in production.
+
+### No free lunch
+No algorithm is best for all problems. Every learner embodies assumptions, and it succeeds when they match the problem.
+
+### When not to use machine learning
+If rules are known and simple, write them. Machine learning adds unpredictability, a need for data, and maintenance. Use it when the rules are unknown or too complex to write, and when errors can be tolerated.
+
+> Key idea: The aim is not to fit the training data. It is to perform well on data the model has never seen.
+#Q A model achieves 99% accuracy on training data and 62% on new data. What has happened?
+- Underfitting
+* Overfitting
+- Data leakage in the test set
+! It has fitted noise particular to the training set.
+#Q Why must the test set be used only once, at the end?
+- It is expensive to store
+* Repeatedly tuning against it makes it part of the fitting process, so it no longer gives an honest estimate
+- Models cannot read it twice
+! Model selection belongs on the validation set.
+
+#LESSON Linear models and gradient descent | 14
+Linear models are simple, fast, interpretable and often hard to beat. They are also the building block of neural networks.
+
+### Linear regression
+Predict a number as a weighted sum of features:
+
+```text
+ŷ = w₁x₁ + w₂x₂ + ... + wₙxₙ + b      or      ŷ = w · x + b
+```
+
+The **weights** w and the **bias** b are learned. The loss is the **mean squared error**:
+
+```text
+L = (1/m) · sum of (ŷᵢ − yᵢ)²
+```
+
+Squaring penalises large errors heavily and makes the loss smooth and **convex**: a bowl with a single minimum.
+
+### Two ways to fit
+**Closed form.** Setting the derivative to zero gives the **normal equations**, solved directly with linear algebra. For one feature:
+
+```text
+slope = (m·Σxy − Σx·Σy) / (m·Σx² − (Σx)²)        intercept = (Σy − slope·Σx) / m
+```
+
+**Gradient descent.** Start anywhere and repeatedly step downhill:
+
+```text
+∂L/∂w = (2/m) · sum of (ŷᵢ − yᵢ) · xᵢ
+∂L/∂b = (2/m) · sum of (ŷᵢ − yᵢ)
+
+w ← w − η · ∂L/∂w        b ← b − η · ∂L/∂b
+```
+
+The closed form is exact but costly with many features. Gradient descent scales to millions of parameters and to models with no closed form, which is why it dominates.
+
+### Feature scaling
+If one feature ranges over thousands and another over fractions, the loss surface is a long narrow valley and gradient descent zigzags. **Standardise** features to zero mean and unit variance. Compute the scaling from the training set only, then apply it to the test set.
+
+### Logistic regression
+For classification, pass the linear combination through the **sigmoid** function, which squashes any number into the range 0 to 1:
+
+```text
+σ(z) = 1 / (1 + e^(−z))          P(y = 1 | x) = σ(w · x + b)
+```
+
+The output is a probability. The loss is **cross-entropy** (log loss):
+
+```text
+L = −(1/m) · sum of [ y·log(p) + (1 − y)·log(1 − p) ]
+```
+
+which punishes confident wrong answers severely. The decision boundary is a straight line (a hyperplane), so logistic regression is a **linear classifier**.
+
+For several classes, the **softmax** function turns a vector of scores into probabilities that add to 1.
+
+### Variants of gradient descent
+- **Batch:** use all the data for each step. Accurate and slow.
+- **Stochastic (SGD):** use one example. Fast and noisy.
+- **Mini-batch:** use a small batch, commonly 32 to 512. The standard.
+
+The noise in SGD helps: it shakes the model out of poor regions.
+
+Improvements: **momentum** accumulates a moving average of gradients to speed progress along consistent directions. **Adam** adapts the step size for each parameter and is the common default.
+
+The **learning rate** is the most important setting. Schedules that reduce it over time help convergence.
+
+### Beyond straight lines
+A linear model can fit curves if you give it non-linear **features**: x², x₁·x₂, log x. **Feature engineering**, encoding domain knowledge into inputs, was the main craft of classical machine learning.
+
+### Other classical models
+- **Decision trees** ask a sequence of yes/no questions. Interpretable and prone to overfitting.
+- **Random forests** average many trees trained on random samples. Robust.
+- **Gradient-boosted trees** add trees one at a time, each correcting the previous errors. On tabular data they remain the strongest general method.
+- **k-nearest neighbours** predicts from the most similar training examples.
+- **Support vector machines** find the boundary with the widest margin.
+
+For structured, tabular data, start with these, not with a neural network.
+
+### Interpretability
+In a linear model, each weight states how much the prediction changes per unit of a feature. That transparency matters where decisions must be explained.
+
+> Key idea: Define a loss, compute its gradient, step downhill, repeat. Everything from a straight-line fit to a large language model is trained this way.
+#Q What does the sigmoid function do in logistic regression?
+- Makes the model non-linear in its decision boundary
+* Maps the linear combination to a value between 0 and 1, interpreted as a probability
+- Removes outliers
+! The decision boundary itself remains linear.
+#Q Why standardise features before gradient descent?
+- To reduce the number of features
+* Features on very different scales create a badly shaped loss surface on which gradient descent converges slowly
+- It is required by the mathematics
+! Scaling makes the surface more evenly curved.
+
+#LESSON Evaluating models honestly | 13
+A model is only as good as the evidence that it works. Evaluation is where most machine-learning projects go wrong.
+
+### The confusion matrix
+For a binary classifier:
+
+| | Predicted positive | Predicted negative |
+|---|---|---|
+| **Actually positive** | True positive (TP) | False negative (FN) |
+| **Actually negative** | False positive (FP) | True negative (TN) |
+
+### Why accuracy misleads
+**Accuracy** is the fraction of predictions that are correct. With **imbalanced** classes it is nearly meaningless: if 1% of transactions are fraudulent, a model that always says "not fraud" is 99% accurate and worthless.
+
+### Precision and recall
+```text
+precision = TP / (TP + FP)     of those flagged, how many were right?
+recall    = TP / (TP + FN)     of the real positives, how many were found?
+```
+
+They trade against each other. Lowering the decision threshold catches more positives (higher recall) and raises more false alarms (lower precision).
+
+Which matters depends on the costs:
+
+- **Screening for a serious disease:** a miss is grave. Favour recall.
+- **Spam filtering:** losing a real email is worse than seeing some spam. Favour precision.
+
+The **F1 score** is the harmonic mean of the two: 2·P·R / (P + R). It is high only when both are.
+
+### Threshold-free measures
+The **ROC curve** plots the true-positive rate against the false-positive rate as the threshold varies. The **area under it** (AUC) is the probability that the model ranks a random positive above a random negative: 0.5 is chance, 1.0 is perfect. For heavily imbalanced data the **precision-recall curve** is more informative.
+
+### Regression metrics
+- **Mean absolute error:** the average size of the error, in the units of the target.
+- **Root mean squared error:** penalises large errors more.
+- **R²:** the proportion of variance explained.
+
+### Cross-validation
+A single split may be lucky. **k-fold cross-validation** divides the data into k parts, trains on k − 1 and validates on the remaining one, rotating through all k. The average is a steadier estimate, and the spread shows its uncertainty.
+
+Split with care:
+
+- **Time series:** always train on the past and test on the future.
+- **Grouped data:** keep all records from one person or one device on the same side.
+- **Imbalanced classes:** stratify, so each fold has the same class proportions.
+
+### Baselines
+Always compare with something simple: predicting the majority class, last period's value, or a linear model. A complex model that does not beat the baseline has shown nothing.
+
+### Calibration
+A model is **calibrated** if, among cases given 80% probability, about 80% are positive. Good ranking does not imply good probabilities, and decisions that weigh costs need calibrated ones.
+
+### What can go wrong after deployment
+- **Distribution shift:** the world changes and production data stops resembling the training data.
+- **Feedback loops:** the model's decisions alter the data it will later be trained on.
+- **Offline and online disagreement:** a better offline score does not always improve the real objective. Confirm with an A/B test.
+
+### Fairness across groups
+An overall metric can hide very different error rates for different groups of people. **Slice** the evaluation by relevant groups. Several reasonable definitions of fairness cannot all be satisfied together, so the choice must be made deliberately and stated.
+
+### Error analysis
+Look at the mistakes. Read the cases the model gets wrong and group them by cause. It is the fastest route to understanding what to improve, and it often reveals wrong labels in the data.
+
+### Reporting
+State the data, the split, the metric and why it was chosen, the baseline, the uncertainty, the failures and the limitations. A number without those is not a result.
+
+> Key idea: Choose the metric from the real costs of each kind of error, compare with a simple baseline, and split the data the way production will.
+#Q Out of 1,000 transactions, 10 are fraudulent. A model flags 20, of which 8 are fraud. What are its precision and recall?
+- Precision 80%, recall 40%
+* Precision 40%, recall 80%
+- Precision 99%, recall 99%
+! 8 of the 20 flagged are right; 8 of the 10 real frauds are found.
+#Q Why should time-ordered data not be split randomly into training and test sets?
+- Random splits are slower
+* The model would be trained on the future and tested on the past, giving an unrealistically good result
+- Time data cannot be shuffled
+! In production the model only ever sees the past.
+
+#LESSON Neural networks and backpropagation | 15
+A **neural network** is a function built by composing many simple units, with parameters learned by gradient descent. Loosely inspired by the brain, it is best understood as linear algebra with non-linearities in between.
+
+### A neuron
+```text
+output = activation(w · x + b)
+```
+
+A weighted sum of inputs plus a bias, passed through a non-linear **activation function**.
+
+### Layers
+A **layer** is many neurons applied to the same input: a matrix multiplication followed by the activation.
+
+```text
+h = activation(W x + b)
+```
+
+A network stacks layers. The output of one is the input to the next.
+
+```diagram
+   input        hidden layer 1     hidden layer 2      output
+   x1  o ----->   o   ----------->   o   ----------->   o   prediction
+   x2  o ----->   o   ----------->   o
+   x3  o ----->   o   ----------->   o
+        (every unit connects to every unit in the next layer)
+```
+
+### Why non-linearity is essential
+Without activation functions, a stack of layers collapses: a linear function of a linear function is linear. The whole network would be equivalent to one layer.
+
+Common activations:
+
+- **ReLU:** max(0, z). Simple, cheap, and the default for hidden layers.
+- **Sigmoid:** output between 0 and 1. Used for binary outputs.
+- **Softmax:** for multi-class outputs.
+
+### Universal approximation
+A network with a single hidden layer of sufficient width can approximate any continuous function as closely as desired. The theorem says such a network **exists**. It does not say that training will find it, or that the width needed is practical. In practice **depth** works much better than width, because deep networks build features hierarchically.
+
+### The forward pass
+Compute the output layer by layer, then the loss comparing it with the true label.
+
+### Backpropagation
+To train, we need the derivative of the loss with respect to **every** weight. **Backpropagation** computes them all efficiently with the chain rule, working backwards from the loss.
+
+Consider a tiny chain: `z = w·x + b`, `a = σ(z)`, `L = (a − y)²`. Then
+
+```text
+∂L/∂w = ∂L/∂a · ∂a/∂z · ∂z/∂w = 2(a − y) · σ′(z) · x
+```
+
+**A worked example with numbers.** Take x = 2, y = 1, w = 0.5, b = 0, and the sigmoid σ, whose derivative is σ′(z) = σ(z)(1 − σ(z)).
+
+```text
+forward:   z = 0.5·2 + 0 = 1        a = σ(1) ≈ 0.731        L = (0.731 − 1)² ≈ 0.072
+backward:  ∂L/∂a = 2(a − y) ≈ −0.538
+           ∂a/∂z = a(1 − a) ≈ 0.197
+           ∂L/∂z = −0.538 × 0.197 ≈ −0.106
+           ∂L/∂w = ∂L/∂z × x ≈ −0.212        ∂L/∂b = ∂L/∂z × 1 ≈ −0.106
+update (η = 1):   w ← 0.5 + 0.212 = 0.712     b ← 0 + 0.106 = 0.106
+check:     new z = 0.712·2 + 0.106 = 1.530,  a ≈ 0.822,  L ≈ 0.032      the loss fell
+```
+
+Both gradients are negative, so both parameters increase, pushing the output up toward the target of 1. One step cut the loss by more than half.
+
+For a deep network, the same pattern repeats: each layer receives the gradient with respect to its output, uses it to compute the gradients of its own parameters, and passes back the gradient with respect to its input. In matrix form, for a layer h = f(Wx + b) with incoming gradient g = ∂L/∂h: let δ = g ⊙ f′(Wx + b) (element by element); then ∂L/∂W = δ·xᵀ, ∂L/∂b = δ, and the gradient passed back is Wᵀ·δ.
+
+```diagram
+   forward:   x --> layer 1 --> layer 2 --> layer 3 --> loss
+   backward:  gradients flow from the loss back through every layer
+```
+
+One backward pass costs about the same as one forward pass, however many parameters there are. That efficiency is what makes deep learning possible. Frameworks perform it by **automatic differentiation**: you write the forward computation and they derive the backward one.
+
+### The training loop
+```text
+for each epoch:
+    for each mini-batch:
+        predictions = model(inputs)             forward pass
+        loss = loss_function(predictions, labels)
+        gradients = backward(loss)              backpropagation
+        parameters -= learning_rate * gradients
+```
+
+### What makes deep networks trainable
+- **Vanishing and exploding gradients:** multiplying many factors makes gradients shrink toward zero or blow up. Remedies: ReLU, careful **initialisation**, **normalisation** layers, and **residual connections** that add a layer's input to its output, giving gradients a direct path.
+- **Overfitting:** networks have enormous capacity. Remedies: more data, **data augmentation**, **dropout** (randomly disabling units during training), **weight decay** and **early stopping**.
+- **Hyperparameters:** learning rate, batch size, architecture. Tuned on the validation set.
+
+### Not a guarantee
+The loss surface of a neural network is not convex. Gradient descent finds a good solution, not a provably best one. That it works so well is an empirical fact that theory is still catching up with.
+
+### Costs
+Neural networks need much data and computation, are hard to interpret and can fail in unexpected ways. For small tabular data sets, gradient-boosted trees usually do better.
+
+> Key idea: A neural network is a composition of differentiable functions. Backpropagation is the chain rule, organised so that every gradient is computed in one backward sweep.
+#Q Why do neural networks need non-linear activation functions?
+- To make training faster
+* Without them, any stack of layers is equivalent to a single linear transformation
+- To reduce memory use
+! Composing linear maps gives a linear map.
+#Q What does backpropagation compute?
+- The network's predictions
+* The gradient of the loss with respect to every parameter, using the chain rule
+- The best learning rate
+! Those gradients are then used by gradient descent.
+
+#LESSON Deep learning architectures and language models | 15
+Different kinds of data have different structure. Architectures build that structure into the network.
+
+### Convolutional networks
+For images, a fully connected layer would need a weight for every pixel and would ignore that nearby pixels are related. A **convolutional layer** slides a small filter across the image, computing the same function at every position.
+
+- **Local connectivity:** each unit sees a small patch.
+- **Weight sharing:** the same filter is used everywhere, so a feature is detected wherever it appears, with far fewer parameters.
+
+Early layers learn edges and textures; deeper layers combine them into parts and objects. **Pooling** reduces resolution. Convolutional networks transformed computer vision from 2012.
+
+### Sequences
+For text, audio and time series, order matters. **Recurrent networks** process one element at a time, carrying a hidden state. They struggle to retain information over long distances and cannot be parallelised across the sequence.
+
+### Attention and the transformer
+The **transformer** (2017) replaced recurrence with **attention**. For each position, attention computes a weighted combination of **all** positions, where the weights express relevance and are learned.
+
+```text
+"The animal didn't cross the street because it was too tired."
+        when encoding "it", attention places high weight on "animal"
+```
+
+Each token produces a **query**, a **key** and a **value** vector. The weight between two tokens comes from the dot product of one's query with the other's key. Because every position attends to every other directly, long-range relationships are easy, and the whole sequence is processed **in parallel**, which suits GPUs.
+
+A transformer stacks layers of **multi-head attention** and feed-forward networks, with residual connections and normalisation. **Positional encodings** supply word order, which attention alone ignores.
+
+### Embeddings
+Inputs are first turned into dense vectors: **embeddings**. Training places similar items near each other, so geometry carries meaning. Embeddings of text, images and audio are the basis of semantic search and recommendation.
+
+### Large language models
+A **large language model** (LLM) is a transformer trained on a vast body of text with one objective: **predict the next token**.
+
+- Text is split into **tokens** (pieces of words).
+- The model outputs a probability distribution over the next token.
+- Generation repeatedly samples a token and appends it.
+
+To predict text well, a model must capture grammar, facts, reasoning patterns and style. Capabilities emerge that were never programmed directly.
+
+**Pre-training** on general text is followed by **fine-tuning** for particular behaviour. Models are also steered by the **prompt** alone, including with examples placed in it (**in-context learning**).
+
+### What LLMs are and are not
+- They generate **plausible** text, which is not always **true** text. They can state falsehoods fluently (**hallucination**).
+- Their knowledge stops at the training cut-off unless they are given tools or documents.
+- They have a limited **context window**.
+- Output is probabilistic: the same prompt may give different answers.
+- They can be manipulated through their input (**prompt injection**).
+
+### Using them in systems
+- **Retrieval-augmented generation:** search a knowledge base for relevant passages and put them in the prompt, so the answer is grounded in sources that can be cited.
+- **Tool use:** let the model call functions (search, a calculator, an API) and use the results.
+- **Agents:** loops in which the model plans, acts and observes.
+- **Evaluation:** build test sets and measure. Impressions are not evidence.
+
+Treat model output as untrusted input: validate it, constrain what actions it may trigger, and keep people in the loop for consequential decisions.
+
+### Other generative models
+**Diffusion models** learn to reverse a gradual noising process and generate images, audio and video.
+
+### Cost
+Training a frontier model needs enormous computation. Inference cost grows with model size and the length of input and output. Much engineering goes into efficiency: **quantisation**, **distillation** into smaller models, and caching.
+
+> Key idea: Attention lets every element of a sequence draw directly on every other. Trained to predict the next token at vast scale, that mechanism yields general-purpose language models: powerful, and fallible in specific, predictable ways.
+#Q What does the attention mechanism compute for each position in a sequence?
+- A fixed average of its two neighbours
+* A weighted combination of all positions, with learned weights expressing relevance
+- The position's index
+! Every token can draw on every other directly.
+#Q What is a large language model fundamentally trained to do?
+- Look up facts in a database
+* Predict the next token in a sequence
+- Translate between programming languages
+! Other abilities emerge from that objective at scale.
+
+#LESSON Search, reinforcement learning and responsible AI | 14
+Artificial intelligence is broader than learning from examples. This lesson covers reasoning by search, learning by reward, and the responsibilities that come with deploying either.
+
+### Problems as search
+Many problems are a search for a sequence of actions from a start **state** to a **goal**: route planning, puzzles, scheduling.
+
+- **Uninformed search:** breadth-first (finds the shortest solution, uses much memory) and depth-first (little memory, may wander).
+- **Informed search:** **A\*** expands the node with the smallest f = g + h, where g is the cost so far and h is a **heuristic** estimate of the cost remaining. If h never overestimates, A\* finds an optimal solution.
+
+### Adversarial search
+In two-player games, **minimax** assumes the opponent plays their best: maximise your worst-case outcome. **Alpha-beta pruning** skips branches that cannot affect the result. **Monte Carlo tree search** estimates the value of positions by simulating many random continuations. Combined with neural networks that evaluate positions and suggest moves, it produced systems that surpass the best human players at Go and chess.
+
+### Constraint satisfaction
+Assign values to variables subject to constraints: timetabling, configuration, Sudoku. **Backtracking** with **constraint propagation** prunes impossible values early. SAT and SMT solvers are highly engineered forms of this.
+
+### Reinforcement learning
+An **agent** interacts with an **environment**: it observes a **state**, takes an **action**, and receives a **reward** and a new state. The aim is a **policy**, a rule for choosing actions, that maximises total reward over time.
+
+```diagram
+        +-------- action --------+
+        |                        v
+     [ agent ]            [ environment ]
+        ^                        |
+        +--- state, reward ------+
+```
+
+Key ideas:
+
+- **Delayed reward:** an action's consequences may appear much later. Which earlier action deserves the credit?
+- **Exploration and exploitation:** try new actions to learn, or use the best known one? Too little exploration and the agent never finds better strategies.
+- **Value functions:** the expected future reward from a state. The **Bellman equation** expresses it recursively: the value of a state is the immediate reward plus the discounted value of the next state.
+- **Q-learning** learns the value of each action in each state from experience. **Policy-gradient** methods adjust the policy directly.
+
+Reinforcement learning has mastered games and controls robots and industrial systems. It needs very many trials, so much of the work is done in simulation, and a badly specified reward produces behaviour that maximises the number while missing the intent.
+
+### Responsible AI
+Systems that make or inform decisions about people carry responsibilities that ordinary software does not.
+
+**Bias and fairness.** A model learns the patterns in its data, including historical discrimination. A hiring model trained on past decisions learns past prejudice. Removing a protected attribute does not help when other features stand in for it. Measure outcomes by group, and decide deliberately what fairness means in the context.
+
+**Transparency and explanation.** People affected by a decision may be entitled to an explanation. Complex models are hard to explain. Where stakes are high, prefer interpretable models or provide meaningful explanations and a route of appeal.
+
+**Privacy.** Models can memorise and reveal training data. Collect only what is needed, and consider privacy-preserving techniques.
+
+**Robustness and safety.** Models fail on inputs unlike their training data, and can be fooled by **adversarial examples**: inputs altered imperceptibly to cause errors. Test beyond the average case.
+
+**Accountability.** A named person or organisation must be responsible for a system's behaviour. "The algorithm decided" is not an answer.
+
+**Human oversight.** For consequential decisions, keep a person able to review and override, and beware **automation bias**, the tendency to defer to a machine.
+
+**Honesty about capability.** Do not claim more than the system can do. Say what it was tested on and where it fails.
+
+**Misuse.** Consider how a capable system could be used to deceive or harm, and build safeguards.
+
+### Regulation
+Law increasingly governs AI, particularly in high-risk uses such as employment, credit, health and policing. Requirements commonly include risk assessment, documentation, human oversight and transparency. Know what applies where you operate.
+
+### A practical checklist
+Before deploying: What is the system for? Who could be harmed, and how? Is the data representative? How does it perform for each affected group? What happens when it is wrong? Can a person contest the result? How will it be monitored?
+
+> Key idea: A model optimises what it is given, on the data it is given. Whether that serves people well is a question of engineering judgement and responsibility, not of accuracy alone.
+#Q What does it mean for an A* heuristic to be admissible?
+- It is fast to compute
+* It never overestimates the true remaining cost, which guarantees an optimal solution
+- It always returns zero
+! Overestimates could cause the best path to be overlooked.
+#Q A hiring model is trained on ten years of a company's past hiring decisions. What is the main risk?
+- It will be too slow
+* It will learn and reproduce any bias present in those historical decisions
+- It cannot handle text
+! The model reproduces the patterns in its training data.
+
+#LAB js | Machine learning from first principles
+Implement the core of supervised learning without any library.
+
+- `mse(predictions, targets)` returns the mean squared error.
+- `fitLine(xs, ys)` returns `{ slope, intercept }` of the least-squares line through the points, using the closed-form formula, each rounded to 4 decimal places.
+- `gradientDescent(xs, ys, learningRate, steps)` fits `y = w·x + b` by batch gradient descent on the mean squared error, starting from `w = 0`, `b = 0`. In each step compute both gradients from the **current** w and b, then update both. Return `{ w, b }` rounded to 3 decimal places.
+- `sigmoid(z)` returns `1 / (1 + e^(−z))` rounded to 4 decimal places.
+- `knnClassify(training, query, k)` — `training` is an array of `[x, y, label]`; `query` is `[x, y]`. Return the most common label among the `k` nearest training points (by straight-line distance). If distances tie, the point that appears earlier in `training` is nearer.
+@starter
+function mse(predictions, targets) {
+  return 0;
+}
+
+function fitLine(xs, ys) {
+  return { slope: 0, intercept: 0 };
+}
+
+function gradientDescent(xs, ys, learningRate, steps) {
+  return { w: 0, b: 0 };
+}
+
+function sigmoid(z) {
+  return 0;
+}
+
+function knnClassify(training, query, k) {
+  return "";
+}
+@solution
+function mse(predictions, targets) {
+  let total = 0;
+  for (let i = 0; i < predictions.length; i++) {
+    const e = predictions[i] - targets[i];
+    total += e * e;
+  }
+  return total / predictions.length;
+}
+
+function fitLine(xs, ys) {
+  const n = xs.length;
+  let sx = 0, sy = 0, sxy = 0, sxx = 0;
+  for (let i = 0; i < n; i++) {
+    sx += xs[i]; sy += ys[i]; sxy += xs[i] * ys[i]; sxx += xs[i] * xs[i];
+  }
+  const slope = (n * sxy - sx * sy) / (n * sxx - sx * sx);
+  const intercept = (sy - slope * sx) / n;
+  return { slope: Math.round(slope * 10000) / 10000, intercept: Math.round(intercept * 10000) / 10000 };
+}
+
+function gradientDescent(xs, ys, learningRate, steps) {
+  let w = 0, b = 0;
+  const n = xs.length;
+  for (let s = 0; s < steps; s++) {
+    let gw = 0, gb = 0;
+    for (let i = 0; i < n; i++) {
+      const e = w * xs[i] + b - ys[i];
+      gw += 2 * e * xs[i] / n;
+      gb += 2 * e / n;
+    }
+    w -= learningRate * gw;
+    b -= learningRate * gb;
+  }
+  return { w: Math.round(w * 1000) / 1000, b: Math.round(b * 1000) / 1000 };
+}
+
+function sigmoid(z) {
+  return Math.round((1 / (1 + Math.exp(-z))) * 10000) / 10000;
+}
+
+function knnClassify(training, query, k) {
+  const ranked = training.map((p, index) => {
+    const dx = p[0] - query[0], dy = p[1] - query[1];
+    return { d: dx * dx + dy * dy, label: p[2], index };
+  });
+  ranked.sort((a, b) => a.d - b.d || a.index - b.index);
+  const votes = {};
+  let best = null;
+  for (const r of ranked.slice(0, k)) {
+    votes[r.label] = (votes[r.label] || 0) + 1;
+    if (best === null || votes[r.label] > votes[best]) best = r.label;
+  }
+  return best;
+}
+@tests
+mse([1, 2, 3], [1, 2, 3]) => 0
+mse([2, 4], [1, 2]) => 2.5
+mse([0], [3]) => 9
+fitLine([1, 2, 3, 4], [3, 5, 7, 9]) => {"slope": 2, "intercept": 1}
+fitLine([1, 2, 3], [2, 4, 5]) => {"slope": 1.5, "intercept": 0.6667}
+fitLine([0, 1, 2, 3], [1, 1, 2, 2]) => {"slope": 0.4, "intercept": 0.9}
+gradientDescent([1, 2, 3, 4], [3, 5, 7, 9], 0.05, 0) => {"w": 0, "b": 0}
+gradientDescent([1, 2, 3, 4], [3, 5, 7, 9], 0.05, 1) => {"w": 1.75, "b": 0.6}
+gradientDescent([1, 2, 3, 4], [3, 5, 7, 9], 0.05, 2) => {"w": 2.038, "b": 0.703}
+gradientDescent([1, 2, 3, 4], [3, 5, 7, 9], 0.05, 2000) => {"w": 2, "b": 1}
+gradientDescent([1, 2], [2, 4], 0.1, 3) => {"w": 1.426, "b": 0.828}
+sigmoid(0) => 0.5
+sigmoid(2) => 0.8808
+sigmoid(-2) => 0.1192
+sigmoid(100) => 1
+knnClassify([[1, 1, "a"], [1, 2, "a"], [5, 5, "b"], [6, 5, "b"], [5, 6, "b"]], [2, 2], 3) => "a"
+knnClassify([[1, 1, "a"], [1, 2, "a"], [5, 5, "b"], [6, 5, "b"], [5, 6, "b"]], [5, 4], 3) => "b"
+knnClassify([[1, 1, "a"], [1, 2, "a"], [5, 5, "b"], [6, 5, "b"], [5, 6, "b"]], [3, 3], 1) => "a"
+knnClassify([[1, 1, "a"], [1, 2, "a"], [5, 5, "b"], [6, 5, "b"], [5, 6, "b"]], [0, 0], 5) => "b"
+knnClassify([[0, 0, "x"]], [9, 9], 1) => "x"
+@hints
+For `fitLine`, accumulate four sums in one loop: Σx, Σy, Σxy and Σx².
+In gradient descent, the gradient for w is the mean of `2 * error * x` and for b the mean of `2 * error`, where `error = w * x + b - y`. Compute both before changing either.
+One step from zero on the first data set gives w = 1.75 and b = 0.6. Use that to check your update.
+For nearest neighbours you can compare squared distances; there is no need for a square root. Sort by distance, then by original position.
+
+#EXAM 25
+#Q Which task is unsupervised learning?
+- Predicting house prices from past sales
+* Grouping customers into segments with no predefined labels
+- Classifying emails as spam using labelled examples
+! There are no target labels.
+#Q What does L2 regularisation do?
+- Adds more training data
+* Penalises large weights, discouraging overly complex fits
+- Increases the learning rate
+! It reduces variance at the cost of a little bias.
+#Q A disease affects 1 in 1,000 people. A model that always predicts "healthy" has what accuracy and recall?
+* 99.9% accuracy, 0% recall
+- 0.1% accuracy, 100% recall
+- 50% accuracy, 50% recall
+! Accuracy is misleading on imbalanced data.
+#Q Why are residual connections used in deep networks?
+- To reduce the number of layers
+* They give gradients a direct path backwards, easing the training of very deep networks
+- To remove the need for data
+! They counter vanishing gradients.
+#Q What advantage does a transformer have over a recurrent network?
+- It needs no training data
+* It relates distant positions directly and processes the sequence in parallel
+- It has no parameters
+! Attention connects every pair of positions.
+#Q What is retrieval-augmented generation?
+- Training a model from scratch on new data
+* Retrieving relevant documents and supplying them in the prompt so the answer is grounded in them
+- Compressing a model
+! It reduces hallucination and allows sources to be cited.
+#Q In reinforcement learning, what is the exploration-exploitation trade-off?
+- Choosing between two programming languages
+* Balancing trying new actions to learn about them against using the action currently believed best
+- Choosing the batch size
+! Too little exploration can lock in a poor strategy.
+#W Derive the gradient-descent update rules for simple linear regression, ŷ = w·x + b, with the mean squared error loss. Show the loss, both partial derivatives with the chain rule made explicit, and the update equations. Then explain what the learning rate does and what happens if it is too large or too small.
++ Writes the loss as the mean of (w·x + b − y)²
++ Derives ∂L/∂w as (2/m)·Σ(ŷ − y)·x using the chain rule
++ Derives ∂L/∂b as (2/m)·Σ(ŷ − y)
++ States the updates w ← w − η·∂L/∂w and b ← b − η·∂L/∂b
++ Explains the learning rate: too large diverges or oscillates, too small converges slowly
+#W A bank wants to use a machine-learning model to approve or reject loan applications automatically. Write an assessment covering how you would evaluate the model before deployment, at least three specific risks, and the safeguards you would require.
++ Evaluation uses a held-out, time-respecting test set, a baseline, and metrics chosen from the costs of each error type
++ Risk of bias: historical data encodes discrimination, including through proxy features; evaluation sliced by group
++ Risk of opacity: applicants need explanations and a way to contest decisions
++ Risk of drift or feedback loops after deployment, with monitoring
++ Safeguards such as human review of rejections or borderline cases, documentation, accountability and legal compliance
+
+#PROJECT Machine learning system, end to end
+Build, evaluate and critically assess a machine-learning system on a real data set.
+@requirements
+A clearly stated prediction problem, with the metric chosen and justified from the costs of errors
+The data explored, cleaned and split correctly, with any risk of leakage discussed
+A trivial baseline and a simple model (linear or tree-based)
+A neural network implemented **from scratch** with forward and backward passes, and gradient checking against numerical derivatives to prove the backpropagation is correct
+The same network trained with a standard library for comparison
+Evidence of handling overfitting, with training and validation curves
+Evaluation with a confusion matrix or residual analysis, uncertainty estimates and error analysis of real mistakes
+Performance reported for relevant subgroups, with a discussion of fairness
+A model card: intended use, data, performance, limitations and ethical considerations
+@deliverables
+The reproducible code and instructions
+The trained model and the evaluation outputs
+A report of no more than eight pages, and the model card
+@rubric
+Problem framing, data handling and absence of leakage | 20
+The from-scratch network is correct, verified by gradient checking | 25
+Rigour of the evaluation, with baselines and uncertainty | 25
+Error analysis, fairness and limitations | 20
+Reproducibility and report quality | 10
+
+#COURSE c508
+#LESSON Why formal methods | 13
+Testing checks a program on the inputs you thought of. **Formal methods** use mathematics to establish properties for **all** inputs and **all** executions.
+
+> "Program testing can be used to show the presence of bugs, but never to show their absence." (Edsger Dijkstra)
+
+### Where testing is not enough
+- **Concurrency and distribution.** The number of interleavings is astronomical. A bug may need a specific sequence of five events and occur once a year in production.
+- **Safety-critical systems.** Aircraft, medical devices, railway signalling.
+- **Security-critical code.** Cryptographic libraries, operating-system kernels, smart contracts holding money.
+- **Compilers and hardware.** A flaw propagates into everything built with them.
+
+### A spectrum of assurance
+```diagram
+   lighter, cheaper                                              heavier, stronger
+   types -> static analysis -> property testing -> model checking -> full proof
+```
+
+You already use the left end: a type checker is a formal method that proves the absence of a class of errors. The question is never "formal or not" but "how much, and where".
+
+### Specification
+A **specification** states precisely what a system should do, independently of how. Writing one is valuable even with no proof at all, because it forces ambiguities into the open. Engineers who write formal specifications consistently report finding design flaws before any code exists.
+
+Properties come in two kinds:
+
+- **Safety:** something bad never happens. "Two processes are never in the critical section together." A violation is shown by a finite trace.
+- **Liveness:** something good eventually happens. "Every request is eventually answered." A violation is an infinite run in which it never does.
+
+### Invariants
+An **invariant** is a property true in every reachable state. To prove one, show that it is **inductive**:
+
+1. it holds in the initial state, and
+2. every possible step preserves it.
+
+Often the property you want is not inductive by itself and must be strengthened into one that is. Finding that stronger invariant is the creative step.
+
+### Three families of technique
+**Model checking** explores every reachable state of a finite model automatically and reports a **counterexample trace** if a property fails. No proof skill is needed. It is limited by **state explosion**: the number of states grows exponentially with the number of components.
+
+**Deductive verification** proves properties of real code using logic, with the programmer supplying annotations such as loop invariants and an automated prover discharging the proof obligations. It is general, and demanding.
+
+**Abstract interpretation** computes a safe over-approximation of a program's behaviour, proving the absence of whole classes of error, such as overflow and null dereference, automatically. It may raise false alarms.
+
+### Successes
+- **seL4**, an operating-system kernel, has a machine-checked proof that its implementation matches its specification.
+- **CompCert**, a C compiler, is proved to preserve the meaning of programs. Random testing that found hundreds of bugs in other compilers found none in its verified parts.
+- Cloud providers use **TLA+** to model distributed protocols and have reported finding subtle, serious bugs that testing had missed.
+- Hardware makers verify processor designs formally, a practice adopted after a costly arithmetic bug in the 1990s.
+- Verified cryptographic code ships in major web browsers.
+
+### Limits
+- A proof is about a **model**. If the model omits something, the proof says nothing about it.
+- The **specification** may be wrong: you may prove the wrong thing.
+- Effort can be many times that of writing the code.
+- By Rice's theorem, full automation is impossible in general.
+
+### Practical advice
+Apply formal methods where the cost of failure is high and the logic is intricate: a consensus protocol, a lock-free structure, a payment state machine, an access-control policy. Start with a lightweight model. Most of the benefit arrives early.
+
+> Key idea: Formal methods trade effort for certainty. Used selectively, on the small parts of a system where errors are both likely and catastrophic, they find bugs that nothing else does.
+#Q What is the difference between a safety property and a liveness property?
+- Safety is about speed and liveness about memory
+* Safety says something bad never happens; liveness says something good eventually happens
+- They are the same
+! A safety violation has a finite witness; a liveness violation is an infinite run.
+#Q What must be shown to prove that a property is an inductive invariant?
+- That it holds in most tested states
+* That it holds initially and is preserved by every possible step
+- That it is false in the final state
+! Then by induction it holds in every reachable state.
+
+#LESSON Program logic: Hoare triples and invariants | 14
+**Hoare logic**, introduced by Tony Hoare in 1969, is a system for proving that programs meet their specifications.
+
+### Hoare triples
+```text
+{ P }  C  { Q }
+```
+
+means: if the **precondition** P holds before the command C runs, and C terminates, then the **postcondition** Q holds afterwards.
+
+```text
+{ x = 5 }   x := x + 1   { x = 6 }
+{ x ≥ 0 }   y := x * 2   { y ≥ 0 and y is even }
+```
+
+A function's contract is a Hoare triple: what it requires of its caller and what it guarantees in return.
+
+### The rules
+**Assignment.** To establish Q after `x := E`, Q must hold beforehand with E substituted for x:
+
+```text
+{ Q[E / x] }   x := E   { Q }
+```
+
+It reads backwards, and that is how it is used. To end with `x > 10` after `x := x + 3`, you need `x + 3 > 10`, that is `x > 7`, beforehand.
+
+**Sequence.** If { P } C₁ { R } and { R } C₂ { Q } then { P } C₁; C₂ { Q }.
+
+**Conditional.** Prove both branches, each with the knowledge of which way the test went:
+
+```text
+{ P and B } C₁ { Q }     and     { P and not B } C₂ { Q }
+---------------------------------------------------------
+{ P }  if B then C₁ else C₂  { Q }
+```
+
+**Consequence.** You may strengthen a precondition or weaken a postcondition.
+
+**Loop.** The key rule. Find a **loop invariant** I:
+
+```text
+{ I and B }  C  { I }
+------------------------------------------
+{ I }  while B do C  { I and not B }
+```
+
+If the body preserves I, then I holds on exit, together with the fact that the loop test is false.
+
+### A worked proof
+Compute the sum 0 + 1 + ... + (n − 1), for n ≥ 0.
+
+```text
+{ n ≥ 0 }
+i := 0;  s := 0;
+{ invariant I:  s = i(i − 1)/2  and  0 ≤ i ≤ n }
+while i < n do
+    s := s + i;
+    i := i + 1
+{ s = n(n − 1)/2 }
+```
+
+1. **Initially:** i = 0 and s = 0, and 0·(−1)/2 = 0. ✓
+2. **Preservation:** assume s = i(i − 1)/2 and i < n. After the body, the new s is i(i − 1)/2 + i = i(i + 1)/2, and the new i is i + 1. Check: (i + 1)·i/2. ✓ And i + 1 ≤ n since i < n. ✓
+3. **On exit:** I holds and i ≥ n. With i ≤ n this gives i = n, so s = n(n − 1)/2. ✓
+
+### Termination
+Hoare triples as stated give **partial correctness**: correct *if* the program terminates. For **total correctness**, also find a **variant**: an expression that is a non-negative integer and strictly decreases on each iteration. Here, n − i. It cannot decrease for ever, so the loop ends.
+
+### Weakest preconditions
+Dijkstra's **weakest precondition** wp(C, Q) is the least restrictive condition that guarantees Q after C. It can be computed mechanically, backwards through the program, turning verification into the question "does P imply wp(C, Q)?". That question is a logical formula, which an automated solver can often settle.
+
+### Tools
+Modern verifiers (Dafny, and tools built on SMT solvers) work this way. You write preconditions (`requires`), postconditions (`ensures`) and loop invariants. The tool generates **verification conditions** and an SMT solver proves them, or reports which cannot be proved.
+
+```text
+method Max(a: int, b: int) returns (m: int)
+  ensures m >= a && m >= b
+  ensures m == a || m == b
+{
+  if a >= b { m := a; } else { m := b; }
+}
+```
+
+### Design by contract
+Even without proof, stating preconditions, postconditions and invariants improves code. They document intent exactly, can be checked at run time as assertions, and place blame correctly: a violated precondition is the caller's fault, a violated postcondition the function's.
+
+### Separation logic
+Ordinary Hoare logic struggles with pointers, since changing one object may affect another through an alias. **Separation logic** adds a connective meaning "these two parts of memory are disjoint", allowing reasoning about each in isolation. It is the basis of modern verification of heap-manipulating and concurrent code, and it is closely related to Rust's ownership rules.
+
+> Key idea: A loop invariant is the inductive hypothesis of a loop. Find it, and the correctness proof follows mechanically.
+#Q What does the Hoare triple { P } C { Q } assert?
+- C always terminates
+* If P holds before C runs and C terminates, then Q holds afterwards
+- P and Q are equal
+! This is partial correctness; termination is proved separately.
+#Q What is a loop variant used to prove?
+- That the loop is fast
+* That the loop terminates, by exhibiting a non-negative integer quantity that strictly decreases each iteration
+- That the invariant is false
+! Such a quantity cannot decrease for ever.
+
+#LESSON Model checking and temporal logic | 14
+**Model checking** verifies a system automatically by exploring every state it can reach.
+
+### Transition systems
+Model the system as:
+
+- a set of **states** (the values of all variables),
+- one or more **initial states**,
+- a **transition relation**: which states can follow which.
+
+```diagram
+   (idle, idle) --> (trying, idle) --> (critical, idle) --> (idle, idle)
+        |                |
+        v                v
+   (idle, trying)   (trying, trying) --> ...
+```
+
+Concurrency is modelled by **interleaving**: at each step one process moves. The model checker considers every possible order.
+
+### Explicit-state checking
+To check an invariant:
+
+1. Start from the initial states.
+2. Explore with breadth-first or depth-first search, recording visited states.
+3. If a state violating the property is reached, report the path to it.
+4. If the search finishes, the property holds for the whole model.
+
+The **counterexample trace** is the great practical benefit: not "there is a bug" but "here is the exact sequence of steps". Breadth-first search gives the shortest one.
+
+### State explosion
+A system of n components with k states each has up to kⁿ states. Ten processes with ten states each: ten billion.
+
+Techniques for coping:
+
+- **Symbolic model checking** represents sets of states by formulas (binary decision diagrams) and has verified hardware with more than 10¹⁰⁰ states.
+- **Bounded model checking** asks a SAT solver whether a violation exists within k steps. Excellent at finding bugs.
+- **Partial-order reduction** avoids exploring orders of independent actions that lead to the same state.
+- **Symmetry reduction** treats states that differ only by renaming identical processes as one.
+- **Abstraction** replaces detail with a smaller model that preserves the property.
+
+In practice, check **small instances**: three nodes, two values, a handful of messages. The **small-scope hypothesis** observes that most design bugs show up in small configurations.
+
+### Temporal logic
+Properties about behaviour over time need a logic of time. **Linear temporal logic** (LTL) adds operators to ordinary logic:
+
+| Operator | Meaning |
+|---|---|
+| □ P (always) | P holds in every future state |
+| ◇ P (eventually) | P holds in some future state |
+| ○ P (next) | P holds in the next state |
+| P U Q (until) | P holds until Q does |
+
+Typical properties:
+
+```text
+□ not (critical₁ and critical₂)              safety: mutual exclusion
+□ (request → ◇ response)                     liveness: every request is eventually answered
+□ ◇ progress                                 progress happens infinitely often
+```
+
+### Fairness
+Liveness properties usually fail trivially unless you assume **fairness**: a process that is continually able to move eventually does. Without it, the checker reports the "counterexample" in which the scheduler simply never runs that process.
+
+### TLA+
+**TLA+**, designed by Leslie Lamport, is a specification language based on set theory and temporal logic. A specification gives an initial predicate and a next-state relation; its model checker explores the states.
+
+```text
+Init == counter = 0
+Next == counter' = counter + 1 /\ counter < 5
+Invariant == counter <= 5
+```
+
+Engineers at large cloud providers have used it to specify replication, consensus and storage protocols, and have published accounts of it finding errors requiring very long, improbable sequences of events that no test had reached.
+
+### How it is used
+1. Write a model of the **design**, not the code: abstract away detail.
+2. State the invariants and liveness properties.
+3. Run the checker on small configurations.
+4. Study each counterexample; fix the design or the specification.
+5. Keep the model as living documentation.
+
+### Closing the gap to code
+The model is not the implementation. Bridges include: generating tests from the model, checking implementation traces against the model, **deterministic simulation testing** of the real code, and for the most critical parts, full verification.
+
+> In industry: Modelling a protocol before implementing it is cheap insurance. A few days with a model checker routinely exposes flaws that would otherwise appear as rare, unreproducible production incidents.
+#Q What does a model checker provide when a property is violated?
+- A list of all states
+* A counterexample trace: a concrete sequence of steps leading to the violation
+- A corrected program
+! The trace makes the bug reproducible and understandable.
+#Q What is the state-explosion problem?
+- Models use too much disk
+* The number of reachable states grows exponentially with the number of components
+- States are deleted at random
+! It is the main limit on model checking.
+
+#LESSON Semantics of programming languages | 13
+To prove anything about programs, we must first say exactly what programs **mean**. **Semantics** is the mathematical definition of a language's behaviour, as opposed to its syntax.
+
+Without formal semantics, a language is defined by prose, which is ambiguous, or by an implementation, whose bugs then become the definition.
+
+### Operational semantics
+Describes how a program **executes**, as steps on an abstract machine.
+
+**Small-step** semantics defines a single step of computation, e → e′:
+
+```text
+(2 + 3) * 4   →   5 * 4   →   20
+```
+
+by rules of the form "if the premises hold, the conclusion follows":
+
+```text
+        e₁ → e₁′
+  ---------------------          ------------------------  (n is the sum of n₁ and n₂)
+   e₁ + e₂ → e₁′ + e₂               n₁ + n₂ → n
+```
+
+The first rule says: to evaluate a sum, first take a step in the left operand. The rules fix the **evaluation order**, which matters when expressions have side effects.
+
+**Big-step** semantics relates an expression directly to its final value, e ⇓ v. It is closer to how an interpreter is written and cannot describe programs that do not terminate.
+
+### Denotational semantics
+Maps each program to a mathematical object, its **denotation**, usually a function. The meaning of a whole is built from the meanings of its parts (**compositionality**). The meaning of a loop is a **least fixed point**, which is how recursion is given a rigorous meaning.
+
+### Axiomatic semantics
+Defines meaning by what can be **proved** about a program: Hoare logic. A command's meaning is the set of triples it satisfies.
+
+The three styles agree, and each suits a purpose: operational for implementers, denotational for reasoning about equivalence, axiomatic for verification.
+
+### The lambda calculus
+The **lambda calculus** (Church, 1930s) is the smallest programming language, with three constructs:
+
+```text
+x              a variable
+λx. e          a function with parameter x and body e
+e₁ e₂          applying a function to an argument
+```
+
+Its one computation rule, **beta reduction**, substitutes the argument for the parameter:
+
+```text
+(λx. x + 1) 5   →   5 + 1
+```
+
+That is enough to compute everything computable. Numbers, booleans, pairs and recursion can all be encoded as functions. It is the theoretical core of every functional language and is used to define and study language features in isolation.
+
+### Type systems, formally
+A type system is a set of inference rules assigning types to expressions in a context Γ of variable types:
+
+```text
+  Γ ⊢ e₁ : int     Γ ⊢ e₂ : int               Γ, x : A ⊢ e : B
+  -------------------------------          ------------------------
+        Γ ⊢ e₁ + e₂ : int                    Γ ⊢ (λx. e) : A → B
+```
+
+### Type soundness
+The central theorem about a type system: **"well-typed programs do not go wrong."** It is proved in two parts.
+
+- **Progress:** a well-typed expression is either a value or can take a step. It is never stuck.
+- **Preservation:** if a well-typed expression takes a step, the result has the same type.
+
+Together: a well-typed program never reaches a state where an operation is applied to the wrong kind of value. The proof is by induction on the typing derivation.
+
+### Propositions as types
+The **Curry-Howard correspondence** is a deep connection:
+
+| Logic | Programming |
+|---|---|
+| Proposition | Type |
+| Proof | Program |
+| Implication A → B | Function type A → B |
+| A and B | Pair type |
+| A or B | Sum (variant) type |
+
+A program of a given type **is** a proof of the corresponding proposition. Type checking is proof checking. **Proof assistants** such as Coq, Lean and Agda are built on this: you state a theorem as a type and write a program inhabiting it. seL4 and CompCert were verified this way.
+
+### Why it matters in practice
+- **Undefined behaviour** in C is precisely where the semantics assigns no meaning.
+- Language standards increasingly include formal semantics; WebAssembly has had one from the start, with a machine-checked soundness proof.
+- Compiler correctness means: the compiled program's behaviour is one permitted by the source program's semantics.
+- Understanding evaluation order, scoping and typing rules formally removes whole categories of confusion.
+
+> Key idea: Semantics makes "what does this program mean?" a mathematical question. Type soundness, progress plus preservation, is the theorem that makes a type system worth trusting.
+#Q What does small-step operational semantics define?
+- The final value only
+* Individual steps of computation, by inference rules
+- The syntax of the language
+! Execution is a sequence of such steps.
+#Q What two properties together establish type soundness?
+- Speed and safety
+* Progress and preservation
+- Syntax and semantics
+! Well-typed terms can step, and stepping keeps them well typed.
+
+#LESSON Constructing and verifying a compiler | 13
+This lesson joins the compiler course to formal methods: how real compilers are structured internally, and how one can be trusted.
+
+### Lowering through intermediate representations
+A production compiler does not go from syntax tree to machine code in one step. It passes through several representations, each lower-level than the last.
+
+```diagram
+   source --> AST --> typed AST --> high-level IR --> SSA mid-level IR --> low-level IR --> assembly
+                                    (closures,         (optimisations)     (machine-specific)
+                                     pattern matching
+                                     made explicit)
+```
+
+Each **lowering** removes one high-level feature by translating it into simpler ones.
+
+### Compiling language features
+- **Closures.** A function that captures variables becomes a pair: a code pointer and an environment record holding the captured values. This is **closure conversion**.
+- **Objects and dynamic dispatch.** Each object carries a pointer to a **virtual method table**; a method call is a lookup and an indirect call.
+- **Pattern matching** compiles to a decision tree of tests.
+- **Exceptions** use tables that map code ranges to handlers, so the normal path costs nothing.
+- **Generics** are handled by **monomorphisation** (a copy per type, fast code, larger binaries) or by **boxing** (one copy operating on pointers).
+- **Async functions** are rewritten into **state machines**.
+- **Tail calls** that are the last action of a function can reuse the current stack frame, turning recursion into a loop.
+
+### Data-flow analysis
+Optimisations need facts about the program: "is this variable still needed here?", "does this expression always have the same value?".
+
+**Data-flow analysis** computes such facts over the control-flow graph by iterating equations until nothing changes: a **fixed point**. Facts are drawn from a **lattice**, a structure with an ordering and a way to combine facts where control-flow paths join. Because the functions are monotone and the lattice has finite height, the iteration is guaranteed to terminate.
+
+- **Liveness analysis** (which variables may be used later) runs backwards and drives register allocation.
+- **Reaching definitions** and **available expressions** run forwards.
+
+**Abstract interpretation** generalises this: run the program over abstract values ("positive", "an interval from 0 to 10") instead of concrete ones.
+
+### Register allocation
+Build an **interference graph**: variables are vertices, with an edge between two that are live at the same time. Assigning registers is **graph colouring** with k colours. That is NP-complete in general, so compilers use heuristics, or the faster **linear scan** used by JIT compilers. Variables that cannot be coloured are **spilled** to memory.
+
+### The runtime system
+Compiled code depends on a runtime: memory allocation and garbage collection, the stack layout, exception unwinding, thread support. The compiler must emit **stack maps** telling the collector where pointers live.
+
+### Can you trust your compiler?
+A miscompilation silently makes a correct program wrong. Compilers are large and complex, and random testing tools have found hundreds of bugs in the most widely used ones.
+
+**Translation validation** checks each individual compilation: a separate tool verifies that the output is equivalent to the input.
+
+**Verified compilation** proves the compiler correct once and for all. **CompCert** has a machine-checked proof that, for every source program with defined behaviour, the generated code behaves as the source semantics allows. The theorem is **semantic preservation**, proved pass by pass using a **simulation** argument: every step of the source program is matched by steps of the compiled one, preserving a relation between their states.
+
+### Trusting trust
+Ken Thompson's 1984 lecture described a compiler modified to insert a back door when compiling the login program, and to reinsert that modification when compiling itself. The source of the compiler is then clean, and the binary is not. You cannot fully trust code you did not create, by inspecting source alone.
+
+Responses: **reproducible builds** (the same source always gives a bit-identical binary, so independent parties can compare), **diverse double-compiling**, and **bootstrappable builds** from a tiny auditable seed.
+
+### Domain-specific languages
+Most engineers will not write a general-purpose compiler. Many will design a small language: a query language, a rules engine, a configuration format. Advice:
+
+- Prefer an existing format or an embedded DSL in a host language.
+- Keep it as weak as possible: a language that is not Turing complete can be analysed, guaranteed to terminate and safely run on untrusted input.
+- Give it a precise specification and good error messages from the start.
+
+> Key idea: A compiler is a chain of meaning-preserving translations. Its correctness is exactly the claim that each one preserves the semantics, a claim that can be tested, validated per run, or proved.
+#Q How is a closure typically represented after closure conversion?
+- As a string of source code
+* As a pair of a code pointer and an environment holding the captured variables
+- As a global variable
+! The function receives its environment as a hidden argument.
+#Q What does a verified compiler such as CompCert prove?
+- That it compiles quickly
+* That the generated code's behaviour is one permitted by the source program's semantics
+- That source programs have no bugs
+! It proves semantic preservation, not correctness of the source.
+
+#LAB js | A small model checker and a SAT solver
+Build two verification tools.
+
+**`explore(initial, next, invariant)`** — a breadth-first explicit-state model checker.
+- `initial` is the starting state (any JSON-serialisable value).
+- `next(state)` returns an array of successor states.
+- `invariant(state)` returns true if the state is acceptable.
+- Identify states by `JSON.stringify`.
+- If every reachable state satisfies the invariant, return `{ ok: true, states: <number of distinct reachable states> }`.
+- Otherwise return `{ ok: false, trace: [...] }`, where `trace` is the **shortest** sequence of states from the initial state to a violating one, inclusive. Check the initial state too.
+
+**`satisfiable(clauses, variableCount)`** — decides a formula in conjunctive normal form by trying assignments. Each clause is an array of non-zero integers: `3` means variable 3 is true, `-3` means it is false. A clause is satisfied if at least one literal is. Return true if some assignment of variables 1 to `variableCount` satisfies every clause.
+
+**`isTautology(formula, variableCount)`** — `formula` is a JavaScript function taking `variableCount` booleans. Return true if it returns true for **every** combination of inputs.
+@starter
+function explore(initial, next, invariant) {
+  return { ok: true, states: 0 };
+}
+
+function satisfiable(clauses, variableCount) {
+  return false;
+}
+
+function isTautology(formula, variableCount) {
+  return false;
+}
+@solution
+function explore(initial, next, invariant) {
+  const key = (s) => JSON.stringify(s);
+  const parent = new Map();
+  parent.set(key(initial), null);
+  const states = new Map();
+  states.set(key(initial), initial);
+  const queue = [initial];
+  const traceTo = (state) => {
+    const trace = [];
+    let k = key(state);
+    while (k !== null) {
+      trace.unshift(states.get(k));
+      k = parent.get(k);
+    }
+    return trace;
+  };
+  if (!invariant(initial)) return { ok: false, trace: [initial] };
+  let head = 0;
+  while (head < queue.length) {
+    const state = queue[head++];
+    for (const succ of next(state)) {
+      const k = key(succ);
+      if (parent.has(k)) continue;
+      parent.set(k, key(state));
+      states.set(k, succ);
+      if (!invariant(succ)) return { ok: false, trace: traceTo(succ) };
+      queue.push(succ);
+    }
+  }
+  return { ok: true, states: parent.size };
+}
+
+function assignments(n) {
+  const all = [];
+  const total = Math.pow(2, n);
+  for (let mask = 0; mask < total; mask++) {
+    const values = [];
+    for (let i = 0; i < n; i++) {
+      values.push(Math.floor(mask / Math.pow(2, i)) % 2 === 1);
+    }
+    all.push(values);
+  }
+  return all;
+}
+
+function satisfiable(clauses, variableCount) {
+  for (const values of assignments(variableCount)) {
+    let all = true;
+    for (const clause of clauses) {
+      let some = false;
+      for (const lit of clause) {
+        const v = values[Math.abs(lit) - 1];
+        if ((lit > 0 && v) || (lit < 0 && !v)) some = true;
+      }
+      if (!some) { all = false; break; }
+    }
+    if (all) return true;
+  }
+  return false;
+}
+
+function isTautology(formula, variableCount) {
+  for (const values of assignments(variableCount)) {
+    if (!formula(...values)) return false;
+  }
+  return true;
+}
+@tests
+explore(0, (s) => (s < 5 ? [s + 1] : []), (s) => true) => {"ok": true, "states": 6}
+explore(0, (s) => (s < 5 ? [s + 1] : []), (s) => s !== 3) => {"ok": false, "trace": [0, 1, 2, 3]}
+explore(7, (s) => [], (s) => s !== 7) => {"ok": false, "trace": [7]}
+explore(0, (s) => [(s + 1) % 4], (s) => s < 4) => {"ok": true, "states": 4}
+explore(1, (s) => (s < 40 ? [s * 2, s + 3] : []), (s) => s !== 10) => {"ok": false, "trace": [1, 2, 5, 10]}
+explore(["i", "i"], (s) => { const step = { i: "t", t: "c", c: "i" }; return [[step[s[0]], s[1]], [s[0], step[s[1]]]]; }, (s) => true) => {"ok": true, "states": 9}
+(() => { const step = { i: "t", t: "c", c: "i" }; const r = explore(["i", "i"], (s) => [[step[s[0]], s[1]], [s[0], step[s[1]]]], (s) => !(s[0] === "c" && s[1] === "c")); return [r.ok, r.trace.length, r.trace[0], r.trace[r.trace.length - 1]]; })() => [false, 5, ["i", "i"], ["c", "c"]]
+(() => { const r = explore({ lock: false, pcs: ["i", "i"] }, (s) => { const out = []; for (let p = 0; p < 2; p++) { const pc = s.pcs[p]; const pcs = s.pcs.slice(); if (pc === "i" && !s.lock) { pcs[p] = "c"; out.push({ lock: true, pcs }); } else if (pc === "c") { pcs[p] = "i"; out.push({ lock: false, pcs }); } } return out; }, (s) => !(s.pcs[0] === "c" && s.pcs[1] === "c")); return r; })() => {"ok": true, "states": 3}
+satisfiable([[1, 2], [-1, 2], [1, -2]], 2) => true
+satisfiable([[1], [-1]], 1) => false
+satisfiable([], 3) => true
+satisfiable([[1, 2], [-1, -2], [1, -2], [-1, 2]], 2) => false
+satisfiable([[1, 2, 3], [-1], [-2]], 3) => true
+satisfiable([[-1, 2], [-2, 3], [1], [-3]], 3) => false
+isTautology((p, q) => !(p && q) === (!p || !q), 2) => true
+isTautology((p) => p || !p, 1) => true
+isTautology((p) => p, 1) => false
+isTautology((p, q) => !p || q, 2) => false
+isTautology((p, q, r) => !((!p || q) && (!q || r)) || (!p || r), 3) => true
+@hints
+`explore` is breadth-first search. Keep a map from each state's key to its parent's key; that both marks states as visited and lets you rebuild the trace.
+To rebuild the trace, walk the parent links back from the violating state and reverse the result.
+Breadth-first order guarantees that the first violation found has the shortest trace.
+For `satisfiable` and `isTautology`, write one helper that lists all 2ⁿ assignments of n booleans, and reuse it.
+
+#EXAM 25
+#Q Which statement about testing and proof is correct?
+- Enough tests prove the absence of bugs
+* Tests can show the presence of bugs; only proof establishes their absence for all inputs
+- Proofs make testing unnecessary in every case
+! Proofs are relative to a model and a specification, so both remain useful.
+#Q By the assignment rule, what precondition guarantees { ? } x := x * 2 { x > 10 }?
+- x > 10
+* x > 5
+- x > 20
+! Substitute x * 2 for x in the postcondition.
+#Q "Every request is eventually followed by a response" is what kind of property?
+- Safety
+* Liveness
+- An invariant
+! It asserts that something good eventually happens.
+#Q What does the LTL formula □ ◇ P mean?
+- P holds at the start
+* P holds infinitely often
+- P never holds
+! Always, eventually P.
+#Q What is the meaning of a while loop in denotational semantics?
+- An infinite list
+* A least fixed point
+- A syntax error
+! Recursion is given meaning as the least solution of an equation.
+#Q Under the Curry-Howard correspondence, what corresponds to a proof of a proposition?
+- A type
+* A program of the corresponding type
+- A test case
+! Type checking is proof checking.
+#Q Why do data-flow analyses always terminate?
+- They are run for a fixed time
+* They iterate monotone functions over a lattice of finite height, so a fixed point is reached
+- They ignore loops
+! Each iteration can only move facts in one direction, a bounded number of times.
+#W Prove the correctness of this program using a loop invariant. It computes the product a × b for integers a ≥ 0 and b, by repeated addition:  i := 0; p := 0; while i < a do p := p + b; i := i + 1 end.  State the invariant, show that it holds initially, that the body preserves it, and that it gives the result on exit. Then prove termination.
++ States an invariant such as p = i × b and 0 ≤ i ≤ a
++ Initialisation: i = 0 and p = 0 satisfy it
++ Preservation: after the body p = i × b + b = (i + 1) × b, with i + 1 ≤ a
++ On exit i ≥ a and i ≤ a give i = a, so p = a × b
++ Termination by the variant a − i, a non-negative integer that decreases each iteration
+#W A team is about to implement a new leader-election protocol for a replicated database. Argue for or against writing a formal model first. Describe what they would specify, which properties they would check, what the model checker would give them, and the limits of the result.
++ Proposes modelling the protocol's states and messages at the design level, for a small number of nodes
++ Names a safety property (at most one leader per term) and a liveness property (a leader is eventually elected, under fairness)
++ Explains that the model checker explores all interleavings and failures and gives counterexample traces
++ Notes the limits: state explosion, small instances only, and the gap between the model and the implementation
++ Reaches a reasoned conclusion weighing cost against the severity of protocol bugs
+
+#PROJECT Verified component
+Specify, verify and reflect on a small but non-trivial piece of software.
+@requirements
+A formal model, in TLA+ or as a hand-written explicit-state model with your own checker, of a concurrent or distributed protocol (for example a mutual-exclusion algorithm, two-phase commit, or a simplified leader election)
+At least two safety invariants and one liveness property stated precisely
+A deliberately flawed version of the protocol, with the counterexample trace the checker finds, explained step by step
+The corrected protocol passing the checks, with the size of the state space reported for several configurations
+A written proof by hand, using Hoare logic with loop invariants and a variant, of the total correctness of a non-trivial sequential algorithm (for example binary search)
+An implementation of that algorithm with the invariants as run-time assertions and property-based tests
+A discussion of what remains unverified
+@deliverables
+The model, the checker output and the traces
+The hand proof, typeset
+The code and tests
+A report on what formal methods did and did not give you
+@rubric
+The model and properties are precise and appropriate | 25
+The flawed version, its counterexample and the explanation | 20
+The Hoare-logic proof is complete and correct | 30
+Implementation with assertions and property tests | 10
+Critical reflection on assurance and its limits | 15
+
+#COURSE c509
+#LESSON The adversary: advanced attacks and how they unfold | 14
+Earlier security courses covered individual vulnerabilities. Real intrusions are **campaigns**: sequences of steps by a persistent adversary. Defending means understanding the whole sequence.
+
+### The stages of an intrusion
+Frameworks such as the **cyber kill chain** and **MITRE ATT&CK** describe an attack as a progression of tactics:
+
+1. **Reconnaissance:** learn about the target, its people and its exposed systems.
+2. **Initial access:** phishing, a stolen credential, an unpatched internet-facing service, a compromised supplier.
+3. **Execution and persistence:** run code and arrange to survive a restart.
+4. **Privilege escalation:** from an ordinary account to an administrator.
+5. **Credential access and discovery:** harvest passwords and tokens; map the network.
+6. **Lateral movement:** spread from machine to machine toward the valuable systems.
+7. **Collection and exfiltration,** or **impact:** steal data, or encrypt it for ransom.
+
+The lesson for defenders: the attacker must succeed at **every** stage, and a detection at **any** stage can stop the campaign. Prevention will sometimes fail, so detection and response are essential. **Dwell time**, the period between intrusion and discovery, is frequently weeks.
+
+ATT&CK catalogues real techniques for each tactic. Defenders use it to ask: for each technique, could we prevent it, and would we notice it?
+
+### Memory corruption
+In memory-unsafe languages, a bug that writes beyond a buffer can overwrite control data and redirect execution.
+
+Defences and the attacks that answered them form an arms race:
+
+| Defence | What it does | Attackers' response |
+|---|---|---|
+| Non-executable memory | Injected data cannot be run as code | Reuse existing code: **return-oriented programming** chains short snippets already in the program |
+| Address-space layout randomisation | Code and data are at unpredictable addresses | Find an information leak first |
+| Stack canaries | A secret value before the return address detects overwrites | Overwrite other data; leak the canary |
+| Control-flow integrity | Restricts where indirect jumps may go | Stay within permitted targets |
+
+Modern exploits chain several bugs. The durable answer is to remove the bug class: **memory-safe languages**. Large software vendors have reported that around 70% of their serious vulnerabilities historically were memory-safety errors.
+
+### Side channels
+A system can leak secrets through its **physical behaviour** and not its outputs.
+
+- **Timing:** an operation that takes longer for some secret values reveals them. Comparing a password byte by byte and stopping at the first difference leaks how many bytes were correct.
+- **Cache timing:** which memory was accessed leaves traces in the processor cache. **Spectre** combined this with speculative execution to read memory across protection boundaries.
+- **Power, electromagnetic and acoustic** emissions from devices.
+
+Defence: **constant-time** code for anything handling secrets, so that timing and memory access do not depend on secret values. Use vetted cryptographic libraries, which do this.
+
+### Supply-chain attacks
+Compromise one widely used component and you compromise all its users: a tampered build system, a malicious package update, a maintainer's stolen account. These attacks bypass the victim's own defences because the malicious code arrives through a trusted channel, signed and expected.
+
+### The human channel
+**Phishing** remains the commonest initial access. Targeted versions impersonate colleagues convincingly, and generative AI has made them cheaper to produce. **Multi-factor fatigue** attacks bombard a user with approval prompts until one is accepted. The strongest technical defence is **phishing-resistant authentication**: passkeys and hardware keys.
+
+### Ransomware
+Now run as an industry, with separate groups specialising in access, tooling and negotiation. Attackers steal data before encrypting it, to threaten publication as well. Resilience depends on **offline, tested backups**, network segmentation, and a rehearsed response.
+
+### Thinking like the attacker
+Attackers think in **graphs**, not lists: which access leads to which. A defender protecting each item on a checklist can miss the path through three "low-risk" weaknesses that together reach the crown jewels.
+
+### Worked example
+Map a realistic credential-phishing intrusion onto the attack stages, and the control that could stop each one.
+
+```text
+Stage            What happened                         Control that breaks it
+Reconnaissance   Staff emails found on the website      Minimise public exposure
+Initial access   Fake login page captures a password    Phishing-resistant MFA (keys)
+Persistence      Attacker adds a mail forwarding rule   Alert on new forwarding rules
+Privilege        Reused password opens an admin panel   Unique passwords, least privilege
+Exfiltration     Customer list downloaded               Data-loss alerts, egress limits
+```
+
+Defence in depth means the attacker must beat several independent controls; any one of them can stop the chain.
+
+> Key idea: Assume initial compromise will sometimes succeed. Design so that each later stage is hard and noisy, and make sure someone is watching.
+#Q Why is detection important even with strong preventive controls?
+- Prevention is illegal
+* Prevention sometimes fails, and an attacker detected at any later stage can still be stopped before reaching their goal
+- Detection is cheaper than prevention
+! An intrusion is a chain; breaking any link defeats it.
+#Q What is a timing side channel?
+- A network delay
+* Leakage of secret information through how long an operation takes
+- A slow password
+! Secret-dependent timing lets an attacker infer the secret.
+
+#LESSON Cryptographic protocols and public-key infrastructure | 14
+Individual cryptographic primitives are well understood. Most failures occur in how they are **combined** into protocols and deployed.
+
+### Protocol attacks
+A protocol can be broken without breaking any of its cryptography.
+
+- **Replay:** recording a valid message and sending it again. Defence: nonces, timestamps, sequence numbers.
+- **Person-in-the-middle:** relaying and altering messages between two parties who each believe they are talking to the other. Defence: authenticate the key exchange.
+- **Reflection** and **downgrade** attacks: tricking a party into answering its own challenge, or into using a weaker algorithm. Defence: bind messages to their direction and protect the negotiation itself.
+- **Confused deputy:** inducing a trusted party to misuse its authority.
+
+The Needham-Schroeder public-key protocol was published in 1978 and believed secure for 17 years, until a model checker found a person-in-the-middle attack on it. Protocol design needs formal analysis. Modern protocols such as TLS 1.3 and Signal were analysed formally during their design.
+
+**Rule:** never design your own protocol. Use TLS, Noise, Signal, or another analysed standard.
+
+### Authenticated key exchange
+Two parties want a shared secret over a network controlled by an attacker.
+
+- **Diffie-Hellman** gives a shared secret, but with no authentication it is open to a person in the middle.
+- Adding **signatures** over the exchanged values authenticates the parties.
+- Using fresh **ephemeral** keys for each session gives **forward secrecy**: a later compromise of long-term keys does not expose past sessions.
+
+TLS 1.3 does exactly this, in one round trip.
+
+### Public-key infrastructure
+A signature proves that a message came from the holder of a private key. **Whose** key is it? A **certificate** binds a public key to an identity and is signed by a **certificate authority** (CA).
+
+```diagram
+   root CA (self-signed, in the browser's trust store, kept offline)
+        |  signs
+   intermediate CA
+        |  signs
+   server certificate for example.com
+```
+
+A client validates the **chain** up to a root it already trusts, and checks the name, the validity period and the permitted uses.
+
+Weaknesses:
+
+- Any trusted CA can issue a certificate for any domain. A single compromised or careless CA endangers everyone.
+- **Revocation** is hard: lists are large, online checks are slow and leak browsing, so in practice certificates are made **short-lived** instead.
+
+**Certificate transparency** addresses mis-issuance: every certificate must be published in public, append-only logs that anyone can audit. Domain owners can watch for certificates they did not request. Automated issuance (the ACME protocol) has made certificates free and renewal automatic.
+
+### End-to-end encryption
+With transport encryption, the service can read the messages. With **end-to-end** encryption, only the endpoints hold the keys.
+
+The **Signal protocol** adds the **double ratchet**: keys change with every message, so that
+
+- compromise of a current key does not reveal earlier messages (forward secrecy), and
+- the session recovers security after a compromise once new key material is exchanged (**post-compromise security**).
+
+The remaining problem is verifying that you hold the right person's key, addressed by safety numbers and key-transparency logs.
+
+### Advanced primitives
+- **Zero-knowledge proofs:** prove a statement is true while revealing nothing else. Prove you know a password without sending it; prove you are over 18 without revealing your birth date.
+- **Secure multi-party computation:** several parties jointly compute a function of their private inputs without revealing them to each other.
+- **Homomorphic encryption:** compute on encrypted data without decrypting it. Still costly.
+- **Threshold cryptography:** split a key among n parties so that any t can use it and fewer than t learn nothing. No single machine ever holds the whole key.
+
+### Post-quantum migration
+A sufficiently large quantum computer would break RSA, Diffie-Hellman and elliptic-curve cryptography with Shor's algorithm. Symmetric ciphers and hashes are only weakened, and larger keys suffice.
+
+The threat is already relevant: an adversary can **record encrypted traffic now and decrypt it later**. Standards bodies have published post-quantum algorithms, based mainly on lattice problems, and deployment has begun, usually in **hybrid** mode combining a classical and a post-quantum algorithm so that security holds if either does.
+
+**Crypto-agility**, the ability to change algorithms without redesigning the system, is now a design requirement. Know where your systems use cryptography, so that you can change it.
+
+> Key idea: Protocols fail at the joints, not in the primitives. Use analysed standard protocols, automate certificates, and design so that algorithms can be replaced.
+#Q What does forward secrecy guarantee?
+- Messages cannot be forwarded
+* Compromise of long-term keys does not reveal the contents of past sessions
+- Keys never expire
+! Each session used ephemeral keys that no longer exist.
+#Q Why does "harvest now, decrypt later" make post-quantum migration urgent before large quantum computers exist?
+- Quantum computers are already common
+* Traffic recorded today could be decrypted in future, so data needing long-term secrecy is already at risk
+- Current encryption has expired
+! The confidentiality lifetime of the data sets the deadline.
+
+#LESSON Privacy engineering | 15
+Security protects data from unauthorised parties. **Privacy** concerns what even authorised parties, including you, should collect, learn and do. It is an engineering discipline with its own principles and its own mathematics.
+
+### Principles
+Data-protection law in many jurisdictions shares a core:
+
+- **Lawfulness and transparency:** have a valid basis and tell people.
+- **Purpose limitation:** use data only for the purpose it was collected for.
+- **Data minimisation:** collect only what is needed.
+- **Accuracy.**
+- **Storage limitation:** keep it no longer than necessary.
+- **Security.**
+- **Accountability:** be able to demonstrate compliance.
+
+Individuals typically have rights to access, correct, delete and export their data.
+
+**Privacy by design** means building these in from the start. The most reliable control is not to hold the data: what you never collected cannot leak, be subpoenaed or be misused.
+
+### Building it in
+- A **data inventory**: what personal data exists, where, why, and who can reach it.
+- **Deletion that works**, including in backups, logs, caches, analytics copies and third parties. This is harder than it sounds and must be designed for.
+- **Access controls and audit logs** on personal data.
+- **Retention schedules** enforced automatically.
+- **Privacy impact assessments** before new uses.
+
+### Why "anonymised" data often is not
+Removing names is not anonymisation. People are identified by combinations of ordinary attributes, called **quasi-identifiers**.
+
+A well-known study found that a large majority of the US population is uniquely identified by postcode, birth date and sex together. "Anonymous" data sets of film ratings, search queries, taxi trips and location traces have each been re-identified by **linking** them with other public information. Four points in time and space are enough to single out most people in a mobility data set.
+
+### k-anonymity
+A table is **k-anonymous** if every combination of quasi-identifier values appears in at least k rows, so each person hides among at least k − 1 others. It is achieved by **generalisation** (age 34 becomes 30 to 39; a full postcode becomes its first digits) and **suppression** of rare rows.
+
+Weaknesses:
+
+- **Homogeneity:** if all k people in a group share the same sensitive value, it is revealed anyway. **l-diversity** requires at least l distinct sensitive values in each group.
+- **Background knowledge** and **composition:** two releases, each k-anonymous, can be combined to break both.
+
+### Differential privacy
+**Differential privacy** is a mathematical definition of privacy with a provable guarantee.
+
+> A randomised mechanism is ε-differentially private if, for any two data sets differing in one person's data, the probability of any output changes by a factor of at most e^ε.
+
+In words: the result is almost the same **whether or not your data is included**. So whatever anyone learns from the output, they could have learned nearly as well without you. The guarantee holds against **any** background knowledge.
+
+It is achieved by adding carefully calibrated random **noise**. For a counting query, whose answer changes by at most 1 when one person is added or removed, adding noise from a Laplace distribution with scale 1/ε suffices.
+
+- **ε is the privacy budget.** Smaller ε means stronger privacy and noisier answers.
+- **Composition:** privacy losses add up. Answering many queries spends the budget, which is tracked and capped.
+- **Post-processing** cannot weaken the guarantee.
+
+It is used for census statistics and for telemetry collected from devices. The cost is accuracy, most severe for small groups.
+
+### Other privacy-enhancing technologies
+- **Pseudonymisation:** replace identifiers with tokens. It reduces risk but the data remains personal, since the mapping exists.
+- **Federated learning:** train a model on users' devices and send back only updates, not raw data.
+- **Secure computation and homomorphic encryption:** compute on data that stays encrypted.
+- **On-device processing:** do not send the data anywhere.
+- **Synthetic data:** generate artificial data with similar statistics. It can still leak if generated carelessly.
+
+### Models leak too
+Machine-learning models can memorise training examples. **Membership inference** determines whether a person's record was in the training set; **extraction** attacks recover training data verbatim. Training with differential privacy bounds this.
+
+### Dark patterns
+Interfaces designed to manipulate people into giving up privacy: pre-ticked boxes, a prominent "accept all" beside a buried "reject", consent that is laborious to withdraw. They are unethical and in many places unlawful.
+
+### Worked example
+A fitness app wants to publish city-level running statistics. Apply privacy engineering before release.
+
+```text
+Data minimisation:  keep start/end only as city, not GPS traces
+Aggregation:        publish counts per city per week; suppress any cell < 20 runners
+Retention:          raw traces deleted after 30 days
+Purpose limitation: statistics only; no sharing with advertisers
+Risk check:         heat maps once revealed military bases from a few users,
+                    so small groups and remote areas are suppressed
+Transparency:       clear notice and an opt-out in settings
+```
+
+Collecting less, aggregating with thresholds and deleting on schedule reduce harm far more reliably than promising to protect detailed data forever.
+
+> Key idea: Removing names does not anonymise. Minimise what you collect, and where you must release statistics, use a definition of privacy that survives an adversary with outside knowledge.
+#Q Why is removing names and identity numbers from a data set usually insufficient for anonymity?
+- Names are stored elsewhere
+* Combinations of remaining attributes can uniquely identify individuals when linked with other data
+- The data becomes too small
+! Quasi-identifiers enable re-identification.
+#Q What does differential privacy guarantee?
+- That no data is collected
+* That the output is almost equally likely whether or not any one individual's data is included
+- That the data is encrypted
+! So little can be learned about any individual from the output.
+
+#LESSON Security architecture, detection and assurance | 14
+Security at the scale of an organisation is a matter of architecture and process, not of individual fixes.
+
+### Zero-trust architecture
+The perimeter model trusted whatever was inside the network. It fails because attackers get inside, and because cloud services and remote work have dissolved the perimeter.
+
+**Zero trust** rests on three principles:
+
+1. **Verify explicitly.** Authenticate and authorise every request using identity, device health, location and behaviour.
+2. **Least privilege.** Grant the minimum access, for the minimum time. Prefer **just-in-time** access to standing privilege.
+3. **Assume breach.** Segment so that a compromise is contained, encrypt everything in transit, and monitor continuously.
+
+```diagram
+   user + device --> [ policy decision point: who, what device, what context? ] --> specific application
+                                         |
+                              every request, every time; no implicit trust from network location
+```
+
+Components: a strong identity provider with phishing-resistant authentication, device management, **micro-segmentation** of the network, and policy enforced at each application.
+
+### Reducing blast radius
+- Separate environments and accounts by sensitivity.
+- Give each service its own identity and narrowly scoped permissions.
+- Use short-lived credentials.
+- Separate duties: no one person can both write and approve a sensitive change.
+- Treat administrative access as exceptional, logged and time-limited.
+
+Ask of every component: "if this is fully compromised, what can the attacker reach?"
+
+### Detection engineering
+Detection is engineering, not installing a product.
+
+- Collect telemetry: authentication events, process activity, network flows, cloud control-plane logs.
+- Write **detections** for adversary **techniques**, guided by ATT&CK, not only for known bad files or addresses, which change constantly.
+- Detecting **behaviour** (a web server process starting a shell; a login from a new country followed by mass download) is more durable than matching indicators.
+- Treat detections as code: version them, test them, measure them.
+- Manage **alert fatigue**. An alert that is ignored is worse than none. Tune relentlessly.
+
+**Deception** helps: honeytokens, such as fake credentials that no legitimate process ever uses, produce high-confidence alerts, since any use is malicious.
+
+### Testing defences
+- **Vulnerability scanning:** automated; finds known issues.
+- **Penetration testing:** people attempt to find and exploit weaknesses in an agreed scope.
+- **Red teaming:** a team emulates a realistic adversary pursuing a goal, testing detection and response as well as prevention.
+- **Purple teaming:** attackers and defenders work together, technique by technique, improving detections as they go.
+- **Bug bounties:** invite outside researchers.
+
+All require explicit written **authorisation** and agreed rules. Testing without permission is a crime.
+
+### Assurance
+How do you know a system is secure enough?
+
+- **Security requirements** traced to threats.
+- **Evidence:** reviews, test results, scan reports, formal analysis for critical parts.
+- **Independent assessment.**
+
+Frameworks and standards (ISO 27001, SOC 2, the NIST Cybersecurity Framework, sector rules for payments and health) organise this. **Compliance is not security**: a system can pass an audit and be breached. Use frameworks as a floor and a checklist, and reason about actual threats.
+
+### Measuring security
+Useful measures: time to patch critical vulnerabilities, coverage of multi-factor authentication, share of systems with logging, time to detect and to contain incidents, results of exercises. Counting blocked attacks says little.
+
+### Risk management
+Security is the management of risk under limited resources. For each significant risk, estimate likelihood and impact, decide to mitigate, transfer, avoid or accept it, and have an accountable person sign the decision. Spend where expected loss is greatest.
+
+### Resilience
+Assume a serious incident will occur. Maintain **tested, offline backups**, a practised incident-response plan, alternative ways to operate, and clear decision authority. Organisations are judged less by whether they were attacked than by how they responded.
+
+### Ethics and law
+Security knowledge is dual-use. Professional obligations: act only with authorisation, disclose vulnerabilities responsibly, protect the data you encounter, be truthful about risk even when it is unwelcome, and know the law where you operate.
+
+> Key idea: Architect for containment. Verify every request, grant little, assume some component is already compromised, and invest as much in noticing and recovering as in preventing.
+#Q Which statement reflects zero-trust architecture?
+- Devices on the internal network are trusted
+* No request is trusted because of its network location; each is authenticated and authorised on identity and context
+- Trust is established once, at login
+! Verification is continuous and per request.
+#Q Why is detecting adversary behaviour more durable than matching known malicious files or addresses?
+- Behaviour is easier to log
+* Attackers change files and addresses easily, but their techniques are harder to change
+- Files cannot be scanned
+! Technique-based detection survives changes in tooling.
+
+#LAB js | Privacy metrics
+Implement tools for assessing and improving the anonymity of a data set. Rows are objects such as `{ age: 34, zip: "90210", condition: "flu" }`.
+
+- `generalizeAge(age, width)` returns the age band as a string. With width 10, 34 becomes `"30-39"`; with width 5 it becomes `"30-34"`.
+- `truncateZip(zip, keep)` keeps the first `keep` characters and replaces the rest with `*`. `truncateZip("90210", 3)` is `"902**"`.
+- `kAnonymity(rows, quasiIdentifiers)` groups rows by the values of the listed columns and returns the size of the **smallest** group. Return 0 for an empty table.
+- `lDiversity(rows, quasiIdentifiers, sensitive)` returns the smallest number of **distinct** values of the `sensitive` column within any group. Return 0 for an empty table.
+- `anonymize(rows, ageWidth, zipKeep)` returns new rows with `age` replaced by its band and `zip` truncated, leaving other fields unchanged. It must not modify the input.
+- `suppressSmallGroups(rows, quasiIdentifiers, k)` returns only the rows whose group has at least `k` members, in their original order.
+@starter
+function generalizeAge(age, width) {
+  return "";
+}
+
+function truncateZip(zip, keep) {
+  return zip;
+}
+
+function kAnonymity(rows, quasiIdentifiers) {
+  return 0;
+}
+
+function lDiversity(rows, quasiIdentifiers, sensitive) {
+  return 0;
+}
+
+function anonymize(rows, ageWidth, zipKeep) {
+  return rows;
+}
+
+function suppressSmallGroups(rows, quasiIdentifiers, k) {
+  return rows;
+}
+@solution
+function generalizeAge(age, width) {
+  const low = Math.floor(age / width) * width;
+  return low + "-" + (low + width - 1);
+}
+
+function truncateZip(zip, keep) {
+  let out = "";
+  for (let i = 0; i < zip.length; i++) {
+    out += i < keep ? zip[i] : "*";
+  }
+  return out;
+}
+
+function groupKey(row, columns) {
+  return JSON.stringify(columns.map((c) => row[c]));
+}
+
+function groups(rows, columns) {
+  const map = new Map();
+  for (const row of rows) {
+    const key = groupKey(row, columns);
+    if (!map.has(key)) map.set(key, []);
+    map.get(key).push(row);
+  }
+  return map;
+}
+
+function kAnonymity(rows, quasiIdentifiers) {
+  if (rows.length === 0) return 0;
+  let smallest = Infinity;
+  for (const members of groups(rows, quasiIdentifiers).values()) {
+    if (members.length < smallest) smallest = members.length;
+  }
+  return smallest;
+}
+
+function lDiversity(rows, quasiIdentifiers, sensitive) {
+  if (rows.length === 0) return 0;
+  let smallest = Infinity;
+  for (const members of groups(rows, quasiIdentifiers).values()) {
+    const distinct = new Set(members.map((r) => r[sensitive])).size;
+    if (distinct < smallest) smallest = distinct;
+  }
+  return smallest;
+}
+
+function anonymize(rows, ageWidth, zipKeep) {
+  return rows.map((r) => Object.assign({}, r, { age: generalizeAge(r.age, ageWidth), zip: truncateZip(r.zip, zipKeep) }));
+}
+
+function suppressSmallGroups(rows, quasiIdentifiers, k) {
+  const g = groups(rows, quasiIdentifiers);
+  return rows.filter((r) => g.get(groupKey(r, quasiIdentifiers)).length >= k);
+}
+@tests
+generalizeAge(34, 10) => "30-39"
+generalizeAge(34, 5) => "30-34"
+generalizeAge(40, 10) => "40-49"
+generalizeAge(7, 10) => "0-9"
+truncateZip("90210", 3) => "902**"
+truncateZip("90210", 0) => "*****"
+truncateZip("90210", 5) => "90210"
+kAnonymity([], ["age"]) => 0
+kAnonymity([{ age: 30, zip: "1" }, { age: 30, zip: "1" }, { age: 41, zip: "2" }], ["age", "zip"]) => 1
+kAnonymity([{ age: 30, zip: "1" }, { age: 30, zip: "1" }, { age: 41, zip: "2" }, { age: 41, zip: "2" }], ["age", "zip"]) => 2
+kAnonymity([{ age: 30, zip: "1" }, { age: 30, zip: "2" }, { age: 30, zip: "3" }], ["age"]) => 3
+lDiversity([{ g: "a", c: "flu" }, { g: "a", c: "flu" }, { g: "b", c: "flu" }, { g: "b", c: "cold" }], ["g"], "c") => 1
+lDiversity([{ g: "a", c: "flu" }, { g: "a", c: "cold" }, { g: "b", c: "flu" }, { g: "b", c: "cold" }], ["g"], "c") => 2
+lDiversity([], ["g"], "c") => 0
+anonymize([{ age: 34, zip: "90210", condition: "flu" }], 10, 3) => [{"age": "30-39", "zip": "902**", "condition": "flu"}]
+(() => { const rows = [{ age: 34, zip: "90210" }]; anonymize(rows, 10, 3); return rows[0].age; })() => 34
+(() => { const rows = [{ age: 31, zip: "90210" }, { age: 38, zip: "90299" }, { age: 52, zip: "10001" }]; return [kAnonymity(rows, ["age", "zip"]), kAnonymity(anonymize(rows, 10, 3), ["age", "zip"])]; })() => [1, 1]
+(() => { const rows = [{ age: 31, zip: "90210" }, { age: 38, zip: "90299" }, { age: 52, zip: "10001" }, { age: 57, zip: "10044" }]; return kAnonymity(anonymize(rows, 10, 3), ["age", "zip"]); })() => 2
+suppressSmallGroups([{ a: 1, n: "x" }, { a: 2, n: "y" }, { a: 1, n: "z" }], ["a"], 2) => [{"a": 1, "n": "x"}, {"a": 1, "n": "z"}]
+suppressSmallGroups([{ a: 1 }, { a: 2 }], ["a"], 2) => []
+suppressSmallGroups([{ a: 1 }, { a: 2 }], ["a"], 1) => [{"a": 1}, {"a": 2}]
+@hints
+The lower bound of an age band is `Math.floor(age / width) * width`; the upper bound is that plus `width - 1`.
+Group rows by a key built from the quasi-identifier values, for example `JSON.stringify(columns.map((c) => row[c]))`, using a `Map` from key to rows.
+k-anonymity is the size of the smallest group. l-diversity is the smallest count of distinct sensitive values in a group; a `Set` counts distinct values.
+`anonymize` must copy each row: `Object.assign({}, row, { ... })` creates a new object.
+
+#EXAM 22
+#Q Which control most effectively stops lateral movement after one machine is compromised?
+- A stronger perimeter firewall
+* Network segmentation with least-privilege access between systems
+- Longer passwords on the compromised machine
+! Containment limits what the attacker can reach next.
+#Q What do return-oriented programming attacks reuse?
+- Stolen passwords
+* Short sequences of existing program code, chained together, to defeat non-executable memory
+- Old network packets
+! No new code needs to be injected.
+#Q How should code that compares a secret token with user input be written?
+- Returning as soon as a difference is found
+* In constant time, so the duration does not depend on how much of the input matched
+- Using string concatenation
+! Early exit leaks information through timing.
+#Q What does certificate transparency provide?
+- Encryption of certificates
+* Public, append-only logs of issued certificates, so that mis-issuance can be detected
+- Free certificates
+! Domain owners can monitor for certificates they did not request.
+#Q A table is 5-anonymous, but in one group all five people have the same diagnosis. Which weakness is this?
+- Composition
+* Homogeneity, addressed by l-diversity
+- A timing attack
+! Membership of the group reveals the sensitive value.
+#Q In differential privacy, what happens as ε is made smaller?
+- Privacy weakens and accuracy improves
+* Privacy strengthens and the results become noisier
+- Nothing changes
+! ε is the privacy budget; less of it means more noise.
+#Q Why is passing a compliance audit not proof that a system is secure?
+- Audits are illegal
+* Compliance checks a defined set of controls at a point in time; it does not test against actual, evolving threats
+- Auditors do not read documents
+! Standards are a floor, not a guarantee.
+#W A hospital wants to share patient records with university researchers. Explain why removing names and identity numbers is insufficient, describe k-anonymity and one of its weaknesses, describe differential privacy and its cost, and recommend an approach with justification.
++ Explains re-identification through quasi-identifiers and linkage with other data
++ Defines k-anonymity and how it is achieved by generalisation and suppression
++ Gives a weakness such as homogeneity, background knowledge or composition
++ Explains differential privacy as noise giving a provable guarantee independent of background knowledge, at the cost of accuracy
++ Recommends a reasoned approach, for example a controlled research environment with access agreements, minimised data, and differentially private aggregate releases
+#W An organisation discovers that an attacker has had access to its network for six weeks, entering through a phishing email. Using the stages of an intrusion, describe what the attacker probably did in that time, identify at least three points where detection could have occurred, and propose architectural changes to limit the damage of a future intrusion.
++ Walks through stages after initial access: persistence, privilege escalation, credential theft, discovery, lateral movement, collection or exfiltration
++ Identifies at least three realistic detection opportunities with the telemetry needed
++ Proposes phishing-resistant authentication
++ Proposes segmentation and least privilege to reduce blast radius
++ Proposes improvements to monitoring, response and tested backups
+
+#PROJECT Security and privacy architecture review
+Produce a professional security and privacy architecture for a realistic system that handles sensitive personal data, such as a telehealth or financial application. This may be a system you have built or a detailed design.
+@requirements
+A system description with data-flow diagrams and trust boundaries
+A threat model that maps realistic adversary techniques to the architecture, with attack paths drawn as a graph
+A zero-trust design: identity, device, segmentation, least privilege and just-in-time access
+A cryptographic design: what is encrypted where, key management, certificate handling, and a plan for algorithm agility
+A privacy design: a data inventory, minimisation, retention, deletion that covers backups and logs, and a privacy impact assessment
+A working anonymisation pipeline for a sample data set, measured for k-anonymity and l-diversity, and a differentially private counting query with an analysis of the accuracy lost at three values of ε
+A detection plan: at least eight behaviour-based detections mapped to techniques, with the data each needs
+An incident-response plan and the result of a tabletop exercise
+@deliverables
+The architecture document
+The anonymisation and differential-privacy code with results
+The detection catalogue
+The incident-response plan and exercise report
+An executive summary of residual risk for a non-technical decision-maker
+@rubric
+Threat model realism and depth | 20
+Architecture: zero trust, containment and cryptography | 25
+Privacy design and the measured anonymisation work | 25
+Detection and response planning | 20
+Communication of residual risk | 10
+
+#COURSE c510
+#LESSON The research process and the literature | 14
+At master's level you are expected not only to apply knowledge but to **evaluate** it and to **extend** it. That requires knowing how knowledge in computer science is produced.
+
+### What research is
+Research is a systematic attempt to produce **new** knowledge and to **justify** it to a sceptical community. Three elements:
+
+- A **question** that matters and is not already answered.
+- A **method** capable of answering it.
+- **Evidence** and argument that others can check.
+
+### Kinds of contribution in computer science
+- **Theoretical:** a theorem and its proof; a new algorithm with an analysis.
+- **Systems:** a new design, built and evaluated, showing that something is possible or better.
+- **Empirical:** a careful measurement that reveals how something really behaves.
+- **Methodological:** a new way of doing or evaluating research.
+- **Replication:** an independent test of whether a published result holds. Undervalued and essential.
+
+### From topic to question
+A topic ("caching") is not a question. A research question is specific and answerable:
+
+> "Does admission control based on object size reduce the miss rate of a content-delivery cache under real request traces, compared with LRU, at equal memory?"
+
+A good question is **novel** (not already answered), **significant** (someone cares about the answer), and **feasible** (you can answer it with the time and resources you have). Narrow until all three hold.
+
+A **hypothesis** is a proposed answer stated so that evidence could **refute** it. A claim that no possible observation could contradict is not a scientific claim.
+
+### The literature
+Before doing anything, find out what is known. Otherwise you risk repeating work or missing the method you need.
+
+**Where knowledge is published.** In computer science, leading **conferences** are often as prestigious as journals, and are peer-reviewed. **Journals** carry longer, more complete work. **Preprints** appear quickly and are **not** peer-reviewed. Books and surveys consolidate a field.
+
+**How to search.**
+
+1. Start with a recent **survey** or a highly cited paper.
+2. Follow citations **backwards** (its references) and **forwards** (papers that cite it).
+3. Search digital libraries and scholarly search engines with several phrasings.
+4. Note the venues and authors that keep appearing.
+5. Stop when new searches mostly return papers you have seen.
+
+### Reading a paper
+Do not read from start to finish. Use **three passes**.
+
+1. **First pass (ten minutes):** title, abstract, introduction, section headings, conclusion. Decide: what is the claim, and is this paper relevant?
+2. **Second pass (an hour):** read the body, study the figures, skip the proofs. Be able to summarise it to someone else.
+3. **Third pass (hours):** reconstruct the work in your mind. Challenge every assumption. Identify what is missing.
+
+Most papers deserve only the first pass.
+
+### Reading critically
+Ask of every paper:
+
+- What exactly is claimed?
+- What evidence supports it, and is it sufficient?
+- What was it compared with? Was the comparison fair?
+- What assumptions are made? Do they hold in practice?
+- What are the limitations, stated and unstated?
+- Could the result be reproduced?
+- Who funded it, and does that matter?
+
+Publication is not proof. Peer review catches some errors and misses many. Results in respected venues have later failed to replicate.
+
+### Evaluating sources
+Rank by reliability: peer-reviewed papers in strong venues, then preprints from credible groups, then technical documentation and standards, then engineering blogs, then anonymous posts. For any source ask who wrote it, on what evidence, and with what interest.
+
+### Keeping track
+Use a reference manager. For each paper keep a short note: the question, the method, the result, and your assessment. A **literature review** is not a list of summaries. It is an **argument** that organises prior work by theme, shows how the pieces relate, and identifies the **gap** your work addresses.
+
+### Worked example
+Turn a vague interest into a researchable question and a literature search.
+
+```text
+Interest:   "Do code reviews help?"
+Question:   "In open-source projects, is the number of review comments on a pull
+             request associated with fewer bug-fix commits to the same files
+             in the following 90 days?"
+Search:     ("code review" AND (defect* OR bug*)) in IEEE Xplore, ACM DL, Google Scholar
+Screening:  412 results → 37 by title/abstract → 11 read in full
+Gap found:  most studies are from single companies; few use open data.
+```
+
+A good research question names the population, the variables and how they will be measured, and the literature review shows what is genuinely unknown.
+
+> Key idea: Research begins with a precise, answerable question and a thorough knowledge of what is already known. Read critically: a published claim is an argument to be examined, not a fact to be accepted.
+#Q Which is a well-formed research question?
+- Caching
+- Is machine learning good?
+* Does technique X reduce tail latency compared with technique Y on workload Z at equal memory?
+! It is specific, comparative and answerable by evidence.
+#Q What is the purpose of the first pass when reading a paper?
+- To verify every proof
+* To grasp the main claim quickly and decide whether the paper deserves more time
+- To copy the references
+! Most papers need no more than this.
+
+#LESSON Experimental design and reproducibility | 15
+Much of computer science is empirical: we build things and measure them. A measurement supports a conclusion only if the experiment was designed properly.
+
+### The logic of an experiment
+An experiment tests whether changing one thing (the **independent variable**) causes a change in another (the **dependent variable**), while everything else is held constant or accounted for.
+
+- **Control:** the baseline condition for comparison.
+- **Confounder:** something else that varies with your change and could explain the result.
+
+If you test your new algorithm on a newer machine than the baseline, the hardware is a confounder and the comparison shows nothing.
+
+### Threats to validity
+State these in every empirical report.
+
+- **Internal validity:** did the change really cause the effect? Threats: confounders, measurement bias, order effects, selection.
+- **External validity:** does the result generalise beyond this experiment? Threats: unrepresentative workloads, a single machine, toy data sizes.
+- **Construct validity:** does the metric measure what you claim? Lines of code is not productivity. A synthetic benchmark is not user experience.
+- **Conclusion validity:** are the statistics sound?
+
+### Choosing baselines and workloads
+The commonest weakness in systems papers is an **unfair comparison**.
+
+- Compare with the **strongest** available alternative, properly configured and tuned with the same effort as your own system.
+- Use workloads that are realistic and, where possible, **standard** benchmarks others have used.
+- Include cases where your approach should do **badly**. A result that only reports wins is not credible.
+- Report what you tried that did not work.
+
+### Measuring computer systems
+Performance measurements are noisy and systematically biased by factors that seem irrelevant.
+
+- **Variability:** run many times. Report the distribution, not a single number.
+- **Warm-up:** caches, JIT compilation and frequency scaling change early behaviour.
+- **Environment effects:** published studies have shown that the size of environment variables and the order of linking can change a program's speed by amounts larger than the effects being claimed, through their influence on memory layout. **Randomise** such factors.
+- **Interference:** other processes, shared cloud hardware, thermal throttling.
+- **Summarising:** use the median and percentiles for skewed data. Never average ratios with the arithmetic mean; use the geometric mean.
+
+### Statistics
+- Report **confidence intervals** or other measures of uncertainty.
+- Use an appropriate **test** and report the **effect size**, not only a p-value.
+- Decide the analysis **before** collecting data.
+- Avoid **p-hacking**: trying many analyses and reporting the one that reached significance.
+- Avoid **HARKing**: hypothesising after the results are known, and presenting it as a prediction.
+- Correct for **multiple comparisons**.
+
+### Studies involving people
+Usability studies, surveys and experiments with developers require additional care: representative participants, adequate sample sizes, randomised assignment, awareness that people behave differently when observed, and **ethical approval** obtained in advance.
+
+**Qualitative** methods (interviews, observation, analysis of documents) answer "why" and "how" questions that numbers cannot. They have their own standards of rigour.
+
+### Reproducibility
+- **Repeatability:** the same team, same setup, gets the same result.
+- **Reproducibility:** a different team, using the authors' artifacts, gets the same result.
+- **Replicability:** a different team, with an independent implementation, reaches the same conclusion.
+
+Many published computational results cannot be reproduced, because code or data is missing, the environment is undocumented, or details are omitted.
+
+To make work reproducible:
+
+- Publish **code and data**, under a clear licence.
+- Record the **environment**: versions of everything, hardware, configuration. Containers help.
+- **Automate** the path from raw data to every figure and table in one script.
+- Fix and report **random seeds**.
+- Keep raw data, not only summaries.
+- Write a README that lets a stranger reproduce the main result.
+
+Many venues now run **artifact evaluation**, awarding badges to papers whose results reviewers could reproduce.
+
+### Negative and null results
+"The technique did not help" is knowledge. Because such results are rarely published, the literature overstates what works (**publication bias**). Report them.
+
+### Honesty
+Do not select only the favourable runs. Do not tune on the test set. Do not omit the inconvenient experiment. The purpose is to find out what is true, including when it is not what you hoped.
+
+### Worked example
+Design an experiment to test whether a new onboarding tutorial increases the number of users who finish their first project.
+
+```text
+Hypothesis H1:   tutorial users complete their first project more often.
+Null H0:         no difference.
+Design:          randomised A/B test; new users split 50/50 by user ID hash.
+Metric:          completion within 7 days (decided before starting).
+Sample size:     baseline 20%; detect +4 points with 80% power, α = 0.05
+                 → about 1,700 users per group.
+Reproducibility: pre-register metric and stopping rule; publish analysis code.
+```
+
+Randomisation removes bias, a fixed metric and sample size prevent fishing for a result, and published code lets others repeat the analysis.
+
+> Key idea: An experiment is an argument. Its strength depends on a fair baseline, control of confounders, an honest account of uncertainty, and enough openness that someone else can check it.
+#Q A new algorithm is benchmarked on a new server and compared with published figures for the old algorithm measured on older hardware. What is wrong?
+- Nothing
+* Hardware is a confounder: the difference cannot be attributed to the algorithm
+- The sample is too large
+! Both must be measured under the same conditions.
+#Q What is the difference between reproducibility and replicability?
+- They are identical
+* Reproducibility uses the original authors' artifacts; replicability reaches the same conclusion with an independent implementation
+- Reproducibility is about hardware only
+! Replication is the stronger test of a finding.
+
+#LESSON Writing, peer review and presenting | 14
+Research that is not communicated clearly has not been done, as far as anyone else is concerned.
+
+### The structure of a paper
+1. **Title:** specific and informative.
+2. **Abstract:** the whole paper in about 200 words: the problem, why it matters, what you did, the main result, the implication. Many readers read nothing else.
+3. **Introduction:** the problem and its importance; what is lacking in existing work; your approach; your **contributions**, as an explicit list; an outline.
+4. **Background and related work:** what the reader needs, and how your work differs from what exists.
+5. **Design or method:** what you did, in enough detail to reproduce.
+6. **Evaluation:** the questions asked, the setup, the results, and their interpretation.
+7. **Discussion:** limitations, threats to validity, implications.
+8. **Conclusion:** what is now known that was not before.
+9. **References.**
+
+### Make the contribution unmistakable
+A reviewer should be able to state your contribution in one sentence after reading the introduction. If you cannot, the work is not ready. Write the list of contributions first; it disciplines everything else.
+
+### Writing clearly
+- **One idea per paragraph**, stated in its first sentence.
+- Define every term and symbol **before** using it.
+- Prefer the **concrete** to the abstract. Give an example early.
+- Use the **active** voice and short sentences.
+- Cut every word that does no work.
+- Be **precise**: "faster" needs "than what, by how much, under what conditions".
+- Do not **overclaim**. "Outperforms all prior work" is rarely true and invites refutation. State exactly what you showed.
+- Describe **limitations** yourself. Reviewers will find them anyway, and stating them builds trust.
+
+### Figures and tables
+Readers look at the figures first. Each must stand alone.
+
+- Label the axes, with units.
+- Start bar charts at zero, or say plainly that you have not.
+- Show uncertainty: error bars or distributions.
+- Use the caption to state the **conclusion** the figure supports.
+- Make it legible in greyscale and to colour-blind readers.
+- Do not use a table where a graph shows the pattern, or a graph where a table gives the numbers people need.
+
+### Citation and academic integrity
+Cite to give **credit**, to let readers **verify** claims, and to place your work in context.
+
+**Plagiarism** is presenting another's words, ideas, data or code as your own. It includes copying text without quotation marks and a citation, paraphrasing closely without citation, and reusing your own published text without disclosure. It is a serious breach with serious consequences.
+
+Rules:
+
+- Quote exactly, in quotation marks, with a citation, and sparingly.
+- Paraphrase in your own words **and** cite.
+- Cite ideas, not only words.
+- Cite the source you actually read.
+- Respect the licences of code you reuse, and acknowledge it.
+- **Declare** any use of AI tools as your institution or venue requires. You remain responsible for every statement: such tools produce fluent errors and can invent references that do not exist. Verify every citation by finding the source.
+
+**Fabrication** (inventing data) and **falsification** (altering it) are the gravest forms of misconduct.
+
+### Peer review
+Submitted papers are assessed by independent experts, usually anonymously. Reviewers judge novelty, significance, correctness and clarity, and recommend acceptance, revision or rejection.
+
+Review is imperfect: slow, inconsistent, sometimes biased, and unable to detect fraud. It remains the main filter for quality.
+
+**Reviewing well:** summarise the paper to show you understood it; state strengths and weaknesses; separate fatal flaws from fixable ones; be specific and constructive; criticise the work, never the person; keep the submission confidential; declare conflicts of interest.
+
+**Receiving reviews:** rejection is normal, including for strong work. Read the reviews, wait a day, then treat each point as information about how a careful reader understood your paper. Respond to every comment, point by point, and say what you changed.
+
+### Presenting
+A talk is an advertisement for the paper, not a reading of it.
+
+- One main message. Say it at the start and at the end.
+- Motivate the problem before the solution.
+- Few words per slide; one idea per slide; large figures.
+- Explain every graph: say what the axes are before what it shows.
+- Rehearse aloud and to time.
+- Prepare for the obvious questions.
+
+### Open science
+Sharing preprints, code and data speeds progress and allows verification. Choose open licences. Research funded by the public should be available to it.
+
+### Worked example
+A structured peer review of a submitted paper, written to help the authors improve it.
+
+```text
+Summary:      The paper claims a 30% faster build cache, evaluated on 4 projects.
+Strengths:    clear problem statement; artefact is available.
+Major issues: 1. Only small projects; the effect on large monorepos is unknown.
+              2. No variance reported; were runs repeated?
+Minor issues: Figure 3 axis lacks units.
+Questions:    How was the cache warmed before measuring?
+Recommendation: major revision.
+```
+
+Good reviews summarise fairly, separate major from minor problems, and make every criticism specific enough to act on.
+
+> Key idea: State your contribution in one sentence, support it with evidence a sceptic can check, claim no more than you showed, and credit everyone whose work you used.
+#Q Which belongs in the introduction of a research paper?
+- All of the experimental data
+* An explicit statement of the paper's contributions
+- The acknowledgements
+! Readers and reviewers need to know exactly what is new.
+#Q You use an AI tool to help draft a literature review and it supplies a reference. What must you do?
+- Include it as given
+* Locate and read the source to confirm that it exists and says what is claimed, and declare the tool's use as required
+- Remove all references
+! Such tools can fabricate plausible citations; the author remains responsible.
+
+#LESSON Research ethics and writing a proposal | 14
+### Why ethics is part of research
+Research in computing affects people: the participants in studies, the people in data sets, the users of what gets built, and society. Technical skill without ethical judgement has produced real harm.
+
+### Research involving people
+Principles established after historical abuses in medical research, and set out in documents such as the Belmont Report:
+
+- **Respect for persons:** people decide for themselves whether to take part, through **informed consent**. They must understand what is involved, be free to refuse and free to withdraw.
+- **Beneficence:** maximise benefit and minimise harm.
+- **Justice:** the burdens and benefits of research are distributed fairly.
+
+Studies involving human participants normally require approval in advance from a **research ethics committee** (an institutional review board). This includes surveys, interviews, usability studies and experiments on users.
+
+Running experiments on users of a live product without their knowledge has caused public controversy and is not exempt because it is "just an A/B test". Ask whether participants would object if they knew.
+
+### Data ethics
+- "Publicly available" does not mean "free to use for anything". People who posted for one purpose did not consent to another.
+- Scraped data sets have included personal and sensitive material, and have been withdrawn after publication.
+- Anonymise properly, and remember that re-identification is easier than it appears.
+- Store data securely, keep it no longer than needed, and honour the terms under which it was obtained.
+- Comply with data-protection law.
+
+### Security research
+- Test only systems you own or have **explicit written permission** to test.
+- Follow **coordinated disclosure**: report privately to the vendor, allow reasonable time for a fix, then publish.
+- Weigh the benefit of publishing details against the risk of enabling attacks.
+- Do not harm real users to demonstrate a point. A well-known case in which researchers submitted deliberately flawed patches to an open-source project, without the maintainers' consent, was widely condemned.
+
+### Dual use and broader impact
+Much research can be used for good or ill: surveillance, generating disinformation, automated exploitation. Researchers are expected to consider foreseeable misuse, to discuss it, and sometimes to limit what they release. Some venues require a statement of broader impact.
+
+### Integrity
+- **No fabrication, falsification or plagiarism.**
+- **Authorship** goes to those who made a substantial intellectual contribution, and all authors are responsible for the content. Do not add honorary authors or omit real contributors.
+- **Declare conflicts of interest** and funding.
+- **Correct** errors in published work.
+- Keep **records** so that the work can be audited.
+
+### Writing a research proposal
+A proposal persuades a reader that a question is worth answering and that you can answer it. A widely used test, the **Heilmeier questions**:
+
+1. What are you trying to do? State it with no jargon.
+2. How is it done today, and what are the limits of current practice?
+3. What is new in your approach, and why do you think it will succeed?
+4. Who cares? If you succeed, what difference will it make?
+5. What are the risks?
+6. How much will it cost, and how long will it take?
+7. What are the intermediate and final tests of success?
+
+### Structure of a proposal
+- **Title and summary.**
+- **Problem and motivation.**
+- **Research questions** and **hypotheses**, specific and testable.
+- **Background:** a critical review that ends in the **gap**.
+- **Method:** what you will build or measure, with what data, baselines and metrics, and how the results will be analysed. Decide the analysis in advance.
+- **Evaluation plan:** what result would **support** your hypothesis, and what would **refute** it.
+- **Risks and contingencies:** what could go wrong, and what you would do.
+- **Ethics:** participants, data, approvals, broader impact.
+- **Timeline** with milestones.
+- **Expected contributions.**
+- **References.**
+
+### Scoping
+The usual failure is ambition beyond the time available. Plan a **minimum result** that is worth reporting even if everything else fails, then stretch goals. Put the riskiest step first, so that failure is discovered early.
+
+### Working as a researcher
+- Keep a **lab notebook**: what you did, why, and what happened, dated. It saves you when you must explain a result months later.
+- Version-control everything, including data-processing scripts.
+- Seek criticism early. Explain your idea to others, often.
+- Expect most ideas to fail. Failure that teaches something is progress.
+
+### Worked example
+A one-paragraph proposal and the ethics checks for a study of how students use AI assistants.
+
+```text
+Aim:      understand when students rely on AI help during programming labs.
+Method:   anonymised logs from 120 volunteers + 12 interviews.
+Consent:  opt-in; withdraw at any time without effect on grades.
+Data:     names replaced by codes; raw logs deleted after analysis;
+          stored on university servers only.
+Risk:     students fear judgement → researchers are not their graders.
+Approval: submitted to the ethics board before any data collection.
+```
+
+Ethical research protects participants by design: informed consent, minimal identifiable data, independence from power over them, and approval before starting.
+
+> Key idea: Good research is honest research. Treat participants and data with respect, test only what you may, report what you actually found, and propose work whose success or failure will be evident.
+#Q What does informed consent require?
+- A signature only
+* That participants understand what the study involves and its risks, agree voluntarily, and may withdraw
+- That participants are paid
+! Consent must be informed and freely given.
+#Q A researcher finds a serious vulnerability in a widely used product. What is the accepted course of action?
+- Publish full details immediately
+* Report it privately to the vendor, allow reasonable time for a fix, then disclose
+- Keep it secret permanently
+! Coordinated disclosure balances protecting users and informing the public.
+
+#EXAM 30
+#Q Which is NOT a recognised kind of research contribution in computer science?
+- A new algorithm with a proof of its complexity
+- An independent replication of a published result
+* A summary of a textbook chapter with no new analysis
+! A contribution must add or verify knowledge.
+#Q What property must a scientific hypothesis have?
+- It must be certain to be true
+* It must be possible for evidence to refute it
+- It must be complicated
+! Falsifiability separates scientific claims from others.
+#Q Which threat to validity concerns whether results apply beyond the particular experiment?
+- Internal validity
+* External validity
+- Construct validity
+! It concerns generalisation.
+#Q A paper reports only the three benchmarks, out of twelve run, on which the new system won. What is this?
+- Good practice
+* Selective reporting, which makes the conclusion unreliable
+- Replication
+! All results, including unfavourable ones, should be reported.
+#Q Which is plagiarism?
+- Quoting a sentence in quotation marks with a citation
+* Closely paraphrasing a paragraph from a paper without citing it
+- Citing a paper you have read
+! Ideas and close paraphrases require citation, not only verbatim text.
+#Q What is the main purpose of the related-work section?
+- To increase the number of references
+* To place the work in context and show precisely how it differs from what exists
+- To criticise other researchers
+! It establishes the gap and the novelty.
+#Q A researcher plans to study user behaviour by interviewing twenty developers. What is needed before starting?
+- Nothing
+* Ethical approval and the participants' informed consent
+- A patent
+! Research with human participants requires prior review.
+#W Choose a research question in an area of computing that interests you. State the question and a falsifiable hypothesis, describe the method you would use to answer it (including the baseline, the workload or data, and the metrics), identify two threats to validity with how you would reduce each, and state what result would refute your hypothesis.
++ The question is specific, novel in framing and feasible
++ The hypothesis is stated so that evidence could contradict it
++ The method includes a fair baseline, realistic data or workload, and suitable metrics
++ Two distinct threats to validity, each with a mitigation
++ States clearly what outcome would refute the hypothesis
+#W Write a critical review, as a peer reviewer would, of a hypothetical paper that claims: "Our new database is 10 times faster than PostgreSQL." The paper reports a single benchmark run on the authors' own workload, on one machine, with PostgreSQL in its default configuration. Identify the weaknesses and say what the authors must do before the claim can be accepted.
++ Notes a single run gives no measure of variability; requires repeated runs and uncertainty
++ Notes the baseline is unfairly untuned; requires a properly configured competitor
++ Notes the authors' own workload may be chosen to favour them; requires standard and varied benchmarks, including unfavourable cases
++ Notes one machine limits generalisation, and asks for the configuration and reproducible artifacts
++ Is constructive and specific, and says the claim must be narrowed to what the evidence supports
+
+#PROJECT Research proposal and literature review
+Produce a research proposal of publishable quality on a question of your choice in computer science or AI. This is the preparation for the research capstone.
+@requirements
+A precise research question and one or more falsifiable hypotheses
+A critical literature review of at least fifteen sources, mostly peer-reviewed, organised by theme and ending in a clearly identified gap
+Every source verified to exist and read by you; no invented references
+A method section specifying what will be built or measured, the baselines, the data or workloads, the metrics, and the analysis, decided in advance
+Answers to all seven Heilmeier questions
+A statement of what result would support and what would refute each hypothesis
+An ethics section covering participants, data, approvals and broader impact
+A risk register with contingencies, and a timeline with a minimum publishable result
+A declaration of any AI tools used and how their output was verified
+@deliverables
+The proposal, of 3,000 to 5,000 words, in the format of a research paper with full references
+An annotated bibliography with a note of your own assessment for each source
+A five-minute recorded presentation
+A written peer review of another student's proposal, or, if working alone, of a published paper of your choice
+@rubric
+Research question: precise, significant and feasible | 15
+Literature review: coverage, critical analysis and identification of the gap | 25
+Method and evaluation plan, including falsifiability | 25
+Ethics, risks and feasibility | 15
+Writing quality, referencing and integrity | 10
+Peer review and presentation | 10

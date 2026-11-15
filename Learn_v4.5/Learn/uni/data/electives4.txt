@@ -1,0 +1,1867 @@
+#COURSE nm101
+#LESSON Floating-point numbers and error | 12
+Computers cannot store most real numbers exactly. **Numerical methods** are algorithms that compute approximate answers to mathematical problems, together with an understanding of how wrong those answers might be.
+
+### Floating point
+A floating-point number is stored in scientific notation in base 2: a **sign**, a **significand** of fixed length and an **exponent**. The usual 64-bit "double" has 53 bits of significand, about **15 to 17 significant decimal digits**.
+
+Two consequences:
+
+- Most decimal fractions cannot be represented exactly. One tenth is a repeating fraction in binary, as one third is in decimal.
+
+```js
+0.1 + 0.2            // 0.30000000000000004
+0.1 + 0.2 === 0.3    // false
+```
+
+- The gaps between representable numbers grow with magnitude. Near 1 the spacing is about 2.2 × 10⁻¹⁶ (**machine epsilon**); near 10¹⁶ it is 2, so adding 1 changes nothing.
+
+Never test floating-point numbers for exact equality. Compare with a tolerance: `Math.abs(a - b) < 1e-9`, or a relative tolerance when magnitudes vary.
+
+### Kinds of error
+- **Rounding error:** from the finite precision of each operation.
+- **Truncation error:** from replacing an infinite process with a finite one, such as stopping a series after ten terms.
+- **Error in the data:** the inputs were measurements.
+
+Measure error as:
+
+```text
+absolute error = |approximate − exact|
+relative error = |approximate − exact| / |exact|
+```
+
+Relative error is usually the meaningful one. An error of 1 metre is negligible in the distance to the Moon and enormous in the width of a door.
+
+### Catastrophic cancellation
+Subtracting two nearly equal numbers destroys significant digits. If a and b agree to twelve digits and each is accurate to sixteen, their difference is accurate to about four.
+
+The quadratic formula shows it. When b² is much larger than 4ac, one root computes `−b + √(b² − 4ac)`: a subtraction of nearly equal quantities. The cure is to compute the well-behaved root first and obtain the other from the product of the roots, c/a. Rearranging a formula to avoid subtracting close values is the commonest numerical repair.
+
+### Accumulation
+Adding many numbers accumulates rounding error, and the order matters: adding small numbers to a large running total loses them. Summing from smallest to largest helps, and **compensated (Kahan) summation** carries the lost low-order part forward.
+
+### Conditioning and stability
+Two different things can make an answer inaccurate:
+
+- A problem is **ill-conditioned** if small changes in its input cause large changes in its answer. No algorithm can rescue it; the difficulty is in the problem.
+- An algorithm is **unstable** if it magnifies rounding errors even on a well-conditioned problem. A different algorithm fixes that.
+
+### Overflow and special values
+Results too large become `Infinity`; undefined operations such as 0/0 give `NaN` ("not a number"), which is not equal to anything, including itself. A NaN in an output means something went wrong earlier and propagated silently.
+
+### Money
+Never hold money in binary floating point. Use whole numbers of the smallest unit (cents) or a decimal type.
+
+> Key idea: Floating-point numbers carry about sixteen digits and are almost never exact. Compare with tolerances, measure relative error, and avoid subtracting nearly equal values.
+#Q Why is `0.1 + 0.2 === 0.3` false?
+- JavaScript has a bug
+* 0.1, 0.2 and 0.3 are not exactly representable in binary, so the rounded results differ
+- Addition is not commutative
+! Each value is the nearest binary fraction, not the decimal itself.
+#Q What is catastrophic cancellation?
+- Dividing by zero
+* Loss of significant digits when two nearly equal numbers are subtracted
+- Overflow to infinity
+! The leading digits cancel and only the uncertain ones remain.
+
+#LESSON Finding roots of equations | 12
+Many problems reduce to solving f(x) = 0: when does the projectile land, what interest rate makes the payments balance. Most such equations have no formula for the answer. **Root-finding** methods produce a sequence of better and better approximations.
+
+### Bisection
+If f is continuous and f(a) and f(b) have **opposite signs**, there is a root between them. Bisection halves the interval repeatedly:
+
+```text
+repeat:
+    m = (a + b) / 2
+    if f(a) and f(m) have opposite signs:  b = m
+    otherwise:                             a = m
+until b − a is small enough
+```
+
+Each step halves the uncertainty, gaining one binary digit. After n steps the interval is (b − a)/2ⁿ. Bisection is slow, but it **cannot fail** once a sign change is bracketed. Reaching ten decimal digits takes about 33 steps.
+
+### Newton's method
+Use the slope. From a guess x, follow the tangent line to where it crosses zero:
+
+```text
+x_next = x − f(x) / f'(x)
+```
+
+Near a root, Newton's method converges **quadratically**: the number of correct digits roughly doubles at every step. Five or six steps typically reach full machine precision.
+
+Its weaknesses:
+
+- It needs the derivative f'.
+- It needs a starting point reasonably close to the root. From a poor start it can diverge or jump to a different root.
+- It fails where f'(x) is zero or tiny.
+
+Computing a square root is the classic example. For f(x) = x² − a, Newton's step simplifies to `x = (x + a/x) / 2`, a method known for four thousand years.
+
+### The secant method
+When the derivative is unavailable, estimate the slope from the last two points:
+
+```text
+x_next = x1 − f(x1) × (x1 − x0) / (f(x1) − f(x0))
+```
+
+It converges a little more slowly than Newton and needs no derivative.
+
+### Combining them
+Production root-finders are **hybrids**. Brent's method takes fast secant-like steps when they behave and falls back on bisection when they do not, keeping the root bracketed throughout. It is safe and fast, and it is what library functions use.
+
+### When to stop
+An iteration never reaches the exact answer. Stop when:
+
+- successive estimates differ by less than a tolerance, or
+- |f(x)| is below a tolerance, and
+- always, when a **maximum number of iterations** is reached. A loop with no limit will one day hang.
+
+A tolerance tighter than the precision of floating point can never be met.
+
+### Rate of convergence
+| Method | Convergence | Needs | Reliability |
+|---|---|---|---|
+| Bisection | Linear: one bit per step | A sign change | Always works |
+| Secant | Superlinear | Two starting points | May fail |
+| Newton | Quadratic | Derivative and a good start | May fail |
+
+### Fixed-point iteration
+Some equations can be rearranged as x = g(x) and solved by repeating x ← g(x). It converges when the slope of g near the solution is less than 1 in size. Many iterative algorithms, including those used to train models, are of this form.
+
+> Key idea: Bisection is slow and certain; Newton's method is fast and fragile. Robust solvers bracket the root and use fast steps only when they stay inside the bracket.
+#Q What does bisection require in order to work?
+- The derivative of f
+* A continuous function with opposite signs at the two ends of the interval
+- A good first guess
+! A sign change guarantees a root in between.
+#Q How quickly does Newton's method converge near a simple root?
+- One digit per step
+* The number of correct digits roughly doubles each step
+- It never converges
+! This is quadratic convergence.
+
+#LESSON Numerical differentiation and integration | 12
+### Differentiation
+The derivative is the limit of (f(x + h) − f(x))/h as h tends to zero. A computer cannot take a limit, so it uses a small h.
+
+```text
+forward difference:   f'(x) ≈ (f(x + h) − f(x)) / h              error ∝ h
+central difference:   f'(x) ≈ (f(x + h) − f(x − h)) / (2h)       error ∝ h²
+```
+
+The central difference is far more accurate for the same h: halving h divides its error by four, not two.
+
+### The step-size dilemma
+Smaller h reduces the truncation error. But the numerator subtracts two nearly equal numbers, and that cancellation error **grows** as h shrinks. The total error falls and then rises again. For a central difference in double precision the best h is around 10⁻⁵ relative to the size of x. Choosing h = 10⁻¹⁵ gives nonsense.
+
+Numerical differentiation is therefore inherently delicate. Where derivatives are needed to full accuracy, as in training neural networks, they are computed by **automatic differentiation**, which applies the chain rule exactly to each operation of the program.
+
+### Integration
+The integral of f from a to b is the area under its curve. When there is no formula, or f is known only at measured points, approximate the area with simple shapes. Divide [a, b] into n strips of width h = (b − a)/n.
+
+**The trapezoid rule** joins neighbouring points with straight lines:
+
+```text
+∫ f ≈ h × [ f(x0)/2 + f(x1) + f(x2) + … + f(x(n−1)) + f(xn)/2 ]
+```
+
+Its error is proportional to h²: doubling the number of strips divides the error by four.
+
+**Simpson's rule** fits a parabola through each pair of strips (n must be even):
+
+```text
+∫ f ≈ (h/3) × [ f(x0) + 4f(x1) + 2f(x2) + 4f(x3) + … + 4f(x(n−1)) + f(xn) ]
+```
+
+Its error is proportional to h⁴: doubling n divides the error by sixteen. It is **exact for polynomials up to degree three**, which is a useful test of an implementation.
+
+### Estimating the error
+You rarely know the true answer. Compute with n strips and again with 2n: the difference between the two results estimates the error. **Adaptive** methods do this automatically, using narrow strips only where the function changes quickly.
+
+### Harder integrals
+- **Gaussian quadrature** chooses the sample points cleverly and reaches high accuracy with very few evaluations of a smooth function.
+- In many dimensions, grids become impossibly large: ten points per axis in twenty dimensions is 10²⁰ points. **Monte Carlo integration** samples random points instead. Its error falls as 1/√N whatever the dimension, which is why it dominates in finance, physics and graphics.
+
+### Integration smooths, differentiation roughens
+Integration averages out noise in data; differentiation amplifies it. Differentiating measured data needs smoothing first. This asymmetry is worth remembering whenever you process signals.
+
+> Key idea: Approximate derivatives with central differences and a sensible step, and integrals with the trapezoid or Simpson's rule. Estimate the error by refining and comparing.
+#Q Why not make the step h as small as possible in a finite difference?
+- The computation becomes too slow
+* Subtracting nearly equal values loses digits, so rounding error grows as h shrinks
+- The derivative becomes zero
+! There is an optimal h that balances truncation and rounding error.
+#Q Simpson's rule is exact for polynomials up to which degree?
+- One
+- Two
+* Three
+! It fits parabolas, and by symmetry is exact for cubics too.
+
+#LESSON Linear systems and differential equations | 13
+### Systems of linear equations
+Circuits, structures, graphics, statistics and machine learning all lead to solving **Ax = b**: many linear equations in many unknowns.
+
+**Gaussian elimination** reduces the system to triangular form by subtracting multiples of one equation from the others, then solves it from the bottom up (**back substitution**). For n unknowns it takes about n³/3 operations.
+
+### Pivoting
+Elimination divides by the **pivot**, the diagonal entry. If the pivot is zero, it fails; if it is tiny, rounding errors are magnified enormously. **Partial pivoting** swaps rows so that the largest available entry in the column becomes the pivot. It costs almost nothing and makes the method stable in practice. Elimination without pivoting is a bug waiting to happen.
+
+### Do not compute the inverse
+The formula x = A⁻¹b is correct mathematics and poor computing. Forming the inverse takes more work and loses more accuracy than solving the system directly. To solve with many right-hand sides, factorise A once (**LU decomposition**) and reuse the factors.
+
+### Conditioning
+The **condition number** of A measures how much errors in b can be amplified in x. With a condition number of 10⁸ you lose about eight of your sixteen digits. Nearly parallel equations give ill-conditioned systems, and no algorithm removes that; it is a property of the problem.
+
+### Large and sparse systems
+Real systems may have millions of unknowns, with almost all coefficients zero. Elimination would fill in the zeros and exhaust memory. **Iterative methods** (Jacobi, Gauss-Seidel, conjugate gradient) start from a guess and improve it using only multiplications by A, stopping when the residual Ax − b is small enough.
+
+### Ordinary differential equations
+A differential equation gives the **rate of change** of a quantity: y' = f(t, y), with a known starting value. Motion, population growth, chemical reactions and circuits are described this way. Few have formula solutions, so we step forward in time.
+
+**Euler's method** follows the slope for a short step h:
+
+```text
+y_next = y + h × f(t, y)
+t_next = t + h
+```
+
+Simple and inaccurate: the total error is proportional to h, so ten times the accuracy costs ten times the work. It also drifts systematically, for example by steadily adding energy to a simulated orbit.
+
+**Runge-Kutta methods** sample the slope at several points within the step and combine them. The classical fourth-order method (RK4) uses four evaluations per step and has error proportional to h⁴: halving the step divides the error by sixteen. It is the workhorse for ordinary problems.
+
+### Stability and stiffness
+With too large a step, a numerical solution can oscillate and blow up even though the true solution decays quietly. The step must be below a limit that depends on the equation. **Stiff** equations, with processes on very different time scales, force explicit methods to take absurdly small steps; **implicit** methods, which solve an equation at each step, remain stable with large ones.
+
+**Adaptive** solvers estimate the error at each step and adjust h automatically.
+
+### Use libraries, understand them
+Do not write your own linear solver or integrator for real work. Mature libraries (LAPACK, and the numerical packages of every scientific language) are fast, tested and careful about edge cases. This course lets you choose the right routine, set its tolerances sensibly, and recognise when its answer cannot be trusted.
+
+> Key idea: Solve linear systems by elimination with pivoting, never by inverting. Step differential equations with a method whose order and stability suit the problem.
+#Q Why is partial pivoting used in Gaussian elimination?
+- To make the matrix smaller
+* To avoid dividing by zero or very small pivots, which would magnify rounding errors
+- To compute the inverse
+! Swapping in the largest entry keeps the multipliers small.
+#Q Euler's method is run with half the step size. What happens to its total error, roughly?
+* It halves
+- It is divided by sixteen
+- It is unchanged
+! Euler's method is first order: error is proportional to h.
+
+#LESSON Interpolation and curve fitting | 12
+### Filling in between known values
+A sensor reports a temperature every minute; an animation has keyframes at a few moments; a table lists a function at a few points. **Interpolation** builds a function that passes exactly through the known points and estimates the values between them.
+
+### Linear interpolation
+The simplest method joins neighbouring points with straight lines. Between (x0, y0) and (x1, y1):
+
+```text
+y = y0 + (x − x0) · (y1 − y0) / (x1 − x0)
+```
+
+Graphics and games call this **lerp**, written as a + t·(b − a) for t from 0 to 1. It is fast and never overshoots, but the result has corners at every data point.
+
+### Polynomial interpolation
+Through n + 1 points with different x values there is exactly one polynomial of degree at most n. **Lagrange's formula** writes it directly as a weighted sum of the y values. It is smooth and exact at the points.
+
+But high-degree polynomials behave badly. With many equally spaced points, the curve can swing wildly between them near the ends of the range. This is **Runge's phenomenon**, and it is why fitting a degree-20 polynomial through 21 points is almost never the right idea.
+
+### Splines
+A **spline** joins many low-degree pieces, usually cubics, so that the curve and its first and second derivatives match where the pieces meet. The result is smooth without the wild swings of one big polynomial. Fonts, vector drawing tools (Bézier curves are close relatives), animation paths and CAD software all use splines.
+
+### Interpolation versus fitting
+Interpolation insists on passing through every point. That is right when the data are exact, like values from a formula. Measurements contain noise, and forcing a curve through every noisy point fits the noise. Then you **fit** instead: choose a simple model and minimise the overall error, as least squares does, accepting that the curve misses individual points.
+
+### Extrapolation
+Using the curve **outside** the range of the data is extrapolation, and it is risky. A polynomial that fits well inside the range can head off in any direction outside it. Treat extrapolated values as guesses and say so.
+
+> Key idea: Interpolation passes exactly through known points: linear for speed, splines for smoothness, and high-degree polynomials rarely. With noisy data, fit a simple model instead, and be wary of extrapolating.
+#Q Linear interpolation between y0 = 10 at x = 0 and y1 = 20 at x = 4 gives what value at x = 1?
+- 15
+* 12.5
+- 11
+! 10 + 1 · (20 − 10) / 4 = 12.5.
+#Q What is Runge's phenomenon?
+- Rounding error in floating-point addition
+* Large oscillations near the ends when a high-degree polynomial interpolates many equally spaced points
+- The failure of Newton's method to converge
+! It is why high-degree interpolation is avoided.
+#Q You have 500 noisy measurements. What is usually better than interpolating through every one?
+- A polynomial of degree 499
+* Fitting a simple model that minimises the overall error
+- Deleting half the points
+! Interpolating noisy data fits the noise.
+
+#LESSON Optimisation and Monte Carlo methods | 13
+### Finding the lowest point
+Much of computing is **optimisation**: choose inputs that make some cost as small as possible. Training a machine-learning model minimises a loss; a route planner minimises travel time; a compiler's register allocator minimises spills.
+
+### Gradient descent
+If the cost f depends on numbers x, its **gradient** points in the direction of steepest increase. So step the other way:
+
+```text
+x_new = x − η · ∇f(x)
+```
+
+The **step size** (learning rate) η matters. Too small and progress is painfully slow; too large and the steps overshoot, bounce around or diverge. If the gradient has no formula, it can be estimated with the finite differences from an earlier lesson.
+
+Gradient descent finds a **local minimum**, a point lower than its neighbours, which need not be the lowest point overall. Starting from several random points, or adding momentum, helps on bumpy landscapes.
+
+### Newton's method for minimisation
+Newton's method for roots can be applied to the derivative: a minimum is where f'(x) = 0. Using the second derivative as well, it takes much larger, well-aimed steps and converges very fast near the answer, but each step costs more and it can head for a maximum instead. Practical optimisers combine ideas from both.
+
+### Monte Carlo: answers from randomness
+Some quantities are hard to compute directly but easy to **sample**. Monte Carlo methods estimate them with random numbers.
+
+Estimating π: pick random points in the square from (0, 0) to (1, 1). The fraction landing inside the quarter circle x² + y² ≤ 1 approaches π/4, so four times that fraction approaches π.
+
+Integration works the same way: the average of f at many random points, times the length of the interval, estimates the integral. This is the method of choice in many dimensions, where grid-based rules need impossibly many points.
+
+### How accurate is it?
+The error of a Monte Carlo estimate shrinks like **1 / √N** for N samples. Ten times the accuracy costs a hundred times the samples. Reporting the estimate with its standard error is part of doing it honestly.
+
+### Reproducibility
+Computer random numbers are **pseudo-random**: a generator started from the same **seed** produces the same sequence. Fix and record the seed when results must be repeatable, as in tests and scientific work. Use a cryptographically secure generator, not Math.random, for anything security-related.
+
+> Key idea: Gradient descent steps against the gradient and finds local minima, with the step size deciding speed and stability. Monte Carlo methods estimate hard quantities by random sampling, with error falling like 1/√N.
+#Q In gradient descent, what typically happens if the step size is far too large?
+- Convergence becomes slower but safer
+* The steps overshoot and the method can oscillate or diverge
+- Nothing; step size does not matter
+! Large steps jump past the minimum.
+#Q How does the error of a Monte Carlo estimate usually shrink as the number of samples N grows?
+- Like 1/N²
+* Like 1/√N
+- It does not shrink
+! Halving the error needs four times the samples.
+#Q Why should a simulation used in a test fix its random seed?
+- It makes the numbers truly random
+* So that the same sequence is produced and the result is repeatable
+- Seeds make the program faster
+! The same seed gives the same pseudo-random sequence.
+
+#LAB js | A numerical toolkit
+Implement the classic numerical algorithms. Functions are passed as JavaScript functions.
+
+- `relError(approx, exact)` returns `|approx − exact| / |exact|`, rounded to 6 decimal places.
+- `bisect(f, lo, hi, tol)` finds a root in `[lo, hi]`, where `f(lo)` and `f(hi)` have opposite signs, by halving the interval until its width is at most `tol`. Return the midpoint of the final interval, rounded to 4 decimal places.
+- `newton(f, df, x0, steps)` applies `steps` Newton iterations from `x0` and returns the result rounded to 6 decimal places.
+- `derivative(f, x, h)` returns the central difference, rounded to 6 decimal places.
+- `trapezoid(f, a, b, n)` and `simpson(f, a, b, n)` integrate `f` from `a` to `b` with `n` strips (`n` is even for Simpson), rounded to 6 decimal places.
+- `euler(f, y0, t0, t1, n)` solves `y' = f(t, y)` from `t0` to `t1` in `n` equal Euler steps and returns the final `y`, rounded to 6 decimal places.
+- `solve(A, b)` solves the linear system by Gaussian elimination **with partial pivoting** and returns the solution array, each value rounded to 6 decimal places, or `null` if the matrix is singular (a pivot smaller than 1e-12 in size). Do not modify the arguments.
+@starter
+function relError(approx, exact) {
+  return 0;
+}
+
+function bisect(f, lo, hi, tol) {
+  return lo;
+}
+
+function newton(f, df, x0, steps) {
+  return x0;
+}
+
+function derivative(f, x, h) {
+  return 0;
+}
+
+function trapezoid(f, a, b, n) {
+  return 0;
+}
+
+function simpson(f, a, b, n) {
+  return 0;
+}
+
+function euler(f, y0, t0, t1, n) {
+  return y0;
+}
+
+function solve(A, b) {
+  return null;
+}
+@solution
+function r6(x) {
+  return Math.round(x * 1000000) / 1000000;
+}
+
+function relError(approx, exact) {
+  return r6(Math.abs(approx - exact) / Math.abs(exact));
+}
+
+function bisect(f, lo, hi, tol) {
+  let a = lo, b = hi, guard = 0;
+  while (b - a > tol && guard < 200) {
+    const m = (a + b) / 2;
+    if (f(a) * f(m) <= 0) { b = m; } else { a = m; }
+    guard++;
+  }
+  return Math.round((a + b) / 2 * 10000) / 10000;
+}
+
+function newton(f, df, x0, steps) {
+  let x = x0;
+  for (let i = 0; i < steps; i++) {
+    x = x - f(x) / df(x);
+  }
+  return r6(x);
+}
+
+function derivative(f, x, h) {
+  return r6((f(x + h) - f(x - h)) / (2 * h));
+}
+
+function trapezoid(f, a, b, n) {
+  const h = (b - a) / n;
+  let sum = (f(a) + f(b)) / 2;
+  for (let i = 1; i < n; i++) {
+    sum += f(a + i * h);
+  }
+  return r6(sum * h);
+}
+
+function simpson(f, a, b, n) {
+  const h = (b - a) / n;
+  let sum = f(a) + f(b);
+  for (let i = 1; i < n; i++) {
+    sum += (i % 2 === 1 ? 4 : 2) * f(a + i * h);
+  }
+  return r6(sum * h / 3);
+}
+
+function euler(f, y0, t0, t1, n) {
+  const h = (t1 - t0) / n;
+  let y = y0, t = t0;
+  for (let i = 0; i < n; i++) {
+    y = y + h * f(t, y);
+    t = t + h;
+  }
+  return r6(y);
+}
+
+function solve(A, b) {
+  const n = A.length;
+  const M = A.map((row, i) => row.concat([b[i]]));
+  for (let col = 0; col < n; col++) {
+    let best = col;
+    for (let r = col + 1; r < n; r++) {
+      if (Math.abs(M[r][col]) > Math.abs(M[best][col])) { best = r; }
+    }
+    if (Math.abs(M[best][col]) < 1e-12) return null;
+    const tmp = M[col]; M[col] = M[best]; M[best] = tmp;
+    for (let r = col + 1; r < n; r++) {
+      const k = M[r][col] / M[col][col];
+      for (let c = col; c <= n; c++) {
+        M[r][c] -= k * M[col][c];
+      }
+    }
+  }
+  const x = new Array(n).fill(0);
+  for (let r = n - 1; r >= 0; r--) {
+    let s = M[r][n];
+    for (let c = r + 1; c < n; c++) {
+      s -= M[r][c] * x[c];
+    }
+    x[r] = s / M[r][r];
+  }
+  return x.map((v) => r6(v) + 0);
+}
+@tests
+relError(9, 10) => 0.1
+relError(1.1, 1) => 0.1
+relError(-2, -2) => 0
+relError(3.14, 3.14159265) => 0.000507
+bisect((x) => x * x - 2, 0, 2, 0.0000001) => 1.4142
+bisect((x) => x - 0.5, 0, 1, 0.0000001) => 0.5
+bisect((x) => x * x * x - 27, 0, 10, 0.0000001) => 3
+bisect((x) => 1 - x, 0, 4, 0.0000001) => 1
+newton((x) => x * x - 2, (x) => 2 * x, 1, 1) => 1.5
+newton((x) => x * x - 2, (x) => 2 * x, 1, 5) => 1.414214
+newton((x) => x * x - 2, (x) => 2 * x, 1, 0) => 1
+newton((x) => x * x * x - 8, (x) => 3 * x * x, 3, 8) => 2
+derivative((x) => x * x, 3, 0.01) => 6
+derivative((x) => x * x * x, 2, 0.1) => 12.01
+derivative((x) => 5 * x + 1, 7, 0.5) => 5
+trapezoid((x) => x, 0, 1, 4) => 0.5
+trapezoid((x) => x * x, 0, 1, 2) => 0.375
+trapezoid((x) => x * x, 0, 1, 4) => 0.34375
+trapezoid((x) => 3, 2, 6, 1) => 12
+simpson((x) => x * x, 0, 1, 2) => 0.333333
+simpson((x) => x * x * x, 0, 2, 2) => 4
+simpson((x) => x * x * x * x, 0, 2, 2) => 6.666667
+simpson((x) => x * x * x * x, 0, 2, 4) => 6.416667
+euler((t, y) => y, 1, 0, 1, 2) => 2.25
+euler((t, y) => y, 1, 0, 1, 4) => 2.441406
+euler((t, y) => t, 0, 0, 2, 2) => 1
+euler((t, y) => -y, 1, 0, 1, 1) => 0
+solve([[2, 1], [1, 3]], [3, 5]) => [0.8, 1.4]
+solve([[0, 1], [1, 0]], [2, 3]) => [3, 2]
+solve([[1, 1, 1], [0, 2, 5], [2, 5, -1]], [6, -4, 27]) => [5, 3, -2]
+solve([[1, 2], [2, 4]], [3, 6]) => null
+solve([[4]], [2]) => [0.5]
+(() => { const A = [[2, 1], [1, 3]], b = [3, 5]; solve(A, b); return [A, b]; })() => [[[2, 1], [1, 3]], [3, 5]]
+@hints
+Write one helper that rounds to 6 decimal places and reuse it.
+In `bisect`, keep the half in which the sign changes: if `f(a) * f(m) <= 0` the root is in `[a, m]`. Add a maximum number of iterations as a safety net.
+The trapezoid rule counts the two end points at half weight and every interior point once.
+Simpson's interior weights alternate 4, 2, 4, …: odd-numbered points get 4.
+For `solve`, copy the matrix with the right-hand side attached as an extra column. For each column, swap up the row with the largest entry, eliminate below it, then back-substitute from the last row.
+
+#EXAM 15
+#Q About how many significant decimal digits does a 64-bit floating-point number carry?
+- 7
+* 15 to 17
+- 100
+! The significand has 53 bits.
+#Q Which measure of error is usually the meaningful one?
+- Absolute error
+* Relative error
+- The number of iterations
+! It relates the error to the size of the quantity.
+#Q A problem's answer changes hugely when its input changes slightly. What is the problem called?
+- Unstable
+* Ill-conditioned
+- Divergent
+! Conditioning belongs to the problem; stability belongs to the algorithm.
+#Q Which root-finding method is guaranteed to converge once a sign change is bracketed?
+* Bisection
+- Newton's method
+- The secant method
+! The interval always contains a root and halves each step.
+#Q Why should you avoid computing a matrix inverse to solve Ax = b?
+- The inverse does not exist
+* It costs more and loses more accuracy than solving the system directly
+- It needs pivoting
+! Factorise and solve instead.
+#Q Why is Monte Carlo integration used in many dimensions?
+- It is exact
+* Its error falls as 1/√N regardless of dimension, while grids grow exponentially
+- It needs no random numbers
+! Grid methods suffer the curse of dimensionality.
+#Q What is a spline?
+- One polynomial of very high degree through all the points
+* A curve made of low-degree pieces joined smoothly
+- A random sample of the data
+! Piecewise cubics avoid the oscillation of one big polynomial.
+#Q A Monte Carlo estimate with 10,000 samples has a standard error of 0.02. About how many samples are needed for 0.01?
+- 20,000
+* 40,000
+- 100,000,000
+! Error falls like 1/√N, so halving it needs four times the samples.
+#W A colleague's simulation of a satellite orbit, written with Euler's method and a fixed step, shows the satellite slowly spiralling away from the planet, which is physically wrong. Explain the likely numerical causes, how you would confirm them, and what you would change. Mention how you would check the accuracy of the new version.
++ Identifies truncation error of a first-order method accumulating systematically (energy drift)
++ Confirms by halving the step and observing the error fall in proportion, or by monitoring a conserved quantity such as energy
++ Proposes a higher-order or more suitable method such as RK4 or a symplectic integrator, and possibly adaptive steps
++ Checks accuracy by step refinement and comparison, or against a known analytical orbit
++ Mentions the trade-off between step size, cost and rounding error, or using a tested library
+
+#PROJECT A numerical methods library with an accuracy study
+Write a small, tested numerical library and use it to study how accuracy depends on method and step size.
+@requirements
+Root finding by bisection, Newton and a safeguarded hybrid, with iteration limits and clear failure reporting
+Integration by the trapezoid rule and Simpson's rule, with an error estimate from refinement
+A linear solver using Gaussian elimination with partial pivoting, detecting singular systems
+An ODE solver offering Euler and fourth-order Runge-Kutta
+Unit tests against problems with known exact answers, using tolerances and never exact equality
+An experiment measuring error against step size for the integrators and the ODE methods, plotted on logarithmic axes, with the observed order of each method compared with theory
+A demonstration of one floating-point pitfall (cancellation or an ill-conditioned system) and a repair where one exists
+A simulation of a physical system of your choice using the library, with a check on a conserved or known quantity
+@deliverables
+The library source and tests
+The plots and a table of measured convergence orders
+A report on the pitfall and the simulation
+@rubric
+Correctness of the methods | 30
+Tests with appropriate tolerances | 15
+Convergence experiment and interpretation | 25
+Floating-point pitfall analysis | 15
+Simulation and report | 15
+
+#COURSE ma101
+#LESSON Limits and the derivative | 12
+**Calculus** is the mathematics of change. It answers two questions: how fast is something changing at this instant, and how much has accumulated in total? This course covers both, with an eye to their use in computing: optimisation, simulation, graphics and machine learning.
+
+### Functions and rates
+A function f takes an input x and returns f(x). Its **average rate of change** between x and x + h is the slope of the line joining the two points:
+
+```text
+(f(x + h) − f(x)) / h
+```
+
+A car that covers 150 km in 2 hours averaged 75 km/h. But what was its speed at one instant? Over zero time it covers zero distance, and 0/0 means nothing.
+
+### Limits
+The way out is to ask what the average rate **approaches** as h gets closer and closer to zero without reaching it. That value is a **limit**.
+
+For f(x) = x²:
+
+```text
+((x + h)² − x²) / h = (2xh + h²) / h = 2x + h
+```
+
+As h shrinks towards 0, this approaches 2x. No division by zero was performed; we simplified first and then asked where the expression was heading.
+
+A function is **continuous** at a point if its limit there equals its value: the graph has no jump or hole.
+
+### The derivative
+The **derivative** of f at x is that limit:
+
+```text
+f'(x) = lim (h → 0) of (f(x + h) − f(x)) / h
+```
+
+It is the **instantaneous rate of change**, and geometrically the **slope of the tangent line** to the graph at x. It is also written df/dx.
+
+So the derivative of x² is 2x. At x = 3 the curve is rising with slope 6; at x = 0 it is flat; at x = −1 it is falling with slope −2.
+
+### The tangent line as an approximation
+Near a point x₀, a smooth function is almost a straight line:
+
+```text
+f(x) ≈ f(x₀) + f'(x₀) × (x − x₀)
+```
+
+This **linear approximation** is why derivatives matter in computing. Newton's method, gradient descent and error estimates all replace a difficult function by its tangent, solve the easy problem, and repeat.
+
+### Reading a derivative
+- f' > 0: the function is increasing.
+- f' < 0: it is decreasing.
+- f' = 0: the tangent is horizontal, a candidate for a maximum or minimum.
+
+The derivative of position is **velocity**. The derivative of velocity is **acceleration**, the **second derivative** of position, written f''. The second derivative tells which way the graph bends: positive means curving upward like a bowl.
+
+### Where it fails
+A function has no derivative where its graph has a corner (|x| at 0), a jump, or a vertical tangent. This matters in practice: the popular neural-network function max(0, x) has a corner at 0, where software simply picks a value.
+
+### Units
+A derivative has units of output per unit of input: metres per second, dollars per item, errors per parameter. Checking the units catches many mistakes.
+
+> Key idea: The derivative is the limit of average rates of change: the slope of the tangent, and the best straight-line approximation to a function near a point.
+#Q What is the derivative of f(x) = x² at x = 5?
+- 5
+* 10
+- 25
+! f'(x) = 2x, so f'(5) = 10.
+#Q What does f'(x) = 0 tell you about the graph at x?
+- The function is zero there
+* The tangent is horizontal: a possible maximum or minimum
+- The function is undefined
+! A flat tangent is a candidate turning point.
+
+#LESSON Rules of differentiation and optimisation | 13
+Nobody computes derivatives from the limit definition each time. A few rules cover almost every function.
+
+### The basic rules
+```text
+constant:          (c)' = 0
+power:             (xⁿ)' = n·xⁿ⁻¹
+constant multiple: (c·f)' = c·f'
+sum:               (f + g)' = f' + g'
+product:           (f·g)' = f'·g + f·g'
+quotient:          (f/g)' = (f'·g − f·g') / g²
+```
+
+A polynomial is differentiated term by term:
+
+```text
+f(x) = 4x³ − 5x² + 7x − 2        f'(x) = 12x² − 10x + 7
+```
+
+Some important derivatives:
+
+```text
+(eˣ)' = eˣ          (ln x)' = 1/x
+(sin x)' = cos x    (cos x)' = −sin x
+```
+
+The exponential function is its own derivative, which is why it describes growth in proportion to size: populations, compound interest, radioactive decay.
+
+### The chain rule
+For a function of a function, multiply the rates:
+
+```text
+if y = f(g(x))    then    dy/dx = f'(g(x)) × g'(x)
+```
+
+Example: y = (3x + 1)². The outer function is squaring, the inner is 3x + 1. So dy/dx = 2(3x + 1) × 3 = 6(3x + 1).
+
+If a change in x changes u three times as fast, and a change in u changes y twice as fast, then y changes six times as fast as x. The chain rule is that statement.
+
+It is the most important rule in computing. A neural network is a long composition of functions, and **backpropagation** is the chain rule applied from the output back to every parameter.
+
+### Finding maxima and minima
+At a peak or a valley of a smooth function the tangent is horizontal. To optimise f:
+
+1. Solve f'(x) = 0 to find the **critical points**.
+2. Classify each with the second derivative: f'' > 0 is a **minimum** (bowl); f'' < 0 is a **maximum** (dome).
+3. Check the ends of the allowed range as well.
+
+Example: a quadratic ax² + bx + c has f'(x) = 2ax + b, which is zero at x = −b/(2a): the **vertex**. It is a minimum if a > 0.
+
+### Local and global
+A critical point is a **local** extreme: the best in its neighbourhood. The **global** optimum is the best overall. A function with many valleys has many local minima, and calculus alone does not say which is lowest. **Convex** functions, shaped like a single bowl, have just one, which is why they are prized.
+
+### Gradient descent
+When f'(x) = 0 cannot be solved by algebra, walk downhill. The derivative gives the uphill direction, so step the opposite way:
+
+```text
+x ← x − rate × f'(x)
+```
+
+Repeat until the steps become tiny. The **learning rate** controls the step: too small and progress is slow; too large and the steps overshoot the valley and may diverge. This simple loop, in millions of dimensions, is how machine-learning models are trained.
+
+### Related uses
+- **Sensitivity:** how much does the output change if this input is nudged?
+- **Error propagation:** an input error δ becomes roughly f'(x) × δ in the output.
+- **Marginal cost** in economics is a derivative.
+
+> Key idea: Differentiate with the power, product and chain rules. Optima occur where the derivative is zero, and gradient descent finds them by stepping against the derivative.
+#Q What is the derivative of 4x³ − 5x² + 7x − 2?
+- 4x² − 5x + 7
+* 12x² − 10x + 7
+- 12x³ − 10x²
+! Multiply each coefficient by its power and reduce the power by one.
+#Q In gradient descent, what happens if the learning rate is too large?
+- Convergence is guaranteed but slow
+* The steps overshoot the minimum and may diverge
+- The derivative becomes zero
+! Each step lands farther up the other side of the valley.
+
+#LESSON Integration | 12
+Differentiation finds a rate from a total. **Integration** goes the other way: from a rate to a total.
+
+### Area as accumulation
+If a car's speed is constant, distance is speed × time: the area of a rectangle on a speed-time graph. If the speed varies, the distance is still the **area under the curve**.
+
+To find it, slice the interval from a to b into n thin strips, approximate each by a rectangle of width Δx, and add:
+
+```text
+area ≈ f(x1)·Δx + f(x2)·Δx + … + f(xn)·Δx
+```
+
+As the strips get thinner, this **Riemann sum** approaches a limit, the **definite integral**:
+
+```text
+∫ from a to b of f(x) dx
+```
+
+The integral sign is a stretched S for "sum". Area below the axis counts as negative.
+
+### Antiderivatives
+An **antiderivative** of f is a function F whose derivative is f. Since the derivative of x³ is 3x², an antiderivative of 3x² is x³. So is x³ + 5: constants vanish when differentiated, so antiderivatives are written with an arbitrary constant, x³ + C.
+
+The power rule in reverse:
+
+```text
+∫ xⁿ dx = xⁿ⁺¹ / (n + 1) + C        (n ≠ −1)
+```
+
+Integrate a polynomial term by term: ∫ (6x² + 4x + 1) dx = 2x³ + 2x² + x + C.
+
+### The fundamental theorem of calculus
+The two halves of calculus are inverse operations:
+
+```text
+∫ from a to b of f(x) dx = F(b) − F(a)        where F' = f
+```
+
+To find the area exactly, find an antiderivative and subtract its values at the two ends. No limit of sums is needed.
+
+Example: the area under 3x² from 0 to 2 is F(2) − F(0) = 8 − 0 = 8.
+
+It works in the other direction too: the rate of change of the accumulated area is the height of the curve.
+
+### What integrals compute
+- Distance from velocity, and velocity from acceleration.
+- **Average value** of a function: its integral divided by the length of the interval.
+- **Probability:** for a continuous random variable, the probability of landing in a range is the area under its density curve there, and the total area is 1.
+- **Expected value**, work done by a varying force, volumes, the energy used by a device from its power draw over time.
+
+### When there is no formula
+Many ordinary functions, including the bell curve e^(−x²), have no antiderivative that can be written with elementary functions. Then the integral is computed **numerically**, by the trapezoid or Simpson's rule, which is the Riemann sum idea made efficient. Simulations, physics engines and probability calculations all do this.
+
+### Discrete parallels
+A programmer already knows the discrete versions. A **difference** between neighbouring array elements is a derivative; a **running total** (prefix sum) is an integral; and the fact that a difference of prefix sums gives a range sum is the fundamental theorem in discrete form.
+
+### Techniques
+**Substitution** reverses the chain rule, and **integration by parts** reverses the product rule. Integration by hand is harder than differentiation, and a computer algebra system is the sensible tool for anything elaborate. What matters is knowing what an integral means and when one is needed.
+
+> Key idea: An integral is an accumulated total: the area under a rate. The fundamental theorem evaluates it as the change in an antiderivative.
+#Q What is the integral of 2x from 0 to 3?
+- 6
+* 9
+- 3
+! An antiderivative is x²; 3² − 0² = 9.
+#Q What does the fundamental theorem of calculus state?
+- Every function has a derivative
+* The definite integral of f from a to b equals F(b) − F(a), where F is an antiderivative of f
+- Integrals are always positive
+! Differentiation and integration are inverse operations.
+
+#LESSON Series and functions of several variables | 13
+### Approximating functions with polynomials
+Computers can add and multiply. How, then, do they compute eˣ or sin x? One answer is to approximate the function by a polynomial.
+
+The tangent line matches a function's value and slope at a point. Matching the second derivative as well gives a parabola that also bends correctly, and so on. The **Taylor series** of f about 0 continues without end:
+
+```text
+f(x) = f(0) + f'(0)·x + f''(0)·x²/2! + f'''(0)·x³/3! + …
+```
+
+For the exponential function, every derivative at 0 equals 1:
+
+```text
+eˣ = 1 + x + x²/2! + x³/3! + x⁴/4! + …
+```
+
+Also:
+
+```text
+sin x = x − x³/3! + x⁵/5! − …        cos x = 1 − x²/2! + x⁴/4! − …
+```
+
+Stopping after a few terms gives an approximation that is excellent near 0 and worsens with distance. The first omitted term indicates the size of the error. For small x, sin x ≈ x: a simplification used throughout physics and engineering.
+
+### Convergence
+An infinite sum **converges** if its partial sums approach a limit. The geometric series is the essential example:
+
+```text
+1 + r + r² + r³ + … = 1 / (1 − r)        when |r| < 1
+```
+
+It appears in the analysis of algorithms (the total cost of doubling an array is 1 + 2 + 4 + … + n < 2n), in finance and in probability. The harmonic series 1 + 1/2 + 1/3 + … **diverges**, though its terms shrink to zero; it grows like ln n, which is where the logarithm in the analysis of quicksort comes from.
+
+### Functions of several variables
+Real quantities depend on many inputs. The error of a machine-learning model depends on millions of parameters.
+
+A **partial derivative** is the rate of change with respect to one variable while the others are held fixed. For f(x, y) = x² + 3xy:
+
+```text
+∂f/∂x = 2x + 3y        ∂f/∂y = 3x
+```
+
+### The gradient
+Collect the partial derivatives into a vector, the **gradient**:
+
+```text
+∇f = (∂f/∂x, ∂f/∂y)
+```
+
+The gradient points in the direction of **steepest increase**, and its length is the rate of increase in that direction. On a map of a hill it points straight uphill, at right angles to the contour lines.
+
+### Gradient descent in many dimensions
+To minimise f, step against the gradient:
+
+```text
+(x, y) ← (x, y) − rate × ∇f(x, y)
+```
+
+This is the same loop as in one dimension, with vectors. At a minimum the gradient is the zero vector. In high dimensions there are also **saddle points**, where the gradient is zero but the point is a minimum in some directions and a maximum in others.
+
+### The multivariable chain rule
+If z depends on x and y, and each of those depends on t, the rates add along every path:
+
+```text
+dz/dt = (∂z/∂x)(dx/dt) + (∂z/∂y)(dy/dt)
+```
+
+Backpropagation applies this rule systematically through a network of operations, reusing intermediate results so that all the partial derivatives are obtained in about the time of one evaluation of the function.
+
+### Where calculus appears in computing
+- **Machine learning:** training is gradient descent on a loss function.
+- **Graphics:** surface normals are gradients; smooth curves are polynomials matched in value and slope.
+- **Simulation:** physics is differential equations, integrated step by step.
+- **Algorithm analysis:** sums are estimated by integrals.
+- **Signal processing and probability:** integrals throughout.
+
+> Key idea: Taylor series approximate functions by polynomials. With several variables, the gradient collects the partial derivatives and points uphill, and stepping against it minimises a function.
+#Q For f(x, y) = x² + 3xy, what is the partial derivative with respect to x?
+- 3x
+* 2x + 3y
+- 2x + 3x
+! Treat y as a constant and differentiate with respect to x.
+#Q In which direction does the gradient of a function point?
+- Toward the nearest minimum
+* In the direction of steepest increase
+- Along the contour lines
+! To descend, move in the opposite direction.
+
+#LESSON Differential equations and change over time | 13
+### Equations about rates
+Many questions in computing are about how something changes: how fast a population of users grows, how quickly a cache entry goes stale, how a cooling processor approaches room temperature. A **differential equation** states a rule for the rate of change, and solving it gives the quantity itself.
+
+The simplest and most important one says the rate of change is proportional to the amount present:
+
+```text
+dy/dt = k · y
+```
+
+Its solution is exponential:
+
+```text
+y(t) = y0 · e^(k t)
+```
+
+where y0 is the starting value. You can check it: the derivative of e^(kt) is k·e^(kt), so the rate really is k times the amount.
+
+### Growth and decay
+- If **k > 0** the quantity grows exponentially: compound interest, unchecked viral sharing, the number of nodes at each level of a full binary tree.
+- If **k < 0** it decays: radioactive material, a discharging capacitor, a moving average that forgets old data.
+
+Decay is often described by a **half-life**, the time for the amount to halve. Setting e^(k t) = 1/2 gives t = ln(2) / |k|, about 0.693 / |k|. Doubling time for growth is the same formula with k positive.
+
+### Newton's law of cooling
+An object's temperature T changes at a rate proportional to the difference from its surroundings S:
+
+```text
+dT/dt = −k (T − S)
+```
+
+The difference decays exponentially, so T approaches S quickly at first and then ever more slowly. Thermal throttling and sensor smoothing follow this shape.
+
+### Limits to growth: the logistic equation
+Real growth runs out of room. The logistic equation adds a capacity C:
+
+```text
+dy/dt = k · y · (1 − y / C)
+```
+
+When y is small it behaves like exponential growth; as y nears C the rate falls to zero. The result is the S-shaped curve seen in product adoption and in the spread of information through a fixed audience.
+
+### When there is no formula
+Most differential equations have no neat solution. Programs then **step** through time: knowing y now and the rate dy/dt, estimate y a short time h later as y + h · dy/dt. This is Euler's method, covered with better alternatives in Numerical Methods. Physics engines, epidemic models and circuit simulators all work this way.
+
+> Key idea: A differential equation describes how something changes. dy/dt = ky gives exponential growth or decay; the logistic equation adds a ceiling; when no formula exists, programs step forward in small increments.
+#Q What is the solution of dy/dt = k·y with starting value y0?
+- y0 + k·t
+* y0 · e^(k t)
+- k · y0 · t²
+! Its derivative is k times itself, which is exactly the rule.
+#Q A quantity decays with k = −0.1 per hour. Roughly what is its half-life?
+- 0.1 hours
+* About 6.9 hours
+- 10 hours exactly
+! Half-life = ln 2 / |k| ≈ 0.693 / 0.1 ≈ 6.9 hours.
+#Q What does the logistic equation add to exponential growth?
+- A random term
+* A capacity, so growth slows to zero as the quantity approaches it
+- A second variable for time
+! The factor (1 − y/C) shrinks the rate as y approaches C.
+
+#LESSON Probability with calculus | 12
+### From counting to continuous values
+With a dice you can list every outcome and its probability. A value like a response time, a sensor reading or a person's height can take any value in a range, so the chance of any one exact value is zero. Instead we describe it with a **probability density function** (PDF), f(x).
+
+The probability that the value falls between a and b is the **area under the density curve** between them:
+
+```text
+P(a ≤ X ≤ b) = ∫ from a to b of f(x) dx
+```
+
+Two rules follow: f(x) is never negative, and the total area under the whole curve is 1.
+
+### The cumulative distribution
+The **cumulative distribution function** F(x) gives the probability that the value is at most x: the area from the far left up to x. It rises from 0 to 1, and its derivative is the density. Percentiles come straight from it: the 95th percentile of response time is the x where F(x) = 0.95. Service-level objectives are written in exactly these terms.
+
+### Three distributions you will meet
+- **Uniform** on [a, b]: every value equally likely, so f(x) = 1 / (b − a). Random-number generators produce this, and other distributions are built from it.
+- **Exponential** with rate λ: f(x) = λ e^(−λx) for x ≥ 0. It models the waiting time between independent random events, such as requests arriving at a server. Its mean is 1/λ.
+- **Normal** (Gaussian): the bell curve, set by its mean μ and standard deviation σ. About 68% of values lie within one σ of the mean and about 95% within two. Sums of many small independent effects tend towards it.
+
+### Expected value as an integral
+The **expected value** (mean) of a continuous variable is the density-weighted average:
+
+```text
+E[X] = ∫ x · f(x) dx
+```
+
+For a uniform variable on [0, 10] this gives 5, as you would hope. Variance is computed the same way from (x − mean)².
+
+### Why programmers care
+- Performance work talks in percentiles, not averages, because a long tail of slow requests hurts users even when the mean looks fine.
+- Machine-learning losses such as cross-entropy and models such as Gaussian processes are built on densities.
+- Simulations draw random values from these distributions; Monte Carlo methods (in Numerical Methods) estimate integrals by sampling.
+
+> Key idea: For continuous values, probability is area under a density curve. The cumulative distribution gives percentiles, and expected value is an integral of x weighted by the density.
+#Q For a continuous variable, how is P(a ≤ X ≤ b) found?
+- By evaluating the density at a and b and adding
+* As the area under the density curve between a and b
+- It is always zero
+! Probability is the integral of the density over the interval.
+#Q Requests arrive independently at random. Which distribution usually models the gap between them?
+- Uniform
+* Exponential
+- Normal with mean 0
+! Waiting times between independent random events are exponential.
+#Q Why do engineers report the 95th or 99th percentile of response time instead of only the mean?
+- Percentiles are easier to compute
+* The mean can hide a long tail of slow requests that users still feel
+- The mean is always larger
+! Percentiles describe the tail; averages smooth it away.
+
+#LAB js | Calculus in code
+Implement calculus on polynomials and numerically. A polynomial is an array of coefficients from the constant term upward: `[1, 2, 3]` means 1 + 2x + 3x².
+
+- `polyEval(p, x)` evaluates the polynomial at `x`.
+- `polyDerivative(p)` returns the derivative as a polynomial. The derivative of a constant is `[0]`.
+- `polyIntegral(p)` returns the antiderivative with constant term 0.
+- `definiteIntegral(p, a, b)` returns the exact integral from `a` to `b`, using the fundamental theorem.
+- `tangentLine(p, x0)` returns `{ slope, intercept }` of the tangent at `x0`.
+- `vertex(a, b, c)` returns `{ x, y, kind }` for the quadratic ax² + bx + c (with `a` not zero): the critical point and `"min"` or `"max"`.
+- `taylorExp(x, terms)` returns the sum of the first `terms` terms of the series for eˣ, rounded to 6 decimal places.
+- `gradient(f, x, y, h)` returns `[∂f/∂x, ∂f/∂y]` of a function of two variables by central differences, each rounded to 4 decimal places.
+- `descend(df, x0, rate, steps)` runs gradient descent in one dimension using the derivative function `df`, and returns the final `x` rounded to 6 decimal places.
+@starter
+function polyEval(p, x) {
+  return 0;
+}
+
+function polyDerivative(p) {
+  return [0];
+}
+
+function polyIntegral(p) {
+  return [0];
+}
+
+function definiteIntegral(p, a, b) {
+  return 0;
+}
+
+function tangentLine(p, x0) {
+  return { slope: 0, intercept: 0 };
+}
+
+function vertex(a, b, c) {
+  return { x: 0, y: 0, kind: "min" };
+}
+
+function taylorExp(x, terms) {
+  return 0;
+}
+
+function gradient(f, x, y, h) {
+  return [0, 0];
+}
+
+function descend(df, x0, rate, steps) {
+  return x0;
+}
+@solution
+function polyEval(p, x) {
+  let result = 0;
+  for (let i = p.length - 1; i >= 0; i--) {
+    result = result * x + p[i];
+  }
+  return result;
+}
+
+function polyDerivative(p) {
+  if (p.length <= 1) return [0];
+  const out = [];
+  for (let i = 1; i < p.length; i++) {
+    out.push(i * p[i]);
+  }
+  return out;
+}
+
+function polyIntegral(p) {
+  const out = [0];
+  for (let i = 0; i < p.length; i++) {
+    out.push(p[i] / (i + 1));
+  }
+  return out;
+}
+
+function definiteIntegral(p, a, b) {
+  const F = polyIntegral(p);
+  return polyEval(F, b) - polyEval(F, a);
+}
+
+function tangentLine(p, x0) {
+  const slope = polyEval(polyDerivative(p), x0);
+  return { slope, intercept: polyEval(p, x0) - slope * x0 };
+}
+
+function vertex(a, b, c) {
+  const x = (0 - b) / (2 * a);
+  return { x, y: a * x * x + b * x + c, kind: a > 0 ? "min" : "max" };
+}
+
+function taylorExp(x, terms) {
+  let sum = 0, term = 1;
+  for (let k = 0; k < terms; k++) {
+    sum += term;
+    term = term * x / (k + 1);
+  }
+  return Math.round(sum * 1000000) / 1000000;
+}
+
+function gradient(f, x, y, h) {
+  const r = (v) => Math.round(v * 10000) / 10000;
+  return [r((f(x + h, y) - f(x - h, y)) / (2 * h)), r((f(x, y + h) - f(x, y - h)) / (2 * h))];
+}
+
+function descend(df, x0, rate, steps) {
+  let x = x0;
+  for (let i = 0; i < steps; i++) {
+    x = x - rate * df(x);
+  }
+  return Math.round(x * 1000000) / 1000000;
+}
+@tests
+polyEval([1, 2, 3], 2) => 17
+polyEval([5], 100) => 5
+polyEval([0, 0, 1], -3) => 9
+polyEval([], 4) => 0
+polyDerivative([1, 2, 3]) => [2, 6]
+polyDerivative([5]) => [0]
+polyDerivative([0, 0, 0, 4]) => [0, 0, 12]
+polyDerivative([-2, 7, -5, 4]) => [7, -10, 12]
+polyIntegral([2, 6]) => [0, 2, 3]
+polyIntegral([1]) => [0, 1]
+polyIntegral([1, 4, 6]) => [0, 1, 2, 2]
+definiteIntegral([0, 0, 3], 0, 2) => 8
+definiteIntegral([1], 2, 5) => 3
+definiteIntegral([0, 2], 1, 3) => 8
+definiteIntegral([0, 2], 3, 1) => -8
+tangentLine([0, 0, 1], 3) => {"slope": 6, "intercept": -9}
+tangentLine([1, 2], 5) => {"slope": 2, "intercept": 1}
+tangentLine([4], 2) => {"slope": 0, "intercept": 4}
+vertex(1, -4, 3) => {"x": 2, "y": -1, "kind": "min"}
+vertex(-1, 0, 4) => {"x": 0, "y": 4, "kind": "max"}
+vertex(2, 4, 0) => {"x": -1, "y": -2, "kind": "min"}
+taylorExp(1, 1) => 1
+taylorExp(1, 3) => 2.5
+taylorExp(1, 5) => 2.708333
+taylorExp(1, 15) => 2.718282
+taylorExp(0, 8) => 1
+taylorExp(2, 4) => 6.333333
+gradient((x, y) => x * x + 3 * y, 2, 5, 0.001) => [4, 3]
+gradient((x, y) => x * y, 3, 4, 0.001) => [4, 3]
+gradient((x, y) => 7, 1, 1, 0.01) => [0, 0]
+descend((x) => 2 * x, 10, 0.1, 1) => 8
+descend((x) => 2 * x, 10, 0.1, 3) => 5.12
+descend((x) => 2 * x, 10, 0.5, 1) => 0
+descend((x) => 2 * (x - 3), 0, 0.25, 30) => 3
+descend((x) => 2 * x, 1, 1.5, 3) => -8
+@hints
+Horner's method evaluates a polynomial from the highest coefficient down: `result = result * x + p[i]`.
+The derivative multiplies each coefficient by its index and drops the constant term. The integral divides each coefficient by its new index and puts 0 at the front.
+The definite integral is the antiderivative at `b` minus the antiderivative at `a`.
+The tangent's slope is the derivative at `x0`; its intercept is `f(x0) − slope × x0`.
+In `taylorExp`, build each term from the previous one: multiply by `x` and divide by the next integer.
+
+#EXAM 15
+#Q What does the derivative of a function at a point represent geometrically?
+- The area under the curve
+* The slope of the tangent line
+- The height of the curve
+! It is the instantaneous rate of change.
+#Q What is the derivative of (3x + 1)²?
+- 2(3x + 1)
+* 6(3x + 1)
+- 9x²
+! The chain rule multiplies by the derivative of the inner function, 3.
+#Q A function has f'(2) = 0 and f''(2) > 0. What is at x = 2?
+* A local minimum
+- A local maximum
+- A discontinuity
+! Positive second derivative means the graph curves upward.
+#Q What is the integral of 3x² from 1 to 2?
+- 3
+* 7
+- 12
+! x³ evaluated from 1 to 2 is 8 − 1.
+#Q What are the first three terms of the Taylor series of eˣ about 0?
+- x + x² + x³
+* 1 + x + x²/2
+- 1 − x + x²
+! Every derivative of eˣ at 0 is 1.
+#Q In a prefix-sum array, the sum of a range is found by subtracting two entries. Which theorem is this the discrete form of?
+- The chain rule
+* The fundamental theorem of calculus
+- The mean value theorem
+! A total over a range is the change in the accumulated sum.
+#Q A process follows dy/dt = 0.05·y. What happens to y over time?
+- It stays constant
+* It grows exponentially
+- It decays to zero
+! A positive constant k gives exponential growth.
+#Q For a continuous random variable, what is the total area under its density curve?
+- 0
+* 1
+- It depends on the mean
+! All probability together adds up to 1.
+#W Explain, to a programmer who has not studied calculus, how a machine-learning model is trained by gradient descent. Cover what a derivative and a gradient are, why the model's parameters are moved against the gradient, the role of the learning rate, what the chain rule contributes, and one way the process can go wrong.
++ A derivative as the rate of change of the loss when a parameter is nudged; the gradient as the vector of all such partial derivatives
++ The gradient points uphill, so parameters are updated by subtracting a multiple of it
++ The learning rate sets the step size: too small is slow, too large overshoots or diverges
++ The chain rule (backpropagation) computes the gradient through a composition of functions
++ A failure mode: a local minimum or saddle point, divergence, or vanishing gradients
+
+#PROJECT A calculus toolkit and optimisation study
+Build a small symbolic and numerical calculus toolkit and use it to explore optimisation.
+@requirements
+A polynomial type with evaluation, addition, multiplication, differentiation and integration, with unit tests
+A symbolic differentiator for expressions built from numbers, a variable, addition, multiplication and powers, applying the sum, product and chain rules
+Numerical differentiation and integration, checked against the exact polynomial results
+A Taylor-series approximator for at least two functions, with a plot or table of the error against the number of terms and the distance from the expansion point
+Gradient descent on a function of two variables, with the path drawn on a contour plot
+An experiment with at least four learning rates showing slow convergence, good convergence, oscillation and divergence
+A function with more than one local minimum, showing that the result depends on the starting point
+@deliverables
+The toolkit source and tests
+The plots or tables
+A short report explaining each experiment in your own words
+@rubric
+Polynomial and symbolic differentiation | 25
+Numerical methods and their verification | 20
+Taylor approximation study | 15
+Gradient descent and learning-rate experiment | 25
+Report clarity | 15
+
+#COURSE ma102
+#LESSON Vectors | 12
+**Linear algebra** is the mathematics of vectors and the transformations that act on them. It is the language of computer graphics, machine learning, search, data compression and scientific computing: whenever a program handles many numbers at once, linear algebra is underneath.
+
+### What a vector is
+A **vector** is an ordered list of numbers. It can be seen in three ways, all useful:
+
+- as an **arrow** with a length and a direction;
+- as a **point** in space;
+- as a **list of features**: a house described by (area, bedrooms, age) is a vector in three dimensions.
+
+Nothing restricts vectors to two or three dimensions. A 28 × 28 image is a vector with 784 components; a word in a language model is a vector with hundreds or thousands.
+
+### Addition and scaling
+```text
+(1, 2) + (3, 5) = (4, 7)        add component by component
+3 × (1, 2) = (3, 6)             multiply every component
+```
+
+Addition places arrows head to tail. Scaling stretches an arrow, and a negative factor reverses it. Every other operation in the subject is built from these two.
+
+A **linear combination** is a sum of scaled vectors: a·u + b·v. The set of all linear combinations of some vectors is their **span**. Two vectors in different directions span a plane.
+
+### Length
+The **norm** (length) of a vector comes from Pythagoras:
+
+```text
+‖v‖ = √(v1² + v2² + … + vn²)
+```
+
+A **unit vector** has length 1. Dividing a vector by its length **normalises** it, keeping only the direction. The **distance** between two points is the norm of their difference.
+
+### The dot product
+```text
+u · v = u1·v1 + u2·v2 + … + un·vn
+```
+
+The result is a single number. It has a geometric meaning:
+
+```text
+u · v = ‖u‖ × ‖v‖ × cos θ
+```
+
+where θ is the angle between the vectors. So:
+
+- positive: they point broadly the same way;
+- **zero: they are perpendicular (orthogonal)**;
+- negative: they point broadly opposite ways.
+
+### Cosine similarity
+Rearranging gives the cosine of the angle:
+
+```text
+cos θ = (u · v) / (‖u‖ × ‖v‖)
+```
+
+This measures how alike two directions are, ignoring their lengths: 1 for the same direction, 0 for unrelated, −1 for opposite. Search engines and recommendation systems represent documents, images and users as vectors and rank by cosine similarity. Semantic search with **embeddings** is this formula applied to vectors produced by a neural network.
+
+### Projection
+The **projection** of a onto b is the shadow of a along the direction of b:
+
+```text
+proj = ((a · b) / (b · b)) × b
+```
+
+It splits a into a part along b and a part perpendicular to it. Projection is how a 3D point lands on a 2D screen, and how a best-fitting line is found.
+
+### Linear independence
+Vectors are **linearly independent** if none can be written as a combination of the others; each adds a new direction. A set of independent vectors that spans a space is a **basis**, and the number of vectors in a basis is the **dimension**. The usual basis in the plane is (1, 0) and (0, 1), but any two independent vectors serve, and changing basis is a recurring technique.
+
+> Key idea: Vectors are added and scaled. The dot product measures alignment: zero means perpendicular, and dividing by the lengths gives cosine similarity.
+#Q What is the dot product of (1, 2, 3) and (4, 5, 6)?
+- 15
+* 32
+- (4, 10, 18)
+! 4 + 10 + 18 = 32, a single number.
+#Q Two non-zero vectors have a dot product of zero. What does that mean?
+- They are equal
+* They are perpendicular
+- One of them has zero length
+! cos 90° = 0.
+
+#LESSON Matrices and linear transformations | 13
+### A matrix is a function
+A **matrix** is a rectangular grid of numbers. Its meaning is this: a matrix **transforms vectors**. An m × n matrix takes a vector with n components and returns one with m.
+
+```text
+| 2  0 |   | x |   | 2x |
+| 0  3 | × | y | = | 3y |          stretches x by 2 and y by 3
+```
+
+To multiply a matrix by a vector, take the dot product of **each row** with the vector.
+
+An equivalent and very useful view: the result is a **linear combination of the matrix's columns**, weighted by the components of the vector. The columns show where the basis vectors go: the first column is the image of (1, 0), the second the image of (0, 1). To build the matrix of a transformation, find where it sends the basis vectors and write those down as columns.
+
+### Linear transformations
+The transformations matrices perform are exactly the **linear** ones: those that keep the origin fixed and keep straight lines straight and evenly spaced. Formally,
+
+```text
+T(u + v) = T(u) + T(v)        T(c·u) = c·T(u)
+```
+
+Rotation, scaling, reflection, shear and projection are linear. Translation is not, which is why graphics adds an extra coordinate.
+
+### Matrix multiplication
+Applying B and then A is itself a linear transformation, with matrix **AB**. That is what matrix multiplication means: **composition**.
+
+Entry (i, j) of AB is the dot product of row i of A with column j of B. An m × n matrix can multiply an n × p matrix, giving m × p: the inner dimensions must agree.
+
+```text
+| 1 2 |   | 5 6 |   | 1·5+2·7  1·6+2·8 |   | 19 22 |
+| 3 4 | × | 7 8 | = | 3·5+4·7  3·6+4·8 | = | 43 50 |
+```
+
+Properties:
+
+- **Not commutative:** AB and BA are generally different. Rotating then stretching is not stretching then rotating.
+- **Associative:** (AB)C = A(BC). A long chain of transformations collapses into one matrix.
+- The **identity matrix** I, with ones on the diagonal, changes nothing: AI = IA = A.
+
+### The transpose
+The **transpose** Aᵀ swaps rows and columns. A matrix equal to its transpose is **symmetric**; covariance matrices and the matrices of undirected graphs are symmetric. The dot product can be written u · v = uᵀv.
+
+### Matrices as data
+A matrix can also simply hold data: a table with a row per example and a column per feature, an image as a grid of brightness values, a graph as an **adjacency matrix** whose entry (i, j) says whether node i is joined to node j. Powers of an adjacency matrix count paths: entry (i, j) of A² is the number of two-step routes from i to j.
+
+### Neural networks
+A layer of a neural network computes **y = f(Wx + b)**: multiply the input vector by a weight matrix, add a vector, and apply a simple non-linear function. A whole network is a chain of such layers. Training on a graphics processor is fast because GPUs were built to multiply matrices.
+
+### Cost
+Multiplying two n × n matrices in the obvious way takes n³ multiplications. Libraries (BLAS) are tuned to use the processor's cache and vector instructions and can be a hundred times faster than a naive triple loop. Use them.
+
+> Key idea: A matrix is a linear transformation; its columns are the images of the basis vectors. Multiplying matrices composes transformations, and the order matters.
+#Q What do the columns of a transformation matrix represent?
+- The eigenvalues
+* Where the basis vectors are sent by the transformation
+- The lengths of the rows
+! The first column is the image of (1, 0, …).
+#Q Can a 2 × 3 matrix be multiplied by a 2 × 3 matrix?
+- Yes, giving a 2 × 3 matrix
+* No: the number of columns of the first must equal the number of rows of the second
+- Yes, giving a 3 × 2 matrix
+! The inner dimensions, 3 and 2, do not agree.
+
+#LESSON Systems of equations, determinants and inverses | 13
+### Linear systems as matrix equations
+```text
+2x +  y = 3
+ x + 3y = 5
+```
+
+is the single equation **Ax = b**, with A holding the coefficients. There are two ways to picture it. By **rows**, each equation is a line, and the solution is where the lines cross. By **columns**, we seek the combination of the columns of A that produces b.
+
+A system has exactly one solution, none, or infinitely many: lines that cross once, are parallel, or coincide.
+
+### Elimination
+**Gaussian elimination** subtracts multiples of rows from other rows until the system is triangular, then solves from the last equation upward. These **row operations** do not change the solutions. It is the general method for solving linear systems and is what software does.
+
+### The determinant
+The **determinant** of a square matrix is a single number with a geometric meaning: the factor by which the transformation **scales area** (or volume).
+
+```text
+det | a b | = ad − bc
+    | c d |
+```
+
+- det = 2: areas double.
+- det negative: orientation is flipped, as in a mirror.
+- **det = 0: space is squashed flat** onto a line or a point. Information is lost and the transformation cannot be undone.
+
+For a 3 × 3 matrix, expand along a row:
+
+```text
+det = a(ei − fh) − b(di − fg) + c(dh − eg)      for rows (a b c), (d e f), (g h i)
+```
+
+Also det(AB) = det(A) × det(B): scale factors multiply.
+
+### The inverse
+The **inverse** A⁻¹ undoes A: A⁻¹A = I. It exists exactly when the determinant is not zero. A matrix without an inverse is **singular**.
+
+```text
+inverse of | a b | = (1 / (ad − bc)) × |  d  −b |
+           | c d |                     | −c   a |
+```
+
+If A is invertible, Ax = b has the unique solution x = A⁻¹b. In computation, solve by elimination and do not form the inverse: it is slower and less accurate.
+
+### Rank
+The **rank** of a matrix is the number of linearly independent columns, which always equals the number of independent rows. It is the dimension of the space the transformation's outputs fill.
+
+- Full rank: nothing is squashed, and a square matrix is invertible.
+- Lower rank: some columns are combinations of others. The data contains **redundancy**.
+
+The set of vectors that A sends to zero is its **null space**. If it contains more than the zero vector, different inputs give the same output, so A cannot be inverted.
+
+These statements about a square matrix are all equivalent: it is invertible; its determinant is non-zero; it has full rank; its columns are independent; Ax = b has exactly one solution for every b; only the zero vector is sent to zero.
+
+### Least squares
+Real data rarely fits exactly. With more equations than unknowns, such as fitting a line through a hundred points, Ax = b has no solution. **Least squares** finds the x that makes Ax as close to b as possible, by projecting b onto the space spanned by the columns of A. It leads to the **normal equations** AᵀAx = Aᵀb. This is linear regression, the foundation of statistical modelling.
+
+### Nearly singular matrices
+A determinant close to zero warns of an **ill-conditioned** system, where small errors in the data produce large errors in the solution. In floating-point arithmetic the question is seldom "is it singular?" and usually "how close to singular is it?".
+
+> Key idea: The determinant is the area scale factor of a transformation. A matrix is invertible exactly when its determinant is non-zero, which is when its columns are independent.
+#Q What is the determinant of the matrix with rows (1, 2) and (3, 4)?
+- 10
+* −2
+- 2
+! 1 × 4 − 2 × 3 = −2.
+#Q A square matrix has determinant zero. Which statement is true?
+- It is the identity matrix
+* It has no inverse: it collapses space onto a lower dimension
+- Every system Ax = b has exactly one solution
+! A singular transformation loses information.
+
+#LESSON Eigenvalues and applications | 13
+### Vectors that keep their direction
+A transformation moves most vectors off their own line. A few special ones are only stretched or shrunk:
+
+```text
+A v = λ v
+```
+
+Such a non-zero v is an **eigenvector** of A, and the factor λ is its **eigenvalue**. Eigenvectors are the natural axes of a transformation, the directions along which it acts as plain scaling.
+
+For the matrix with rows (2, 0) and (0, 3), the vector (1, 0) is an eigenvector with eigenvalue 2 and (0, 1) one with eigenvalue 3. For the matrix with rows (2, 1) and (1, 2), the eigenvectors are (1, 1) with eigenvalue 3 and (1, −1) with eigenvalue 1.
+
+### Finding them
+Av = λv means (A − λI)v = 0 for a non-zero v, so A − λI must be singular:
+
+```text
+det(A − λI) = 0
+```
+
+For a 2 × 2 matrix this is a quadratic in λ. Two checks: the eigenvalues **add up to the trace** (the sum of the diagonal) and **multiply to the determinant**.
+
+For large matrices nobody solves that polynomial. Iterative algorithms are used instead.
+
+### Power iteration
+Multiply any starting vector by A again and again, rescaling each time. The component along the eigenvector with the largest eigenvalue grows fastest and comes to dominate, so the vector turns toward that **dominant eigenvector**, and the scaling factor approaches its eigenvalue. The method needs only matrix-vector multiplications, so it works on enormous sparse matrices.
+
+### PageRank
+Model the web as a matrix in which entry (i, j) is the probability that a surfer on page j follows a link to page i. The long-run share of time spent on each page is a vector that the matrix leaves unchanged: an eigenvector with eigenvalue 1. Google's original ranking computed it by power iteration over billions of pages.
+
+### Diagonalisation and repeated application
+If A has a full set of independent eigenvectors, then in the basis of those eigenvectors it is diagonal: just a scaling along each axis. Powers become easy, since Aᵏ scales each eigen-direction by λᵏ.
+
+This explains long-run behaviour. Repeatedly applying A:
+
+- components with |λ| < 1 die away;
+- components with |λ| > 1 grow without bound;
+- the largest eigenvalue eventually dominates.
+
+Stability of simulations, convergence of iterative algorithms, and whether gradients explode or vanish in deep networks are all eigenvalue questions.
+
+### Symmetric matrices
+A real **symmetric** matrix has real eigenvalues and perpendicular eigenvectors. This well-behaved case covers covariance matrices and many others that arise in practice.
+
+### Principal component analysis
+Data with many features usually varies mostly along a few directions. **PCA** finds them: they are the eigenvectors of the data's covariance matrix, and each eigenvalue is the variance along its direction. Keeping only the top few directions compresses the data, removes noise and makes it possible to draw high-dimensional data in two dimensions.
+
+### The singular value decomposition
+Every matrix, square or not, factors as A = UΣVᵀ: a rotation, a scaling along perpendicular axes, and another rotation. The scale factors are the **singular values**. Keeping the largest gives the best low-rank approximation of the matrix, which is how images are compressed and recommendation systems fill in missing ratings. The SVD is the most broadly useful decomposition in applied mathematics.
+
+### Where linear algebra appears
+- **Graphics:** every transformation, camera and projection.
+- **Machine learning:** data are matrices, models are matrix products, embeddings are vectors.
+- **Search:** cosine similarity, PageRank.
+- **Compression and signals:** SVD, Fourier methods.
+- **Science and engineering:** large linear systems.
+- **Graphs:** the eigenvalues of a graph's matrix reveal clusters and connectivity.
+
+> Key idea: Eigenvectors are the directions a matrix only stretches, by the eigenvalue. They govern repeated application, and underlie PageRank, PCA and the SVD.
+#Q If v is an eigenvector of A with eigenvalue 3, what is A applied to v?
+- v + 3
+* 3v
+- The zero vector
+! By definition Av = λv.
+#Q What does power iteration find?
+- The inverse of a matrix
+* The dominant eigenvalue and its eigenvector, by repeated multiplication
+- The determinant
+! The largest eigen-direction grows fastest and takes over.
+
+#LESSON Vector spaces, bases and orthogonality | 13
+### Span and independence
+Take some vectors and form every combination a·u + b·v + …. The set of all such combinations is their **span**. Two vectors in the plane that do not lie on the same line span the whole plane; two that do lie on one line span only that line.
+
+Vectors are **linearly independent** if none of them is a combination of the others. Independence means no vector is wasted: each adds a new direction.
+
+### Basis and dimension
+A **basis** of a space is a set of independent vectors that spans it. Every vector in the space can then be written in exactly one way as a combination of the basis vectors, and those weights are its **coordinates** in that basis.
+
+The number of vectors in any basis is the same: that number is the **dimension**. The plane has dimension 2, ordinary space 3, and a word embedding of 300 numbers lives in a 300-dimensional space.
+
+The standard basis uses (1, 0) and (0, 1), but nothing forces that choice. A **change of basis** describes the same vector in different coordinates. Graphics engines do this constantly: a point has coordinates relative to a model, a world and a camera.
+
+### Orthogonality
+Two vectors are **orthogonal** (perpendicular) when their dot product is zero. A basis whose vectors are mutually orthogonal and of length 1 is **orthonormal**. Orthonormal bases are the most convenient there are: the coordinate of v along a basis vector q is simply the dot product v · q, with no system of equations to solve.
+
+### Projection
+The **projection** of v onto a non-zero vector u is the closest point to v on the line through u:
+
+```text
+proj_u(v) = ((v · u) / (u · u)) · u
+```
+
+What is left over, v − proj_u(v), is orthogonal to u. Projection splits a vector into "the part along u" and "the part that has nothing to do with u". Shadows in graphics, removing a trend from data, and least-squares fitting (next lesson) all use it.
+
+### Building an orthonormal basis
+The **Gram–Schmidt process** turns any independent set into an orthonormal one: take each vector in turn, subtract its projections onto the vectors already chosen, and scale what remains to length 1. Numerical libraries use more stable variants of the same idea in the QR decomposition.
+
+> Key idea: A basis is a minimal set of directions that reaches every vector; the dimension is how many it needs. Orthonormal bases make coordinates simple dot products, and projection splits a vector into a part along a direction and a part perpendicular to it.
+#Q Which set is a basis of the plane?
+- (1, 2) and (2, 4)
+* (1, 0) and (1, 1)
+- (0, 0) and (1, 0)
+! (1, 2) and (2, 4) lie on one line, and the zero vector is never independent.
+#Q When are two vectors orthogonal?
+- When they have the same length
+* When their dot product is zero
+- When one is a multiple of the other
+! A zero dot product means a right angle between them.
+#Q In an orthonormal basis, how do you find the coordinate of v along basis vector q?
+- Solve a system of equations
+* Take the dot product v · q
+- Divide v by q
+! Orthonormality makes each coordinate a single dot product.
+
+#LESSON Least squares and fitting data | 13
+### More equations than unknowns
+Suppose you measure a server's response time at several loads and want a straight line y = m x + c through the points. With two points there is exactly one line. With twenty noisy points no single line passes through them all: the system has more equations than unknowns and no exact solution.
+
+Written as matrices, each point gives one row:
+
+```text
+[ x1 1 ]           [ y1 ]
+[ x2 1 ]  [ m ]  ≈ [ y2 ]
+[ ...  ]  [ c ]    [ ...]
+   A        x        b
+```
+
+We cannot make Ax equal b, so we make it as close as possible.
+
+### The least-squares idea
+The **residual** of each point is the vertical gap between the measured y and the line's prediction. Least squares chooses the line that minimises the **sum of the squared residuals**. Squaring makes every gap count as positive, punishes large misses more than small ones, and leads to a clean formula.
+
+### The normal equations
+Geometrically, Ax can only reach vectors in the column space of A. The best choice is the **projection** of b onto that space, which leaves a residual orthogonal to every column. Writing "orthogonal to every column" as a matrix equation gives the **normal equations**:
+
+```text
+Aᵀ A x = Aᵀ b
+```
+
+For a straight-line fit, AᵀA is just 2 × 2, so the system is tiny however many points there are.
+
+### A worked example
+Fit a line to (0, 1), (1, 3) and (2, 4). Then AᵀA has rows (5, 3) and (3, 3), and Aᵀb is (11, 8). Solving gives m = 1.5 and c ≈ 1.17. The line passes near all three points without touching them exactly, and no other straight line has a smaller sum of squared gaps.
+
+### Beyond straight lines
+The same method fits any model that is linear in its unknown weights: a parabola (columns x², x, 1), several input features at once (one column per feature), or seasonal patterns. This is **linear regression**, one of the most used tools in data science, and the first model most machine-learning courses teach.
+
+### Cautions
+- Least squares is sensitive to **outliers**: one wild point pulls the line hard, because its squared error is large.
+- A good fit is not proof of cause; it summarises the data you have.
+- Libraries solve the problem with QR or SVD rather than forming AᵀA directly, which can lose precision when columns are nearly dependent.
+
+> Key idea: When a system has no exact solution, least squares finds the x that minimises the sum of squared residuals by solving AᵀAx = Aᵀb. It projects the data onto what the model can express, and it is the basis of linear regression.
+#Q What does least squares minimise?
+- The largest residual
+* The sum of the squared residuals
+- The number of points off the line
+! Squared gaps are added up and made as small as possible.
+#Q What are the normal equations?
+- Ax = b
+* AᵀA x = Aᵀ b
+- A x = 0
+! They say the residual is orthogonal to every column of A.
+#Q Why can one extreme outlier distort a least-squares fit?
+- Outliers are ignored by the method
+* Its squared error is very large, so the fit moves to reduce it
+- Least squares only uses the first and last points
+! Squaring gives large gaps an outsized weight.
+
+#LAB js | A linear algebra library
+Implement the core operations. Vectors are arrays of numbers; matrices are arrays of rows.
+
+- `dot(a, b)` returns the dot product.
+- `norm(a)` returns the length, rounded to 6 decimal places.
+- `cosine(a, b)` returns the cosine similarity, rounded to 6 decimal places.
+- `project(a, b)` returns the projection of `a` onto `b`, each component rounded to 6 decimal places.
+- `matVec(A, v)` multiplies a matrix by a vector.
+- `matMul(A, B)` multiplies two matrices of compatible sizes.
+- `transpose(A)` and `identity(n)`.
+- `det(A)` returns the determinant of a 2 × 2 or 3 × 3 matrix.
+- `inverse2(A)` returns the inverse of a 2 × 2 matrix, or `null` if its determinant is 0.
+- `dominantEigenvalue(A, steps)` runs power iteration: start with a vector of ones; at each step compute `w = A·v`, take the component of `w` with the largest absolute value (keeping its sign) as the estimate, and set `v = w / estimate`. Return the estimate after the last step, rounded to 4 decimal places.
+@starter
+function dot(a, b) {
+  return 0;
+}
+
+function norm(a) {
+  return 0;
+}
+
+function cosine(a, b) {
+  return 0;
+}
+
+function project(a, b) {
+  return a;
+}
+
+function matVec(A, v) {
+  return v;
+}
+
+function matMul(A, B) {
+  return A;
+}
+
+function transpose(A) {
+  return A;
+}
+
+function identity(n) {
+  return [];
+}
+
+function det(A) {
+  return 0;
+}
+
+function inverse2(A) {
+  return null;
+}
+
+function dominantEigenvalue(A, steps) {
+  return 0;
+}
+@solution
+function dot(a, b) {
+  let s = 0;
+  for (let i = 0; i < a.length; i++) {
+    s += a[i] * b[i];
+  }
+  return s;
+}
+
+function r6(x) {
+  return Math.round(x * 1000000) / 1000000;
+}
+
+function norm(a) {
+  return r6(Math.sqrt(dot(a, a)));
+}
+
+function cosine(a, b) {
+  return r6(dot(a, b) / (Math.sqrt(dot(a, a)) * Math.sqrt(dot(b, b))));
+}
+
+function project(a, b) {
+  const k = dot(a, b) / dot(b, b);
+  return b.map((x) => r6(k * x) + 0);
+}
+
+function matVec(A, v) {
+  return A.map((row) => dot(row, v));
+}
+
+function matMul(A, B) {
+  const out = [];
+  for (let i = 0; i < A.length; i++) {
+    const row = [];
+    for (let j = 0; j < B[0].length; j++) {
+      let s = 0;
+      for (let k = 0; k < B.length; k++) {
+        s += A[i][k] * B[k][j];
+      }
+      row.push(s);
+    }
+    out.push(row);
+  }
+  return out;
+}
+
+function transpose(A) {
+  return A[0].map((_, j) => A.map((row) => row[j]));
+}
+
+function identity(n) {
+  const out = [];
+  for (let i = 0; i < n; i++) {
+    const row = [];
+    for (let j = 0; j < n; j++) {
+      row.push(i === j ? 1 : 0);
+    }
+    out.push(row);
+  }
+  return out;
+}
+
+function det(A) {
+  if (A.length === 2) return A[0][0] * A[1][1] - A[0][1] * A[1][0];
+  const [a, b, c] = A[0], [d, e, f] = A[1], [g, h, i] = A[2];
+  return a * (e * i - f * h) - b * (d * i - f * g) + c * (d * h - e * g);
+}
+
+function inverse2(A) {
+  const d = det(A);
+  if (d === 0) return null;
+  return [[A[1][1] / d, (0 - A[0][1]) / d], [(0 - A[1][0]) / d, A[0][0] / d]];
+}
+
+function dominantEigenvalue(A, steps) {
+  let v = A.map(() => 1), est = 0;
+  for (let s = 0; s < steps; s++) {
+    const w = matVec(A, v);
+    est = w[0];
+    for (const x of w) {
+      if (Math.abs(x) > Math.abs(est)) { est = x; }
+    }
+    v = w.map((x) => x / est);
+  }
+  return Math.round(est * 10000) / 10000;
+}
+@tests
+dot([1, 2, 3], [4, 5, 6]) => 32
+dot([1, 0], [0, 1]) => 0
+dot([2, -3], [4, 1]) => 5
+norm([3, 4]) => 5
+norm([1, 1]) => 1.414214
+norm([0, 0, 0]) => 0
+cosine([1, 0], [0, 1]) => 0
+cosine([1, 1], [2, 2]) => 1
+cosine([1, 0], [-3, 0]) => -1
+cosine([1, 0], [1, 1]) => 0.707107
+project([3, 4], [1, 0]) => [3, 0]
+project([2, 2], [0, 5]) => [0, 2]
+project([1, 2], [1, 1]) => [1.5, 1.5]
+matVec([[1, 2], [3, 4]], [1, 1]) => [3, 7]
+matVec([[2, 0], [0, 3]], [5, 5]) => [10, 15]
+matVec([[1, 2, 3]], [1, 1, 1]) => [6]
+matMul([[1, 2], [3, 4]], [[5, 6], [7, 8]]) => [[19, 22], [43, 50]]
+matMul([[5, 6], [7, 8]], [[1, 2], [3, 4]]) => [[23, 34], [31, 46]]
+matMul([[1, 2, 3]], [[1], [2], [3]]) => [[14]]
+matMul([[1], [2]], [[3, 4]]) => [[3, 4], [6, 8]]
+transpose([[1, 2, 3], [4, 5, 6]]) => [[1, 4], [2, 5], [3, 6]]
+transpose([[7]]) => [[7]]
+identity(3) => [[1, 0, 0], [0, 1, 0], [0, 0, 1]]
+identity(1) => [[1]]
+det([[1, 2], [3, 4]]) => -2
+det([[2, 0, 0], [0, 3, 0], [0, 0, 4]]) => 24
+det([[1, 2, 3], [4, 5, 6], [7, 8, 9]]) => 0
+det([[1, 2, 3], [0, 1, 4], [5, 6, 0]]) => 1
+inverse2([[4, 7], [2, 6]]) => [[0.6, -0.7], [-0.2, 0.4]]
+inverse2([[2, 1], [1, 1]]) => [[1, -1], [-1, 2]]
+inverse2([[1, 2], [2, 4]]) => null
+dominantEigenvalue([[2, 0], [0, 1]], 5) => 2
+dominantEigenvalue([[2, 1], [1, 2]], 3) => 3
+dominantEigenvalue([[1, 2], [3, 4]], 25) => 5.3723
+dominantEigenvalue([[0, 1], [1, 1]], 40) => 1.618
+@hints
+Write `dot` first; `norm`, `cosine`, `project` and `matVec` are all short once you have it.
+In `matMul`, entry (i, j) is the sum over k of `A[i][k] * B[k][j]`. The result has as many rows as A and as many columns as B.
+`transpose` builds column j of the input as row j of the output.
+For the 3 × 3 determinant, expand along the first row with the signs +, −, +.
+In power iteration, find the component of `w` with the largest absolute value, divide `w` by it, and repeat.
+
+#EXAM 15
+#Q What is the length of the vector (3, 4)?
+- 7
+* 5
+- 25
+! √(9 + 16) = 5.
+#Q What does a cosine similarity of 1 between two vectors mean?
+- They are perpendicular
+* They point in the same direction
+- They have the same length
+! Length is ignored; only direction counts.
+#Q What does multiplying two matrices correspond to?
+- Adding two transformations
+* Composing two transformations, one applied after the other
+- Inverting a transformation
+! AB means apply B, then A.
+#Q A transformation has determinant 3. What happens to areas?
+- They are unchanged
+* They are multiplied by 3
+- They become zero
+! The determinant is the scale factor of area or volume.
+#Q What is the rank of a matrix?
+- The number of its rows
+* The number of linearly independent columns (equivalently rows)
+- Its largest entry
+! Rank measures how many dimensions the output fills.
+#Q Which technique finds the directions of greatest variance in a data set?
+- Gaussian elimination
+* Principal component analysis
+- The transpose
+! The directions are eigenvectors of the covariance matrix.
+#Q What is the dimension of a space?
+- The largest number in any of its vectors
+* The number of vectors in any basis of it
+- The number of zero vectors it contains
+! Every basis has the same number of vectors.
+#Q You fit a line to 100 noisy points. Which method gives the line with the smallest sum of squared errors?
+- Interpolation through every point
+* Least squares, solving AᵀA x = Aᵀb
+- Taking the first and last points
+! That is exactly what least squares minimises.
+#W A search service represents every document and every query as a vector of 500 numbers. Explain how linear algebra is used to find the documents most relevant to a query, why cosine similarity is preferred to raw distance or the plain dot product, how the data could be compressed to fewer dimensions, and one limitation of the approach.
++ Relevance as similarity between the query vector and each document vector
++ Cosine similarity as the dot product divided by the lengths, measuring direction regardless of magnitude or document length
++ Computing many similarities at once as a matrix-vector product
++ Dimension reduction with PCA or the SVD, keeping the directions of greatest variance
++ A limitation: quality depends on how the vectors were produced, lost information after reduction, or the cost of comparing against every document
+
+#PROJECT A linear algebra library and three applications
+Write a tested linear algebra library and use it for three different applications.
+@requirements
+Vector operations (addition, scaling, dot product, norm, projection) and matrix operations (multiplication, transpose, determinant) with unit tests
+A linear solver using elimination with partial pivoting, and a matrix inverse built on it, tested by multiplying back to the identity within a tolerance
+Power iteration for the dominant eigenvalue and eigenvector, checked against a matrix whose eigenvalues you can compute by hand
+Application 1: 2D transformations. Compose rotation, scaling and translation matrices and draw a transformed shape
+Application 2: a least-squares line fitted to data points by solving the normal equations, drawn over the data
+Application 3: PageRank on a small graph of at least six nodes by power iteration, with the ranking explained
+A demonstration that matrix multiplication is not commutative, using two of your transformations
+A note on the accuracy of your solver for a nearly singular matrix
+@deliverables
+The library source and tests
+The three applications with their outputs
+A short report explaining the mathematics behind each application in your own words
+@rubric
+Library correctness and tests | 30
+Solver, inverse and eigenvalue methods | 20
+Transformations application | 15
+Least-squares application | 15
+PageRank application | 10
+Report | 10

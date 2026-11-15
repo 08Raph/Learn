@@ -1,0 +1,1997 @@
+#COURSE c201
+#LESSON Classes and objects | 14
+In Stage 1 you kept data in variables and behaviour in functions, separately. That works until a program has many related pieces: a bank account has a balance *and* rules about what may happen to it. **Object-oriented programming** (OOP) keeps the data and the functions that work on it together.
+
+A **class** is a blueprint. An **object** (or **instance**) is one thing built from it.
+
+```py
+class Account:
+    def __init__(self, owner, balance=0):
+        self.owner = owner
+        self.balance = balance
+
+    def deposit(self, amount):
+        self.balance += amount
+
+a = Account("Ada", 100)
+b = Account("Alan")
+a.deposit(50)
+print(a.balance, b.balance)     # 150 0
+```
+
+- `__init__` is the **constructor**. It runs when an object is created and sets up its starting state.
+- `self` is the object being worked on. `a.deposit(50)` calls `deposit` with `self` being `a`.
+- `owner` and `balance` are **attributes** (also called fields): data belonging to one object.
+- `deposit` is a **method**: a function that belongs to the class.
+
+Each object has its own attributes. Changing `a.balance` does nothing to `b`.
+
+```diagram
+        class Account            (the blueprint)
+        /              \
+   object a          object b    (two separate instances)
+   owner "Ada"       owner "Alan"
+   balance 150       balance 0
+```
+
+### When to make a class
+A good class models one **thing** with **state that changes** and **rules about how it may change**. If you only have data, a dictionary may do. If you only have behaviour, a function may do.
+
+> Key idea: An object is state plus the operations allowed on that state.
+
+> In industry: Most large codebases in Java, C#, Python and TypeScript are organised into classes. Reading a class to learn what it is responsible for is an everyday task.
+#TRY py | Add a method `withdraw(amount)` that reduces the balance.
+@starter
+class Account:
+    def __init__(self, balance):
+        self.balance = balance
+
+@solution
+class Account:
+    def __init__(self, balance):
+        self.balance = balance
+
+    def withdraw(self, amount):
+        self.balance -= amount
+@tests
+acct.balance => 70 ;; acct = Account(100)\nacct.withdraw(30)
+acct.balance => 0 ;; acct = Account(5)\nacct.withdraw(5)
+#Q What is the relationship between a class and an object?
+- They are two words for the same thing
+* A class is a blueprint; an object is one instance built from it
+- An object contains many classes
+! One class can produce any number of objects, each with its own state.
+#Q What does `self` refer to inside a method?
+- The class itself
+* The particular object the method was called on
+- The program's main function
+! `a.deposit(50)` runs `deposit` with `self` set to `a`.
+
+#LESSON Encapsulation | 12
+What stops someone writing `a.balance = -500`? Nothing, in the class from the last lesson. **Encapsulation** means an object protects its own state: the outside world may change it only through methods that enforce the rules.
+
+```py
+class Account:
+    def __init__(self, owner):
+        self.owner = owner
+        self._balance = 0            # leading underscore: internal
+
+    def deposit(self, amount):
+        if amount <= 0:
+            raise ValueError("deposit must be positive")
+        self._balance += amount
+
+    def withdraw(self, amount):
+        if amount > self._balance:
+            raise ValueError("insufficient funds")
+        self._balance -= amount
+
+    def balance(self):
+        return self._balance
+```
+
+A rule that must always be true of an object, here "the balance is never negative", is called an **invariant**. Every method is responsible for keeping it true. Code outside the class never has to check, because it cannot break it.
+
+`raise ValueError(...)` signals an error to the caller. It stops the method immediately, so the invalid change never happens.
+
+### Public and private
+- The **public interface** is what other code is meant to use: `deposit`, `withdraw`, `balance`.
+- The **implementation** is how it works inside: `_balance`.
+
+In Python the underscore is a convention meaning "do not touch from outside". Java, C# and C++ enforce it with the keyword `private`.
+
+### Why it pays off
+1. **Fewer bugs.** Invalid states cannot be created.
+2. **Freedom to change.** If you later store the balance in cents, or keep a list of transactions, no outside code breaks, because none of it reached inside.
+3. **Easier to understand.** You can use the class knowing only its public methods.
+
+> Key idea: Hide what may change. Expose only what others need.
+
+> In industry: "Who is allowed to change this data, and where are the rules enforced?" is one of the first questions asked in a design review.
+#Q What is an invariant?
+- A variable that never changes
+* A rule about an object's state that must always hold
+- A method with no parameters
+! For example, "the balance is never negative". Methods must preserve it.
+#Q Why hide an object's internal data behind methods?
+- To make the program run faster
+* So the rules are always enforced and the internals can change without breaking other code
+- Because Python requires it
+! Encapsulation protects invariants and reduces coupling.
+
+#LESSON Inheritance | 12
+Sometimes one kind of thing is a more specific version of another. A savings account *is an* account, with interest added. **Inheritance** lets a new class take everything an existing class has, then add or change parts.
+
+```py
+class Account:
+    def __init__(self, owner):
+        self.owner = owner
+        self._balance = 0
+
+    def deposit(self, amount):
+        self._balance += amount
+
+    def describe(self):
+        return f"{self.owner}: {self._balance}"
+
+
+class SavingsAccount(Account):
+    def __init__(self, owner, rate):
+        super().__init__(owner)        # run the parent's setup first
+        self.rate = rate
+
+    def add_interest(self):
+        self._balance += self._balance * self.rate
+```
+
+`SavingsAccount` is the **subclass** (child); `Account` is the **superclass** (parent). A savings account can `deposit` and `describe` without those methods being written again. `super()` reaches the parent's version of a method.
+
+A subclass can **override** a method by defining one with the same name:
+
+```py
+    def describe(self):
+        return super().describe() + f" at {self.rate:.0%}"
+```
+
+### The is-a test
+Use inheritance only when the subclass truly *is a* kind of the superclass, in every situation where the superclass is used. A square is a rectangle in geometry, yet a `Square` class that inherits from a `Rectangle` with separate `set_width` and `set_height` breaks code that expects to change one side alone. This is a famous trap.
+
+### Prefer composition for has-a
+A car *has an* engine; it is not a kind of engine. Model that by giving the car an engine object as an attribute. This is **composition**.
+
+```py
+class Car:
+    def __init__(self):
+        self.engine = Engine()
+```
+
+> Key idea: Inheritance is a strong, permanent link between classes. Reach for composition first and inheritance only when the is-a relationship is real.
+
+> In industry: Deep inheritance trees are widely regarded as a maintenance problem. Modern style favours small classes combined together.
+#Q What does a subclass get from its superclass?
+- Nothing unless it copies the code
+* All of its attributes and methods, which it may extend or override
+- Only its name
+! Inheritance reuses the parent's definition.
+#Q A Car has an Engine. How should this be modelled?
+- Car inherits from Engine
+- Engine inherits from Car
+* Car holds an Engine object as an attribute
+! "Has-a" is composition, not inheritance.
+
+#LESSON Polymorphism | 12
+**Polymorphism** means "many forms": the same call works on different kinds of object, and each responds in its own way.
+
+```py
+class Circle:
+    def __init__(self, r):
+        self.r = r
+    def area(self):
+        return 3.14159 * self.r ** 2
+
+class Rectangle:
+    def __init__(self, w, h):
+        self.w, self.h = w, h
+    def area(self):
+        return self.w * self.h
+
+shapes = [Circle(1), Rectangle(2, 3)]
+for s in shapes:
+    print(s.area())
+```
+
+The loop does not know or care which kind of shape `s` is. It calls `area()` and the right version runs. Deciding which method to run while the program is running, based on the object's actual class, is **dynamic dispatch**.
+
+Compare the alternative without polymorphism:
+
+```py
+if kind == "circle":
+    ...
+elif kind == "rectangle":
+    ...
+```
+
+Every new shape means finding and editing every such chain in the program. With polymorphism, adding a `Triangle` class changes no existing code at all. The program is **open to extension without modification**, an idea you will meet again as one of the SOLID principles.
+
+### Duck typing
+In Python, anything with an `area()` method works in that loop; the classes need no shared parent. "If it walks like a duck and quacks like a duck, it is a duck." Statically typed languages such as Java require the common shape to be declared, as an **interface** or a shared superclass.
+
+### Where it appears
+- Different payment methods that all have `pay(amount)`.
+- Different file formats that all have `save(document)`.
+- Real and fake database objects with the same methods, so tests can run without a real database.
+
+> Key idea: Long chains of `if` on a "type" value are a sign that polymorphism is missing.
+#Q What decides which version of a method runs in a polymorphic call?
+- The name of the variable
+* The actual class of the object at run time
+- The order the classes were defined
+! This is dynamic dispatch.
+#Q What is the main benefit of polymorphism over if/elif chains on a type?
+- It uses less memory
+* New kinds can be added without editing existing code
+- It removes the need for classes
+! Each new class brings its own behaviour.
+
+#LESSON Abstraction and interfaces | 12
+**Abstraction** means describing *what* something does while hiding *how*. You drive a car through a wheel and pedals without knowing how the engine works, and the same controls work on petrol and electric cars.
+
+In code, an abstraction is usually an **interface**: a set of methods that a class promises to provide. An **abstract class** declares methods without implementing some of them, and cannot be instantiated itself.
+
+```py
+from abc import ABC, abstractmethod
+
+class Storage(ABC):
+    @abstractmethod
+    def save(self, key, value): ...
+    @abstractmethod
+    def load(self, key): ...
+
+class MemoryStorage(Storage):
+    def __init__(self):
+        self._data = {}
+    def save(self, key, value):
+        self._data[key] = value
+    def load(self, key):
+        return self._data.get(key)
+```
+
+Any code written against `Storage` works with `MemoryStorage`, a file-based version, or a database version, without change.
+
+```diagram
+        +-----------------+
+        |  App logic      |   depends only on the interface
+        +--------+--------+
+                 |
+        +--------v--------+
+        |    Storage      |   (interface: save, load)
+        +--------+--------+
+        +--------+---------+----------------+
+   MemoryStorage      FileStorage      DatabaseStorage
+```
+
+### Why this matters most of all
+The app logic depends on a small, stable promise instead of a large, changeable implementation. You can swap storage, test with a fake, or let two people work on the two sides independently.
+
+### The four pillars together
+- **Encapsulation** hides state behind methods.
+- **Abstraction** hides implementation behind an interface.
+- **Inheritance** reuses and specialises.
+- **Polymorphism** lets different implementations stand in for one another.
+
+### A warning about OOP
+Objects are a tool, not a goal. Wrapping simple functions in classes adds ceremony without benefit. Many good programs mix objects with plain functions and data.
+
+> In industry: "Program to an interface, not an implementation" is among the most repeated pieces of design advice, because it is what makes large systems changeable.
+#Q What does an interface define?
+- How a class stores its data
+* The methods a class promises to provide, without saying how
+- The file a class is saved in
+! An interface is a contract about behaviour.
+#Q Why depend on an interface rather than a specific class?
+- Interfaces run faster
+* The implementation can be replaced or faked without changing the code that uses it
+- It avoids writing any classes
+! The dependency is on a small, stable promise.
+
+#LAB py | A library of shapes and an inventory
+Write three classes.
+
+**`Rectangle(width, height)`** and **`Circle(radius)`**: each has an `area()` method and a `describe()` method. `describe()` returns `"Rectangle 2x3"` or `"Circle r=1"` (use the values as given). Use `3.14` for pi so the tests are exact.
+
+**`Inventory()`**: holds stock.
+
+- `add(name, quantity)` increases the stock of `name`. A quantity of zero or less raises `ValueError`.
+- `remove(name, quantity)` decreases it. If there is not enough stock (or the item is unknown) it raises `ValueError` and changes nothing.
+- `count(name)` returns the stock of `name`, or 0 if unknown.
+- `total()` returns the total number of items of all kinds.
+
+Also write a plain function **`total_area(shapes)`** that returns the sum of the areas of a list of shapes. It must work for any mix of the two classes.
+@starter
+class Rectangle:
+    pass
+
+
+class Circle:
+    pass
+
+
+class Inventory:
+    pass
+
+
+def total_area(shapes):
+    return 0
+@solution
+class Rectangle:
+    def __init__(self, width, height):
+        self.width = width
+        self.height = height
+
+    def area(self):
+        return self.width * self.height
+
+    def describe(self):
+        return "Rectangle " + str(self.width) + "x" + str(self.height)
+
+
+class Circle:
+    def __init__(self, radius):
+        self.radius = radius
+
+    def area(self):
+        return 3.14 * self.radius * self.radius
+
+    def describe(self):
+        return "Circle r=" + str(self.radius)
+
+
+class Inventory:
+    def __init__(self):
+        self._stock = {}
+
+    def add(self, name, quantity):
+        if quantity <= 0:
+            raise ValueError("quantity must be positive")
+        self._stock[name] = self._stock.get(name, 0) + quantity
+
+    def remove(self, name, quantity):
+        if quantity > self._stock.get(name, 0):
+            raise ValueError("not enough stock")
+        self._stock[name] = self._stock[name] - quantity
+
+    def count(self, name):
+        return self._stock.get(name, 0)
+
+    def total(self):
+        t = 0
+        for name in self._stock:
+            t += self._stock[name]
+        return t
+
+
+def total_area(shapes):
+    t = 0
+    for s in shapes:
+        t += s.area()
+    return t
+@tests
+Rectangle(2, 3).area() => 6
+Rectangle(2, 3).describe() => "Rectangle 2x3"
+Circle(10).area() => 314
+Circle(1).describe() => "Circle r=1"
+total_area([Rectangle(2, 3), Circle(10), Rectangle(1, 1)]) => 321
+total_area([]) => 0
+inv.count("pen") => 5 ;; inv = Inventory()\ninv.add("pen", 3)\ninv.add("pen", 2)
+inv.count("ink") => 0 ;; inv = Inventory()
+inv.total() => 7 ;; inv = Inventory()\ninv.add("pen", 3)\ninv.add("ink", 4)
+inv.count("pen") => 1 ;; inv = Inventory()\ninv.add("pen", 3)\ninv.remove("pen", 2)
+ok => true ;; inv = Inventory()\ninv.add("pen", 1)\nok = False\ntry:\n    inv.remove("pen", 5)\nexcept ValueError:\n    ok = True
+inv.count("pen") => 1 ;; inv = Inventory()\ninv.add("pen", 1)\ntry:\n    inv.remove("pen", 5)\nexcept ValueError:\n    pass
+ok => true ;; inv = Inventory()\nok = False\ntry:\n    inv.add("pen", 0)\nexcept ValueError:\n    ok = True
+@hints
+Each class needs an `__init__` that stores its values on `self`.
+`total_area` should simply call `area()` on each shape. It must not check which class each one is.
+In `Inventory`, keep a dictionary from name to quantity, and use `get(name, 0)` so unknown items count as zero.
+In `remove`, check before changing anything, and `raise ValueError(...)` if the check fails.
+
+#EXAM 20
+#Q Which method runs automatically when an object is created in Python?
+- start
+* __init__
+- create
+! `__init__` is the constructor.
+#Q Two objects are made from the same class. What do they share?
+- Their attribute values
+* The class's methods, but each has its own attribute values
+- Nothing at all
+! Methods are defined once on the class; state belongs to each instance.
+#Q Which principle is most directly about preventing invalid state?
+* Encapsulation
+- Inheritance
+- Polymorphism
+! State is changed only through methods that enforce the invariants.
+#Q When is inheritance appropriate?
+- Whenever two classes share any code
+* When the subclass is genuinely a kind of the superclass everywhere it is used
+- When one class has another as a part
+! The is-a relationship must hold. Has-a calls for composition.
+#Q What does super().__init__(owner) do in a subclass constructor?
+- Creates a second object
+* Runs the parent class's constructor so its setup is not repeated
+- Deletes the parent
+! It initialises the inherited part of the object.
+#Q A loop calls pay(amount) on a list containing card, bank and wallet objects. What is this an example of?
+- Encapsulation
+- Recursion
+* Polymorphism
+! One call, many implementations, chosen at run time.
+#Q What can you do with an interface that you cannot easily do with a concrete class?
+- Run code faster
+* Swap one implementation for another without changing the code that uses it
+- Store more data
+! Callers depend on the contract, not on a particular implementation.
+#C py | Write a class `Counter` with a method `increment()` that adds 1, a method `reset()` that sets the count to 0, and a method `value()` that returns the count. It starts at 0.
+@starter
+class Counter:
+    pass
+@solution
+class Counter:
+    def __init__(self):
+        self._n = 0
+
+    def increment(self):
+        self._n += 1
+
+    def reset(self):
+        self._n = 0
+
+    def value(self):
+        return self._n
+@tests
+c.value() => 0 ;; c = Counter()
+c.value() => 2 ;; c = Counter()\nc.increment()\nc.increment()
+c.value() => 0 ;; c = Counter()\nc.increment()\nc.reset()
+d.value() => 0 ;; c = Counter()\nd = Counter()\nc.increment()
+#W A colleague proposes a class hierarchy: Animal, then Bird extends Animal with a fly() method, then Penguin extends Bird. Explain the problem and propose a better design.
++ Identifies that a penguin is a bird but cannot fly, so the inherited method is wrong for it
++ Explains that subclasses must be usable wherever the superclass is expected
++ Proposes separating the ability to fly from the bird hierarchy (composition or a separate interface)
++ Mentions that inheritance should model a true is-a relationship
++ Gives a concrete alternative design
+
+#PROJECT Library management model
+Design and implement the object model for a small library: books, members and loans. No user interface is needed; write the classes and a script that exercises them.
+@requirements
+There are classes for at least Book, Member and Library
+A member can borrow a book only if it is available, and cannot exceed a loan limit
+Returning a book makes it available again
+Invalid actions raise errors and leave the state unchanged
+At least one use of polymorphism or an interface (for example different member types with different loan limits)
+State is changed only through methods
+@deliverables
+The source code
+A class diagram (boxes with names, attributes, methods and the relationships between them)
+A script that demonstrates each rule being enforced
+@rubric
+The rules of the library are enforced correctly | 35
+Classes have clear, single responsibilities | 25
+Encapsulation: no outside code reaches into internal state | 20
+The diagram matches the code | 10
+The demonstration covers the error cases | 10
+
+#COURSE c202
+#LESSON Arrays and linked lists | 14
+A **data structure** is a way of arranging data in memory. The arrangement decides which operations are fast and which are slow, so choosing one is choosing your program's performance.
+
+### Arrays
+An **array** stores items side by side in one block of memory. Because every slot is the same size, the computer can compute where item `i` lives and jump straight to it.
+
+```diagram
+  index:   0     1     2     3
+         +-----+-----+-----+-----+
+         | 17  | 42  |  8  | 23  |      one continuous block
+         +-----+-----+-----+-----+
+```
+
+- **Read or write by index:** one step, however long the array is.
+- **Add at the end:** usually one step.
+- **Insert or remove at the front or middle:** every later item must shift along. For a million items, that is up to a million moves.
+
+Python's `list` and JavaScript's `Array` are **dynamic arrays**: when the block fills up, they allocate a bigger one (typically double) and copy everything across. That copy is expensive, but because it happens rarely, adding at the end is still cheap on average.
+
+### Linked lists
+A **linked list** stores each item in its own **node**, anywhere in memory. Each node holds a value and a reference to the next node.
+
+```diagram
+  head
+   |
+   v
+ [17 | *]--> [42 | *]--> [8 | *]--> [23 | null]
+```
+
+- **Insert or remove at the front:** one step. Just change a reference.
+- **Find the item at position i:** you must walk from the head, node by node.
+
+```js
+class Node {
+  constructor(value) { this.value = value; this.next = null; }
+}
+```
+
+### Choosing
+| Operation | Array | Linked list |
+|---|---|---|
+| Get item by position | fast | slow |
+| Add or remove at front | slow | fast |
+| Add at end | fast | fast, if you keep a tail reference |
+| Memory | compact | extra reference per item |
+
+In practice arrays win most of the time, partly because items that sit together in memory are much faster for the processor to read (you will see why in Stage 4). Linked structures matter most as the building block of trees and graphs.
+#Q Why is reading item 500 of an array fast?
+- The array is sorted
+* Its position can be computed directly because items are side by side and equal in size
+- Arrays keep a list of where every item is
+! The address is the start plus index times item size.
+#Q Which operation is fast on a linked list but slow on an array?
+- Reading the item at position i
+* Inserting at the front
+- Finding the length
+! A linked list only changes one reference; an array must shift every item.
+
+#LESSON Stacks and queues | 12
+Two simple structures appear everywhere. Both restrict where you may add and remove, and that restriction is what makes them useful.
+
+### Stack: last in, first out
+A **stack** is a pile of plates. You add to the top (**push**) and remove from the top (**pop**). The last thing in is the first thing out (LIFO).
+
+```diagram
+   push 1, push 2, push 3        pop -> 3
+        | 3 |  <- top
+        | 2 |
+        | 1 |
+        +---+
+```
+
+```js
+const stack = [];
+stack.push(1); stack.push(2);
+stack.pop();                    // 2
+```
+
+Where stacks appear:
+- **Function calls.** Each call pushes a frame; returning pops it. This is "the call stack" in your error messages.
+- **Undo.** Each action is pushed; undo pops the most recent.
+- **Checking brackets.** Push each opener; on a closer, pop and check they match.
+- **Going back** in a browser.
+
+### Queue: first in, first out
+A **queue** is a line at a shop. You join at the back (**enqueue**) and leave from the front (**dequeue**). First in, first out (FIFO).
+
+```diagram
+   front                         back
+   +---+---+---+
+   | 1 | 2 | 3 |   <- enqueue 4 joins here
+   +---+---+---+
+     ^ dequeue takes 1
+```
+
+Where queues appear: print jobs, requests waiting for a server, messages between programs, and exploring a map level by level (breadth-first search, coming soon).
+
+### Implementing them well
+A stack is simply an array used only at its end: both operations take one step.
+
+A queue is harder. Removing from the front of an array shifts every item. Good queues use a linked list with head and tail references, or a **circular buffer**: an array with two indexes marking front and back that wrap around.
+
+### Abstract data types
+"Stack" and "queue" describe *behaviour*, not implementation. That makes each an **abstract data type**: you can use one knowing only its operations, and the implementation can change underneath.
+
+> In industry: Message queues between services are queues in exactly this sense, scaled up. Understanding the small version makes the large one obvious.
+#TRY js | Write `balanced(text)` that returns true if every ( has a matching ) in the right order. Use a counter or a stack.
+@starter
+function balanced(text) {
+  return true;
+}
+@solution
+function balanced(text) {
+  let depth = 0;
+  for (const ch of text) {
+    if (ch === "(") depth++;
+    else if (ch === ")") { depth--; if (depth < 0) return false; }
+  }
+  return depth === 0;
+}
+@tests
+balanced("(a(b)c)") => true
+balanced("(()") => false
+balanced(")(") => false
+balanced("") => true
+#Q Which structure removes the most recently added item first?
+* Stack
+- Queue
+- Array
+! Last in, first out.
+#Q Which is a natural use of a queue?
+- Undo in a text editor
+* Requests waiting their turn to be handled by a server
+- Tracking nested function calls
+! First come, first served is FIFO.
+
+#LESSON Hash tables | 14
+How does a dictionary find a key among a million entries almost instantly? It does not search. It **computes** where the key should be.
+
+A **hash table** is an array of slots (called **buckets**) plus a **hash function**. The hash function turns any key into a number; that number, reduced modulo the array length, is the slot index.
+
+```diagram
+   key "ada"  --hash-->  7392814  --mod 8-->  slot 6
+
+   slots:  0    1    2    3    4    5    6        7
+         [   ][   ][   ][   ][   ][   ]["ada":36][   ]
+```
+
+To look up `"ada"` later: hash it again, get slot 6, look there. One computation and one array access, regardless of how many entries exist.
+
+A good hash function is **deterministic** (same key, same number, always), **fast**, and **spreads keys evenly**.
+
+### Collisions
+Two different keys can land in the same slot. This is a **collision**, and it is unavoidable. Two standard answers:
+
+- **Chaining:** each slot holds a small list of the entries that hashed there.
+- **Open addressing:** if the slot is taken, try the next one along.
+
+If the table gets crowded, collisions pile up and lookups slow down. So when the table passes a certain fullness (the **load factor**), it allocates a bigger array and re-inserts everything. That is occasional heavy work that keeps the average operation fast.
+
+### Costs
+On average, insert, look up and delete each take a constant number of steps. In the worst case, with a terrible hash function, everything lands in one slot and it becomes a slow list.
+
+### What you give up
+A hash table has **no order**. You cannot ask it for "the smallest key" or "all keys between A and C" without looking at everything. Trees handle those questions.
+
+### Sets
+A **set** is a hash table that stores keys only. It answers "have I seen this before?" instantly.
+
+```js
+const seen = new Set();
+seen.add("ada");
+seen.has("ada");      // true
+```
+
+> Key idea: Replacing "search through a list" with "look up in a hash table or set" is the single most common way to make slow code fast.
+#Q How does a hash table find the slot for a key?
+- It searches every slot in order
+* It computes a number from the key and uses it as an index
+- It keeps the keys sorted
+! The hash function maps the key to a position directly.
+#Q What is a collision?
+- Two keys with the same value
+* Two different keys that hash to the same slot
+- An error that stops the program
+! Collisions are normal and are handled by chaining or probing.
+
+#LESSON Trees | 14
+A **tree** arranges data in a hierarchy: one **root** at the top, each **node** having zero or more **children**. A node without children is a **leaf**. Folders on a disk form a tree. So does the DOM of a web page.
+
+### Binary search trees
+In a **binary tree** each node has at most two children. A **binary search tree** (BST) adds a rule: everything in a node's left subtree is smaller than the node, and everything in its right subtree is larger.
+
+```diagram
+              50
+            /    \
+          30      70
+         /  \    /  \
+       20   40  60   80
+```
+
+To search for 60: start at 50. It is bigger, so go right to 70. It is smaller, so go left. Found, in three steps. Each step discards half of what remains, as long as the tree is balanced.
+
+```js
+function contains(node, target) {
+  if (node === null) return false;
+  if (target === node.value) return true;
+  return target < node.value ? contains(node.left, target) : contains(node.right, target);
+}
+```
+
+### Why trees matter
+A BST keeps data **in order** while still allowing fast insert, delete and search. You can ask for the minimum, the maximum, or everything in a range, which a hash table cannot do.
+
+### The catch: balance
+Insert 10, 20, 30, 40 in that order and every node goes to the right. The "tree" is a linked list in disguise and search is slow again. **Self-balancing trees** (red-black trees, AVL trees, B-trees) rearrange themselves on insert to stay bushy. You rarely write one, but you use them constantly: database indexes are B-trees.
+
+### Walking a tree
+Visiting every node is a **traversal**.
+
+- **In-order** (left, node, right) visits a BST in sorted order.
+- **Pre-order** (node, left, right) is used to copy a tree.
+- **Post-order** (left, right, node) is used to delete or evaluate one.
+- **Level-order** visits top to bottom, row by row, using a queue.
+
+The **height** of a tree is the number of steps from the root to the deepest leaf. A balanced tree of a million nodes has a height of only about 20.
+#Q In a binary search tree, where are values smaller than a node stored?
+* In its left subtree
+- In its right subtree
+- In its parent
+! Smaller to the left, larger to the right, at every node.
+#Q What happens if you insert already-sorted values into a plain binary search tree?
+- It becomes perfectly balanced
+* It degenerates into a chain, and searching becomes slow
+- The insertions fail
+! Every new value goes the same way, producing a list-like tree.
+
+#LESSON Graphs | 12
+A **graph** is a set of **vertices** (also called nodes) joined by **edges**. It is the most general structure: lists and trees are special kinds of graph.
+
+Graphs model anything made of things and connections: cities and roads, people and friendships, web pages and links, tasks and the tasks they depend on.
+
+```diagram
+      A ------- B
+      |       / |
+      |     /   |
+      C ---     D
+```
+
+### Vocabulary
+- **Directed** edges go one way (A follows B). **Undirected** edges go both ways (A and B are friends).
+- **Weighted** edges carry a number: a distance, a cost, a time.
+- A **path** is a sequence of edges from one vertex to another. A **cycle** is a path that returns to its start.
+- A graph is **connected** if there is a path between every pair of vertices.
+
+### Storing a graph
+The usual choice is an **adjacency list**: for each vertex, the list of its neighbours.
+
+```js
+const graph = {
+  A: ["B", "C"],
+  B: ["A", "C", "D"],
+  C: ["A", "B"],
+  D: ["B"],
+};
+```
+
+The alternative, an **adjacency matrix**, is a grid with a mark wherever two vertices are joined. It answers "are A and D connected?" in one step but uses space for every possible pair, which is wasteful when most pairs are not connected.
+
+### Exploring a graph
+Two fundamental methods, studied in depth in Stage 3:
+
+- **Breadth-first search** (BFS) explores in rings: all neighbours first, then their neighbours. It uses a queue and finds the path with the fewest edges.
+- **Depth-first search** (DFS) follows one path as far as it goes, then backs up. It uses a stack, or recursion.
+
+Both must remember which vertices they have **visited**, or a cycle would trap them forever. A set is the right tool for that.
+
+> In industry: Route planning, recommendation systems, dependency resolution in package managers and the analysis of networks are all graph problems. Recognising "this is a graph" is half the work.
+#Q What makes a graph different from a tree?
+- A graph has no nodes
+* A graph may contain cycles and need not have a root
+- A graph cannot be stored in a program
+! A tree is a connected graph without cycles.
+#Q Why must a graph search keep a record of visited vertices?
+- To sort the vertices
+* To avoid going round a cycle forever
+- To save memory
+! Without it, cycles cause endless revisiting.
+
+#LAB js | Build a stack, a queue and a linked list
+Implement three structures as JavaScript classes.
+
+**`Stack`**: `push(x)`, `pop()` (returns the top item, or `undefined` if empty), `peek()` (returns the top without removing it), `size()`.
+
+**`Queue`**: `enqueue(x)`, `dequeue()` (returns the front item, or `undefined` if empty), `size()`.
+
+**`LinkedList`**: built from nodes, not from an array.
+- `addFirst(x)` inserts at the front.
+- `addLast(x)` inserts at the end.
+- `contains(x)` returns true or false.
+- `toArray()` returns the values in order as an array.
+- `size()` returns the number of items.
+@starter
+class Stack {
+}
+
+class Queue {
+}
+
+class LinkedList {
+}
+@solution
+class Stack {
+  constructor() { this.items = []; }
+  push(x) { this.items.push(x); }
+  pop() { return this.items.pop(); }
+  peek() { return this.items[this.items.length - 1]; }
+  size() { return this.items.length; }
+}
+
+class Queue {
+  constructor() { this.items = []; this.head = 0; }
+  enqueue(x) { this.items.push(x); }
+  dequeue() {
+    if (this.head >= this.items.length) return undefined;
+    const x = this.items[this.head];
+    this.head++;
+    return x;
+  }
+  size() { return this.items.length - this.head; }
+}
+
+class LinkedList {
+  constructor() { this.head = null; this.count = 0; }
+  addFirst(x) { this.head = { value: x, next: this.head }; this.count++; }
+  addLast(x) {
+    const node = { value: x, next: null };
+    if (this.head === null) this.head = node;
+    else { let n = this.head; while (n.next !== null) n = n.next; n.next = node; }
+    this.count++;
+  }
+  contains(x) { for (let n = this.head; n !== null; n = n.next) if (n.value === x) return true; return false; }
+  toArray() { const out = []; for (let n = this.head; n !== null; n = n.next) out.push(n.value); return out; }
+  size() { return this.count; }
+}
+@tests
+(() => { const s = new Stack(); s.push(1); s.push(2); return [s.pop(), s.pop(), s.size()]; })() => [2, 1, 0]
+(() => { const s = new Stack(); s.push(7); return [s.peek(), s.size()]; })() => [7, 1]
+(() => { const s = new Stack(); return s.pop() === undefined; })() => true
+(() => { const q = new Queue(); q.enqueue(1); q.enqueue(2); q.enqueue(3); return [q.dequeue(), q.dequeue(), q.size()]; })() => [1, 2, 1]
+(() => { const q = new Queue(); return q.dequeue() === undefined && q.size() === 0; })() => true
+(() => { const l = new LinkedList(); l.addLast(2); l.addFirst(1); l.addLast(3); return l.toArray(); })() => [1, 2, 3]
+(() => { const l = new LinkedList(); l.addFirst("a"); return [l.contains("a"), l.contains("b"), l.size()]; })() => [true, false, 1]
+(() => { const l = new LinkedList(); return [l.toArray(), l.size(), l.contains(1)]; })() => [[], 0, false]
+@hints
+A stack can wrap an array and use only its end.
+For the queue, removing from the front with `shift()` works but shifts every item. Keeping an index of the front avoids that.
+In the linked list, `addFirst` creates a node whose `next` is the old head, then makes it the head.
+To walk the list, start at the head and follow `next` until you reach `null`.
+
+#EXAM 20
+#Q Which operation is slow on a long array?
+- Reading item 10
+- Adding at the end
+* Inserting at the front
+! Every existing item must shift along.
+#Q What does LIFO describe?
+* A stack
+- A queue
+- A hash table
+! Last in, first out.
+#Q What is the average cost of looking up a key in a well-built hash table?
+* A constant number of steps
+- Proportional to the number of entries
+- Proportional to the square of the number of entries
+! The hash leads directly to the slot.
+#Q What can a binary search tree do that a hash table cannot do efficiently?
+- Store keys
+* Return its keys in sorted order or within a range
+- Look up a single key
+! A BST keeps order; a hash table has none.
+#Q A balanced binary search tree holds about a million values. Roughly how many steps does a search take?
+* About 20
+- About 1,000
+- About 500,000
+! Each step halves the remaining values, and 2 to the power 20 is about a million.
+#Q Which representation suits a graph with many vertices and few edges?
+* Adjacency list
+- Adjacency matrix
+- A single array of numbers
+! It stores only the edges that exist.
+#Q Which structure does breadth-first search use to decide what to visit next?
+- A stack
+* A queue
+- A hash function
+! FIFO order produces the level-by-level exploration.
+#C js | Write `reverse(items)` that returns a new array with the items in reverse order, using a stack-style approach (pop from one array, push onto another). Do not use the built-in reverse method, and do not change the input array.
+@starter
+function reverse(items) {
+  return [];
+}
+@solution
+function reverse(items) {
+  const copy = items.slice();
+  const out = [];
+  while (copy.length > 0) out.push(copy.pop());
+  return out;
+}
+@tests
+reverse([1, 2, 3]) => [3, 2, 1]
+reverse([]) => []
+reverse(["a"]) => ["a"]
+((a) => { reverse(a); return a; })([1, 2]) => [1, 2]
+#W You must store 100,000 customer records and support two operations: find a customer by ID, and list all customers whose IDs fall in a given range. Compare an array, a hash table and a balanced search tree for this job and recommend one.
++ Says an unsorted array makes lookup by ID slow
++ Says a hash table gives fast lookup by ID
++ Says a hash table cannot serve the range query efficiently
++ Says a balanced tree supports both lookup and range queries efficiently
++ Makes a clear recommendation with reasons
+
+#PROJECT Data structure library
+Build a small library of data structures in the language of your choice, each as a class with tests.
+@requirements
+A dynamic array that grows by doubling, built on a fixed-size block
+A singly linked list with insert and remove at both ends
+A stack and a queue
+A hash map with chaining that resizes when it becomes too full
+A binary search tree with insert, contains and in-order traversal
+Each structure has tests covering empty, single-item and many-item cases
+@deliverables
+The source code and tests
+A table giving the cost of each operation for each structure
+A short note on one thing that surprised you
+@rubric
+The structures behave correctly | 40
+Tests cover edge cases | 20
+The hash map resizes and the dynamic array grows correctly | 20
+The cost table is accurate | 20
+
+#COURSE c203
+#LESSON Measuring efficiency: Big O | 15
+Two programs can both be correct while one finishes instantly and the other takes a year. To compare them we need a measure that does not depend on the computer or the language. That measure is how the **number of steps grows as the input grows**.
+
+We call the input size **n**. Consider searching an unsorted list for a value: in the worst case you look at all n items. Double the list and the work doubles. We say this is **O(n)**, read "order n" or "linear time".
+
+**Big O notation** describes growth while ignoring details that do not matter at scale:
+
+- **Drop constants.** 2n steps and 50n steps are both O(n). They grow the same way.
+- **Keep only the fastest-growing term.** n² + 100n + 5 is O(n²), because for large n the n² dwarfs the rest.
+
+### The common growth rates
+
+| Big O | Name | Steps when n = 1,000,000 | Example |
+|---|---|---|---|
+| O(1) | constant | 1 | array index, hash lookup |
+| O(log n) | logarithmic | about 20 | binary search |
+| O(n) | linear | 1,000,000 | one loop over the data |
+| O(n log n) | linearithmic | about 20,000,000 | good sorting |
+| O(n²) | quadratic | 1,000,000,000,000 | a loop inside a loop |
+| O(2ⁿ) | exponential | more than atoms in the universe | trying every subset |
+
+### Reading it from code
+- A single statement: O(1).
+- One loop over n items: O(n).
+- A loop inside a loop, both over n: O(n²).
+- A loop that halves the remaining work each time: O(log n).
+- Steps one after another: add them, then keep the largest.
+
+```js
+for (const a of items) {          // n times
+  for (const b of items) {        //   n times each
+    if (a + b === target) return true;
+  }
+}                                 // O(n²)
+```
+
+### Worst case, and space
+Unless stated otherwise, Big O means the **worst case**. The same notation measures memory: **space complexity** is how much extra memory an algorithm needs as n grows.
+
+> Key idea: Big O is not about how fast something is on small input. It is about what happens when the input gets large.
+
+> In industry: "This is quadratic; it will fall over when the customer list grows" is a routine review comment. Engineers are expected to see it by reading the loops.
+#Q What is the time complexity of a loop over n items nested inside another loop over n items?
+- O(n)
+- O(2n)
+* O(n²)
+! The inner loop runs n times for each of the n outer passes.
+#Q An algorithm takes 3n² + 20n + 7 steps. What is its Big O?
+- O(3n²)
+* O(n²)
+- O(n² + n)
+! Drop constants and lower-order terms.
+
+#LESSON Searching | 12
+### Linear search
+To find a value in an unsorted list there is no trick: check each item in turn. That is **linear search**, O(n).
+
+```js
+function linearSearch(items, target) {
+  for (let i = 0; i < items.length; i++) {
+    if (items[i] === target) return i;
+  }
+  return -1;
+}
+```
+
+### Binary search
+If the list is **sorted**, you can do far better. Look at the middle item. If it is your target, done. If your target is smaller, it can only be in the left half; if larger, only in the right half. Throw the other half away and repeat.
+
+```diagram
+   find 23 in  [ 3, 8, 15, 21, 23, 42, 57 ]
+                          ^ middle is 21: 23 is larger, keep the right half
+                               [ 23, 42, 57 ]
+                                     ^ middle is 42: 23 is smaller, keep the left half
+                               [ 23 ]   found
+```
+
+Each step halves what is left, so a million items take about 20 steps: **O(log n)**.
+
+```js
+function binarySearch(items, target) {
+  let lo = 0, hi = items.length - 1;
+  while (lo <= hi) {
+    const mid = Math.floor((lo + hi) / 2);
+    if (items[mid] === target) return mid;
+    if (items[mid] < target) lo = mid + 1;
+    else hi = mid - 1;
+  }
+  return -1;
+}
+```
+
+### Getting it right
+Binary search is famous for being easy to describe and easy to get wrong. The reliable way to write it is to hold an **invariant**: "if the target is present, it is between `lo` and `hi` inclusive". Check that every line keeps that true.
+
+- `lo <= hi`, not `<`: a range of one item must still be examined.
+- `mid + 1` and `mid - 1`: `mid` has been checked, so exclude it. Using `mid` alone can loop forever.
+
+### What log n means
+log₂ n is the number of times you can halve n before reaching 1. It grows extremely slowly: log₂ of a billion is about 30.
+
+### The trade-off
+Binary search needs sorted data, and sorting costs O(n log n). If you search once, linear search is fine. If you search many times, sort once and binary-search each time, or use a hash table.
+#TRY js | Complete the binary search so it returns the index of target, or -1.
+@starter
+function binarySearch(items, target) {
+  let lo = 0, hi = items.length - 1;
+  while (lo <= hi) {
+    const mid = Math.floor((lo + hi) / 2);
+    // compare items[mid] with target and narrow the range
+    return -1;
+  }
+  return -1;
+}
+@solution
+function binarySearch(items, target) {
+  let lo = 0, hi = items.length - 1;
+  while (lo <= hi) {
+    const mid = Math.floor((lo + hi) / 2);
+    if (items[mid] === target) return mid;
+    if (items[mid] < target) lo = mid + 1;
+    else hi = mid - 1;
+  }
+  return -1;
+}
+@tests
+binarySearch([3, 8, 15, 21, 23, 42, 57], 23) => 4
+binarySearch([3, 8, 15], 3) => 0
+binarySearch([3, 8, 15], 15) => 2
+binarySearch([3, 8, 15], 9) => -1
+binarySearch([], 1) => -1
+#Q What must be true of the data before binary search can be used?
+* It must be sorted
+- It must contain no duplicates
+- It must be stored in a linked list
+! Discarding half relies on the order.
+#Q Roughly how many steps does binary search need for 1,000,000 sorted items?
+- 1,000
+* 20
+- 500,000
+! Each step halves the range; 2 to the power 20 is about a million.
+
+#LESSON Sorting: the simple algorithms | 12
+Sorting is worth studying closely. It is useful in its own right, and it is the clearest place to see how different ideas lead to very different speeds.
+
+### Selection sort
+Find the smallest item and swap it into position 0. Find the smallest of the rest and swap it into position 1. Continue.
+
+```js
+function selectionSort(a) {
+  for (let i = 0; i < a.length - 1; i++) {
+    let min = i;
+    for (let j = i + 1; j < a.length; j++) if (a[j] < a[min]) min = j;
+    [a[i], a[min]] = [a[min], a[i]];
+  }
+  return a;
+}
+```
+
+It always makes about n²/2 comparisons: **O(n²)**.
+
+### Insertion sort
+Keep the left part sorted. Take the next item and slide it left into its correct place, the way you sort playing cards in your hand.
+
+```diagram
+  [ 5 | 2  9  1 ]      take 2, slide it before 5
+  [ 2  5 | 9  1 ]      take 9, already in place
+  [ 2  5  9 | 1 ]      take 1, slide it to the front
+  [ 1  2  5  9 ]
+```
+
+It is **O(n²)** in the worst case, but if the data is already nearly sorted each item barely moves and it runs in close to **O(n)**. That makes it the best choice for small or nearly sorted arrays, and real sorting libraries use it for exactly that.
+
+### Bubble sort
+Repeatedly sweep through, swapping neighbours that are out of order. Simple to explain, O(n²), and slower in practice than insertion sort. It is taught mainly as a first example.
+
+### Two properties to know
+- A sort is **stable** if items that compare equal keep their original order. This matters when sorting records by one field after another. Insertion sort is stable; selection sort is not.
+- A sort is **in place** if it needs only a constant amount of extra memory.
+
+### Why O(n²) is not good enough
+Sorting a million items with an O(n²) algorithm takes on the order of a trillion steps: hours. The next lesson's algorithms do it in a fraction of a second.
+#Q Which simple sort is fast when the data is already nearly sorted?
+- Selection sort
+* Insertion sort
+- Bubble sort without early exit
+! Each item moves only a short distance, giving close to linear time.
+#Q What does it mean for a sort to be stable?
+- It never crashes
+* Items that compare equal keep their original relative order
+- It uses no extra memory
+! Stability matters when sorting by several fields in turn.
+
+#LESSON Recursion | 14
+A **recursive** function is one that calls itself. It solves a problem by reducing it to a smaller version of the same problem.
+
+Every correct recursion has two parts:
+
+1. A **base case**: an input small enough to answer directly, with no further call.
+2. A **recursive case**: reduce the problem toward the base case, and call yourself on the smaller problem.
+
+```js
+function factorial(n) {
+  if (n <= 1) return 1;              // base case
+  return n * factorial(n - 1);       // recursive case
+}
+```
+
+### How it runs
+Each call waits for the call it made. The waiting calls pile up on the **call stack**, then finish in reverse order.
+
+```diagram
+  factorial(4)
+    4 * factorial(3)
+          3 * factorial(2)
+                2 * factorial(1)
+                      returns 1
+                returns 2
+          returns 6
+    returns 24
+```
+
+Forget the base case, or fail to move toward it, and the calls never stop. The stack fills and the program dies with "maximum call stack size exceeded", a **stack overflow**.
+
+### How to think recursively
+Do not try to follow every call in your head. Instead, **trust the function**: assume it already works for any smaller input, and ask only "how do I use the answer to the smaller problem to answer this one?".
+
+Sum of a list: the first item plus the sum of the rest. The sum of an empty list is 0.
+
+```js
+const sum = (items) => (items.length === 0 ? 0 : items[0] + sum(items.slice(1)));
+```
+
+### Where recursion fits naturally
+Structures that are themselves recursive: a tree is a node whose children are trees; a folder contains folders. Walking them recursively is far simpler than with loops.
+
+### A warning
+Naive recursion can repeat work enormously.
+
+```js
+const fib = (n) => (n < 2 ? n : fib(n - 1) + fib(n - 2));
+```
+
+`fib(40)` makes hundreds of millions of calls because it recomputes the same values over and over. It is **O(2ⁿ)**. Remembering answers already computed (**memoization**) fixes it, and leads to dynamic programming in Stage 3.
+
+> Key idea: Base case, smaller problem, trust the function.
+#TRY js | Write a recursive `power(base, exp)` for whole-number exp of 0 or more. Do not use ** or Math.pow.
+@starter
+function power(base, exp) {
+  return 0;
+}
+@solution
+function power(base, exp) {
+  if (exp === 0) return 1;
+  return base * power(base, exp - 1);
+}
+@tests
+power(2, 10) => 1024
+power(5, 0) => 1
+power(3, 1) => 3
+power(7, 2) => 49
+#Q What are the two essential parts of a recursive function?
+- A loop and a counter
+* A base case and a recursive case that moves toward it
+- Two parameters
+! Without a reachable base case the calls never stop.
+#Q What causes a stack overflow in a recursive function?
+- Using too many variables
+* The recursion never reaches a base case, so calls pile up without end
+- Returning a value
+! Each call uses stack space until it returns.
+
+#LESSON Divide and conquer: merge sort and quicksort | 15
+**Divide and conquer** is a recipe for fast algorithms: split the problem into smaller parts, solve each part (usually recursively), then combine the answers.
+
+### Merge sort
+1. Split the array in half.
+2. Sort each half (recursively).
+3. **Merge** the two sorted halves into one.
+
+Merging is the clever part and it is easy: look at the front of both halves, take the smaller, repeat.
+
+```diagram
+        [ 7  2  9  4 ]
+        /            \
+    [ 7  2 ]       [ 9  4 ]          split
+    /     \        /     \
+  [7]    [2]     [9]    [4]          single items are already sorted
+    \     /        \     /
+    [ 2  7 ]       [ 4  9 ]          merge
+        \            /
+        [ 2  4  7  9 ]               merge
+```
+
+```js
+function mergeSort(a) {
+  if (a.length <= 1) return a;
+  const mid = Math.floor(a.length / 2);
+  const left = mergeSort(a.slice(0, mid)), right = mergeSort(a.slice(mid));
+  const out = []; let i = 0, j = 0;
+  while (i < left.length && j < right.length) out.push(left[i] <= right[j] ? left[i++] : right[j++]);
+  return out.concat(left.slice(i), right.slice(j));
+}
+```
+
+**Why it is fast.** Halving n repeatedly gives log n levels. Each level merges n items in total. So the work is **O(n log n)**, always. It is stable, but needs O(n) extra memory.
+
+### Quicksort
+1. Pick an item, the **pivot**.
+2. **Partition**: move everything smaller than the pivot to its left and everything larger to its right.
+3. Sort the two sides recursively.
+
+Quicksort sorts in place and is very fast in practice, averaging **O(n log n)**. Its weakness is a bad pivot: if the pivot is always the smallest item, one side is empty and it degrades to **O(n²)**. Choosing the pivot at random makes that vanishingly unlikely.
+
+### A hard limit
+Any sort that works only by comparing items needs at least on the order of n log n comparisons in the worst case. This is a proven lower bound, so merge sort is essentially as good as comparison sorting can be.
+
+### What your language uses
+`sort()` in Python and in modern JavaScript engines uses **Timsort**, a hybrid of merge sort and insertion sort tuned for real data. In practice you call the built-in sort. You study these algorithms to learn to analyse and design your own.
+#Q What is the time complexity of merge sort?
+- O(n)
+* O(n log n)
+- O(n²)
+! There are log n levels and each level does n work.
+#Q What makes quicksort slow in the worst case?
+- Sorting very small arrays
+* Consistently choosing a pivot that splits the array very unevenly
+- Using recursion
+! Uneven splits give n levels instead of log n.
+
+#LAB js | Searching and sorting
+Implement three functions. Do not use the built-in `sort`, `indexOf`, `includes` or `findIndex`.
+
+- `binarySearch(items, target)` returns the index of `target` in the sorted array `items`, or `-1`.
+- `mergeSort(items)` returns a **new** sorted array and leaves the input unchanged.
+- `countInversions(items)` returns the number of pairs `(i, j)` with `i < j` and `items[i] > items[j]`. For `[3, 1, 2]` the answer is 2. A simple O(n²) solution is accepted.
+@starter
+function binarySearch(items, target) {
+  return -1;
+}
+
+function mergeSort(items) {
+  return items;
+}
+
+function countInversions(items) {
+  return 0;
+}
+@solution
+function binarySearch(items, target) {
+  let lo = 0, hi = items.length - 1;
+  while (lo <= hi) {
+    const mid = Math.floor((lo + hi) / 2);
+    if (items[mid] === target) return mid;
+    if (items[mid] < target) lo = mid + 1; else hi = mid - 1;
+  }
+  return -1;
+}
+
+function mergeSort(items) {
+  if (items.length <= 1) return items.slice();
+  const mid = Math.floor(items.length / 2);
+  const left = mergeSort(items.slice(0, mid)), right = mergeSort(items.slice(mid));
+  const out = []; let i = 0, j = 0;
+  while (i < left.length && j < right.length) out.push(left[i] <= right[j] ? left[i++] : right[j++]);
+  while (i < left.length) out.push(left[i++]);
+  while (j < right.length) out.push(right[j++]);
+  return out;
+}
+
+function countInversions(items) {
+  let count = 0;
+  for (let i = 0; i < items.length; i++)
+    for (let j = i + 1; j < items.length; j++)
+      if (items[i] > items[j]) count++;
+  return count;
+}
+@tests
+binarySearch([1, 3, 5, 7, 9, 11], 7) => 3
+binarySearch([1, 3, 5, 7, 9, 11], 1) => 0
+binarySearch([1, 3, 5, 7, 9, 11], 11) => 5
+binarySearch([1, 3, 5, 7, 9, 11], 4) => -1
+binarySearch([], 4) => -1
+binarySearch([4], 4) => 0
+mergeSort([5, 2, 9, 1, 5, 6]) => [1, 2, 5, 5, 6, 9]
+mergeSort([]) => []
+mergeSort([1]) => [1]
+mergeSort([3, 2, 1]) => [1, 2, 3]
+mergeSort([-1, -5, 0]) => [-5, -1, 0]
+((a) => { mergeSort(a); return a; })([3, 1, 2]) => [3, 1, 2]
+countInversions([3, 1, 2]) => 2
+countInversions([1, 2, 3]) => 0
+countInversions([3, 2, 1]) => 3
+countInversions([]) => 0
+@hints
+For binary search, keep the invariant "if present, the target is between lo and hi inclusive", and exclude `mid` after checking it.
+`mergeSort` on an array of length 0 or 1 should return a copy.
+Merge with two indexes, taking the smaller front item each time, then append whatever is left in either half.
+For inversions, compare every pair with two nested loops, the inner one starting at `i + 1`.
+
+#EXAM 20
+#Q Which grows fastest as n increases?
+- O(n log n)
+- O(n²)
+* O(2ⁿ)
+! Exponential growth overtakes every polynomial.
+#Q What is the Big O of accessing an array element by index?
+* O(1)
+- O(log n)
+- O(n)
+! The position is computed directly.
+#Q A function loops over n items and, for each, performs a binary search over n sorted items. What is its complexity?
+- O(n)
+* O(n log n)
+- O(n²)
+! n searches, each costing log n.
+#Q In binary search, why is the range narrowed to mid + 1 or mid − 1 rather than mid?
+- To make the code shorter
+* mid has already been checked, and keeping it can cause an endless loop
+- Because arrays start at 1
+! Excluding mid guarantees the range shrinks.
+#Q Which sort always takes O(n log n) and is stable?
+- Quicksort
+* Merge sort
+- Selection sort
+! Merge sort's cost does not depend on the input order.
+#Q What does the base case of a recursive function do?
+- Calls the function again
+* Answers the smallest input directly, ending the recursion
+- Makes the function faster
+! Without it the calls never stop.
+#Q Why is the naive recursive Fibonacci function so slow?
+- It uses multiplication
+* It recomputes the same values many times, giving exponential time
+- It has no base case
+! The call tree roughly doubles at each level.
+#C js | Write `sumDigits(n)` that returns the sum of the digits of a non-negative whole number, using recursion. `sumDigits(472)` is 13.
+@starter
+function sumDigits(n) {
+  return 0;
+}
+@solution
+function sumDigits(n) {
+  if (n < 10) return n;
+  return (n % 10) + sumDigits(Math.floor(n / 10));
+}
+@tests
+sumDigits(472) => 13
+sumDigits(0) => 0
+sumDigits(9) => 9
+sumDigits(1000) => 1
+#W You have a list of 5 million product codes and must answer, thousands of times per second, whether a given code is in the list. Describe three possible approaches, give the Big O of each lookup, and recommend one.
++ Linear search described with O(n) per lookup
++ Sorting once then binary search described with O(log n) per lookup
++ A hash set described with O(1) average per lookup
++ Notes the one-off cost of sorting or building the set
++ Recommends the hash set (or binary search with a stated reason) and justifies it
+
+#PROJECT Sorting benchmark report
+Implement selection sort, insertion sort, merge sort and quicksort, then measure them.
+@requirements
+All four sorts are implemented by you and produce correct results
+Each is timed on random arrays of at least four sizes (for example 1,000, 5,000, 20,000, 100,000)
+Each is also timed on already-sorted and reverse-sorted input
+The results are presented in a table or chart
+The report explains the results using Big O
+@deliverables
+The source code
+The results table or chart
+A one-page report interpreting the measurements
+@rubric
+The four sorts are correct | 30
+Measurements are careful (several runs, several sizes, several input orders) | 25
+The analysis links measurements to complexity | 30
+The report is clear | 15
+
+#COURSE c204
+#LESSON Static and dynamic typing | 12
+In Python and JavaScript a variable can hold anything, and type mistakes show up only when the faulty line runs. These are **dynamically typed** languages. In Java, C, C++, C#, Go, Rust and TypeScript, every variable has a declared type and a **compiler** checks the whole program before it runs. These are **statically typed**.
+
+```py
+def area(w, h):
+    return w * h
+
+area("3", 4)        # Python happily returns "3333"
+```
+
+```ts
+function area(w: number, h: number): number {
+  return w * h;
+}
+
+area("3", 4);       // compile error: a string is not a number
+```
+
+### What the checker buys you
+- **Errors found early**, before any user meets them, in every branch, not only the ones you tested.
+- **Documentation that cannot go out of date.** The signature says what goes in and what comes out.
+- **Tools.** Editors can autocomplete, jump to definitions and rename safely because they know every type.
+- **Safer change.** Alter a function's parameters and the compiler lists every call that must be updated.
+
+### What it costs
+More to write, a compile step, and occasionally fighting the type checker to express something it cannot follow.
+
+### Compiled and interpreted
+A **compiler** translates source code into another form ahead of time (machine code for C and Rust; bytecode for Java). An **interpreter** reads and runs the source directly. Static typing and compilation often go together but are separate ideas: Python can be type-checked with an external tool, and JavaScript is compiled as it runs.
+
+### Strong and weak
+A separate question is how strict a language is about mixing types. Python refuses `"3" + 4`. JavaScript converts and gives `"34"`. Python is called **strongly typed** and JavaScript **weakly typed**, though both are dynamic.
+
+> Key idea: Static typing moves a whole class of bugs from "found by a user at run time" to "found by the compiler before release".
+
+> In industry: Most large teams choose static typing because its benefits grow with the size of the codebase and the number of people working on it.
+#Q When does a statically typed language detect that a string was passed where a number is required?
+* When the program is compiled, before it runs
+- Only when that line executes
+- Never
+! The compiler checks types across the whole program in advance.
+#Q Which is a benefit of static types?
+- Programs need no testing
+* Editors and compilers can find mistakes and support safe renaming
+- Code is always shorter
+! Type information powers both checking and tooling.
+
+#LESSON TypeScript | 14
+**TypeScript** is JavaScript with types. Every JavaScript program is already a TypeScript program; you add **type annotations**, and a compiler checks them and then outputs plain JavaScript.
+
+```ts
+let count: number = 0;
+const names: string[] = ["Ada", "Alan"];
+
+function greet(name: string, shout: boolean = false): string {
+  return shout ? name.toUpperCase() : name;
+}
+```
+
+You annotate less than you might expect, because TypeScript **infers** types: `let count = 0` is already known to be a number.
+
+### Describing object shapes
+
+```ts
+interface User {
+  id: number;
+  name: string;
+  email?: string;          // optional
+}
+
+function label(u: User): string {
+  return `${u.id}: ${u.name}`;
+}
+```
+
+TypeScript uses **structural typing**: any object with the right properties counts as a `User`, whatever it is called.
+
+### Union types and narrowing
+A value can be one of several types. The compiler makes you handle each case.
+
+```ts
+function size(x: string | string[]): number {
+  if (typeof x === "string") return x.length;   // here x is a string
+  return x.length;                              // here x is a string[]
+}
+```
+
+### null safety
+With strict settings, a value that might be `null` or `undefined` cannot be used until you check. This eliminates the most common runtime error in JavaScript, "cannot read properties of undefined".
+
+```ts
+function first(xs: number[]): number | undefined { return xs[0]; }
+
+const f = first([]);
+if (f !== undefined) console.log(f + 1);
+```
+
+### Generics
+A **generic** function works for any type while keeping that type known:
+
+```ts
+function last<T>(items: T[]): T | undefined {
+  return items[items.length - 1];
+}
+const n = last([1, 2, 3]);      // n is number | undefined
+```
+
+### Types vanish at run time
+Types are checked and then removed. They do not validate data arriving from outside your program (a network response, user input). That still needs run-time checks.
+
+> In industry: TypeScript is now the default for professional web front ends and much server-side JavaScript.
+#TRY ts | Add type annotations and make `total` return the sum of the prices.
+@starter
+interface Item { name: string; price: number; }
+
+function total(items: Item[]): number {
+  return 0;
+}
+console.log(total([{ name: "a", price: 2 }, { name: "b", price: 3.5 }]));
+@solution
+interface Item { name: string; price: number; }
+
+function total(items: Item[]): number {
+  let sum = 0;
+  for (const item of items) sum += item.price;
+  return sum;
+}
+console.log(total([{ name: "a", price: 2 }, { name: "b", price: 3.5 }]));
+@out
+5.5
+#Q What does the TypeScript compiler produce?
+- Machine code
+* Plain JavaScript with the types removed
+- A database
+! Types are checked at compile time and erased from the output.
+#Q What does the type `string | undefined` mean?
+- A string that is also undefined
+* A value that is either a string or undefined, which must be checked before use
+- An error
+! It is a union type, and the compiler requires each case to be handled.
+
+#LESSON Java | 14
+**Java** is a statically typed, object-oriented language that runs on the Java Virtual Machine (JVM). It powers a great deal of enterprise software and Android. Everything you learned about classes applies; the syntax is stricter and more explicit.
+
+```java
+public class Main {
+    public static void main(String[] args) {
+        int total = 0;
+        for (int i = 1; i <= 5; i++) {
+            total += i;
+        }
+        System.out.println("Total: " + total);
+    }
+}
+```
+
+What to notice:
+
+- All code lives inside a **class**. The program starts at `main`.
+- Every variable has a declared type: `int`, `double`, `boolean`, `String`.
+- Statements end with semicolons; blocks use curly brackets.
+
+### Classes in Java
+
+```java
+public class Account {
+    private double balance;                 // truly private
+
+    public Account(double opening) {        // constructor
+        this.balance = opening;
+    }
+
+    public void deposit(double amount) {
+        if (amount <= 0) throw new IllegalArgumentException("amount must be positive");
+        balance += amount;
+    }
+
+    public double getBalance() { return balance; }
+}
+```
+
+`private` is enforced by the compiler: no code outside the class can touch `balance`. `this` plays the role of Python's `self`.
+
+### Interfaces
+
+```java
+interface Shape { double area(); }
+
+class Circle implements Shape {
+    private final double r;
+    Circle(double r) { this.r = r; }
+    public double area() { return Math.PI * r * r; }
+}
+```
+
+A class that says `implements Shape` must provide `area()`, or it will not compile. This is the declared polymorphism mentioned in the OOP course.
+
+### Collections
+
+```java
+List<String> names = new ArrayList<>();
+names.add("Ada");
+Map<String, Integer> ages = new HashMap<>();
+ages.put("Ada", 36);
+```
+
+`List<String>` uses **generics**: a list that holds only strings, checked by the compiler.
+
+### Compile, then run
+`javac Main.java` compiles to **bytecode**, and `java Main` runs it on the JVM. The JVM manages memory for you with a **garbage collector**, which finds objects nothing refers to and reclaims them.
+
+> In industry: Java's strictness and long-term stability make it a common choice for large systems maintained for decades. C# is closely related in design and feel.
+#Q Where must all code live in a Java program?
+- In a single function
+* Inside a class
+- In a separate text file per variable
+! Java has no free-standing functions; the entry point is a static method `main` in a class.
+#Q What does the keyword private do in Java?
+- Hides the class from other files
+* Prevents code outside the class from accessing that member, enforced by the compiler
+- Makes the variable constant
+! It is enforced encapsulation.
+
+#LESSON C: memory and pointers | 16
+**C** is small, fast and close to the machine. Operating systems, databases and the interpreters of other languages are written in it. Learning C teaches you what the higher-level languages do for you.
+
+```c
+#include <stdio.h>
+
+int main(void) {
+    int total = 0;
+    for (int i = 1; i <= 5; i++) {
+        total += i;
+    }
+    printf("Total: %d\n", total);
+    return 0;
+}
+```
+
+`#include` pulls in declarations for library functions. `printf` prints using a format string: `%d` is replaced by an integer.
+
+### Memory is a row of numbered boxes
+Every variable lives at an **address**. A **pointer** is a variable that holds an address.
+
+```c
+int x = 42;
+int *p = &x;        // & means "address of": p points to x
+printf("%d\n", *p); // * means "the value at": prints 42
+*p = 7;             // changes x through the pointer
+```
+
+```diagram
+   address:   1000          1004
+            +-------+     +-------+
+        x:  |  42   |  p: | 1000  |   p holds the address of x
+            +-------+     +-------+
+```
+
+### Why pointers exist
+C passes arguments **by value**: a function receives copies. To let a function change the caller's variable, pass its address.
+
+```c
+void swap(int *a, int *b) {
+    int t = *a; *a = *b; *b = t;
+}
+swap(&x, &y);
+```
+
+### Arrays and strings
+An array is a block of consecutive boxes, and its name behaves like a pointer to the first one. C does **not** check that an index is within the array. A string is an array of characters ending with a zero byte.
+
+### Stack and heap
+- Local variables live on the **stack** and disappear when the function returns.
+- Memory you need to outlive a function is requested from the **heap** with `malloc` and must be returned with `free`.
+
+```c
+int *nums = malloc(10 * sizeof(int));
+/* use nums[0] to nums[9] */
+free(nums);
+```
+
+### The dangers
+There is no garbage collector and no safety net:
+
+- Forget `free`: a **memory leak**.
+- Use memory after `free`, or return the address of a local variable: a **dangling pointer**.
+- Write past the end of an array: a **buffer overflow**, the cause of a large share of historical security vulnerabilities.
+
+> Key idea: In C, you manage memory. In Python, Java and JavaScript, the language does. Knowing what is being managed makes you better at all of them.
+#Q What does a pointer hold?
+- A copy of a value
+* The memory address of a value
+- The type of a value
+! Dereferencing the pointer with `*` reaches the value at that address.
+#Q What is a memory leak?
+- Writing past the end of an array
+* Heap memory that is allocated but never freed
+- A variable with no type
+! The program keeps holding memory it no longer uses.
+
+#LESSON C++ | 12
+**C++** began as "C with classes" and grew into a large language that offers both low-level control and high-level abstractions. Game engines, browsers, trading systems and much scientific software are written in it.
+
+```cpp
+#include <iostream>
+#include <vector>
+#include <string>
+
+int main() {
+    std::vector<int> nums = {4, 9, 2};
+    int total = 0;
+    for (int n : nums) total += n;
+    std::cout << "Total: " << total << std::endl;
+    return 0;
+}
+```
+
+`std::vector` is a dynamic array, `std::string` is a real string type, and `std::cout <<` prints. These come from the **standard library**, which removes most of the reasons to use raw C arrays and `malloc`.
+
+### Classes with constructors and destructors
+
+```cpp
+class Buffer {
+public:
+    Buffer(int n) : data(new int[n]), size(n) {}   // constructor acquires
+    ~Buffer() { delete[] data; }                   // destructor releases
+private:
+    int *data;
+    int size;
+};
+```
+
+A **destructor** runs automatically when an object goes out of scope. This enables the central idea of modern C++:
+
+### RAII
+**Resource Acquisition Is Initialization**: tie every resource (memory, a file, a lock) to an object. Acquire it in the constructor, release it in the destructor. Because destructors always run when scope ends, even on an error, the resource cannot leak.
+
+**Smart pointers** apply this to heap memory:
+
+```cpp
+auto p = std::make_unique<Account>(100);   // freed automatically when p goes out of scope
+```
+
+`unique_ptr` has exactly one owner. `shared_ptr` counts owners and frees when the count reaches zero. Modern C++ code rarely writes `new` or `delete` directly.
+
+### References
+A **reference** is another name for an existing variable. It behaves like a pointer that cannot be null and needs no `*`.
+
+```cpp
+void addOne(int &n) { n += 1; }
+```
+
+### Templates
+Templates are C++ generics: `std::vector<int>`, `std::vector<std::string>`. The compiler generates specialised code for each type, giving abstraction with no run-time cost.
+
+> Key idea: C++ aims for "zero-cost abstractions": you do not pay at run time for features you use well. The price is a complex language that demands discipline.
+
+> In industry: C++ is chosen when performance and control over memory matter most. Rust, in Stage 4, pursues the same goals with the compiler enforcing memory safety.
+#Q What does RAII guarantee?
+- That programs never have bugs
+* That a resource is released when the object that owns it goes out of scope
+- That all variables are public
+! The destructor runs automatically, even when an error occurs.
+#Q What is the advantage of std::unique_ptr over a raw pointer with new and delete?
+- It is faster to type
+* The memory is freed automatically, so it cannot be leaked or freed twice by mistake
+- It can point to several objects at once
+! Ownership is expressed in the type and enforced.
+
+#LESSON Advanced Python and JavaScript | 14
+Both languages have features that make code shorter and clearer once you know them. All are built on ideas you already have.
+
+### Python: comprehensions
+A **list comprehension** builds a list in one expression.
+
+```py
+squares = [n * n for n in range(5)]                 # [0, 1, 4, 9, 16]
+evens = [n for n in range(10) if n % 2 == 0]
+lengths = {word: len(word) for word in ["a", "bb"]} # dictionary comprehension
+```
+
+Read it as "n squared, for each n in the range".
+
+### Python: unpacking, enumerate and zip
+
+```py
+x, y = 3, 4
+for i, name in enumerate(["Ada", "Alan"]):
+    print(i, name)
+for name, age in zip(names, ages):
+    print(name, age)
+```
+
+### Python: functions as values
+Functions can be passed like any other value. `sorted` takes a `key` function:
+
+```py
+people.sort(key=lambda p: p["age"])
+```
+
+A `lambda` is a small unnamed function.
+
+### Python: generators
+A function containing `yield` produces values one at a time, on demand, without building the whole list in memory.
+
+```py
+def countdown(n):
+    while n > 0:
+        yield n
+        n -= 1
+```
+
+### JavaScript: closures
+A function remembers the variables that existed where it was created. That is a **closure**.
+
+```js
+function makeCounter() {
+  let count = 0;
+  return () => { count += 1; return count; };
+}
+const next = makeCounter();
+next(); next();      // 1, then 2
+```
+
+`count` is private to the returned function: nothing else can reach it. Closures are how JavaScript gets private state without classes, and why event listeners can see the variables around them.
+
+### JavaScript: destructuring and spread
+
+```js
+const { name, age } = user;
+const [first, ...rest] = [1, 2, 3];
+const copy = { ...user, age: 37 };       // a new object with one change
+```
+
+### JavaScript: higher-order functions
+A function that takes or returns a function is **higher-order**. `map`, `filter` and `reduce` are examples, and you can write your own:
+
+```js
+const twice = (f) => (x) => f(f(x));
+twice((n) => n + 3)(10);     // 16
+```
+
+### Both: exceptions
+`try` / `except` in Python and `try` / `catch` in JavaScript handle errors; `raise` and `throw` signal them. Catch only the errors you can deal with, and never silently swallow one.
+
+> In industry: Idiomatic code, written the way the language's community expects, is easier for colleagues to read. Learning these features is part of becoming fluent, not showing off.
+#TRY js | Write `makeAdder(n)` that returns a function which adds n to its argument.
+@starter
+function makeAdder(n) {
+  return null;
+}
+@solution
+function makeAdder(n) {
+  return (x) => x + n;
+}
+@tests
+makeAdder(5)(10) => 15
+makeAdder(0)(7) => 7
+makeAdder(-2)(2) => 0
+#Q What does [n * 2 for n in range(3)] produce in Python?
+- [2, 4, 6]
+* [0, 2, 4]
+- [0, 1, 2, 0, 1, 2]
+! range(3) is 0, 1, 2, each doubled.
+#Q What is a closure?
+- A function with no parameters
+* A function together with the variables it remembers from where it was created
+- The end of a program
+! The inner function keeps access to the outer function's variables.
+
+#LAB c | Pointers and arrays in C
+Write a C program that defines two functions and prints the expected output exactly.
+
+- `int sum(int *a, int n)` returns the sum of the first `n` elements of `a`.
+- `void swap(int *x, int *y)` exchanges the two integers through pointers.
+
+In `main`, create the array `{4, 9, 2, 7}`, print its sum, then create `a = 3` and `b = 8`, swap them using your function, and print them.
+
+The output must be exactly:
+
+```text
+Sum: 22
+a=8 b=3
+```
+@starter
+#include <stdio.h>
+
+int sum(int *a, int n) {
+    return 0;
+}
+
+void swap(int *x, int *y) {
+}
+
+int main(void) {
+    int nums[4] = {4, 9, 2, 7};
+    printf("Sum: %d\n", sum(nums, 4));
+    int a = 3, b = 8;
+    swap(&a, &b);
+    printf("a=%d b=%d\n", a, b);
+    return 0;
+}
+@solution
+#include <stdio.h>
+
+int sum(int *a, int n) {
+    int total = 0;
+    for (int i = 0; i < n; i++) {
+        total += a[i];
+    }
+    return total;
+}
+
+void swap(int *x, int *y) {
+    int t = *x;
+    *x = *y;
+    *y = t;
+}
+
+int main(void) {
+    int nums[4] = {4, 9, 2, 7};
+    printf("Sum: %d\n", sum(nums, 4));
+    int a = 3, b = 8;
+    swap(&a, &b);
+    printf("a=%d b=%d\n", a, b);
+    return 0;
+}
+@out
+Sum: 22
+a=8 b=3
+@hints
+`a[i]` works on a pointer exactly as on an array.
+In `swap`, `*x` means "the integer that x points to". You need a temporary variable to hold one value while you overwrite it.
+`main` is already written. Only the two function bodies need to change.
+
+#EXAM 20
+#Q Which language is dynamically typed?
+- Java
+* Python
+- C
+! Python checks types as the program runs.
+#Q In TypeScript, what does `email?: string` in an interface mean?
+- email must be a question
+* The email property is optional
+- email is private
+! The question mark marks an optional property.
+#Q What reclaims unused memory in Java?
+- The programmer, with free
+* The garbage collector
+- The operating system when the computer restarts
+! The JVM finds unreachable objects and frees them.
+#Q In C, what does `&x` give you?
+- The value of x
+* The address of x
+- The size of x
+! `&` is the address-of operator.
+#Q Which C mistake writes outside the memory belonging to an array?
+- A memory leak
+* A buffer overflow
+- A dangling pointer
+! C does not check array indexes.
+#Q In C++, when does an object's destructor run?
+- When the program starts
+* When the object goes out of scope or is deleted
+- Only if you call it yourself
+! This automatic call is what makes RAII work.
+#Q What does this JavaScript print?
+function make() { let n = 0; return () => ++n; }
+const f = make();
+f(); console.log(f());
+- 1
+* 2
+- undefined
+! The closure keeps `n` between calls: 1, then 2.
+#W Explain the difference between memory management in C and in a garbage-collected language such as Java or Python. Name two bugs that can occur in C but not in the garbage-collected language, and one cost of garbage collection.
++ States that in C the programmer allocates and frees heap memory explicitly
++ States that a garbage collector frees unreachable objects automatically
++ Names two C-specific bugs (leak, dangling pointer or use-after-free, double free, buffer overflow)
++ Names a cost of garbage collection (pauses, CPU or memory overhead, less control)
++ Explanation is accurate and clear
+
+#PROJECT One program, three languages
+Write the same small program in three languages: one dynamically typed (Python or JavaScript), one statically typed and managed (TypeScript or Java), and one with manual memory (C or C++). Suggested program: read a list of numbers, report the minimum, maximum, mean and the numbers sorted.
+@requirements
+The program behaves identically in all three languages
+Each version uses that language's normal style, not a transliteration of another
+The statically typed version uses types meaningfully
+The C or C++ version manages memory correctly with no leak
+@deliverables
+The three source files
+A comparison table: lines of code, what the compiler or interpreter caught, what was hardest
+A paragraph on when you would choose each language
+@rubric
+All three versions are correct | 35
+Each is idiomatic for its language | 25
+Memory is handled correctly in the low-level version | 15
+The comparison shows real insight | 25
