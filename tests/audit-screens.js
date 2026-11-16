@@ -4,7 +4,7 @@
    Writes audit.json in the current folder. Screenshots are not saved. */
 // Screen audit: every route at iPad and phone sizes, light and dark. node audit.js > audit.json
 const { chromium, devices } = require('playwright'); const fs = require('fs');
-const MAIN = ['', 'account', 'week', 'classes', 'certs', 'verify/abcdefghjk23', 'py', 'js', 'ts', 'c', 'cpp', 'cs', 'sql', 'java', 'bash', 'term', 'cloud', 'play/py', 'play/js', 'project', 'web', 'quiz', 'stats', 'duel', 'shop', 'avatar', 'locker', 'catalog'];
+const MAIN = ['', 'account', 'practice', 'week', 'classes', 'certs', 'verify/abcdefghjk23', 'py', 'js', 'ts', 'c', 'cpp', 'cs', 'sql', 'java', 'bash', 'term', 'cloud', 'play/py', 'play/js', 'project', 'web', 'quiz', 'stats', 'duel', 'shop', 'avatar', 'locker', 'catalog'];
 const UNI = ['', 'search', 'search/hash-table', 'dashboard', 'study', 'review', 'notes', 'departments', 'departments/game', 'courses', 'stage/1', 'course/c101', 'course/c101/lesson/0', 'course/c101/lab', 'course/c101/exam', 'course/c101/project', 'videos', 'videos/karpathy-build-gpt', 'labs', 'labs/py', 'labs/sql', 'visual', 'practice', 'terminal', 'terminal/conflict', 'exams', 'final/1', 'projects', 'portfolio', 'career', 'career/cv', 'career/interview', 'career/interview/iv-two-sum', 'career/mock', 'career/present', 'career/guide', 'professor', 'transcript'];
 const ROUTES = MAIN.map((r) => '#/' + r).concat(UNI.map((r) => '#/uni' + (r ? '/' + r : '')));
 (async () => {

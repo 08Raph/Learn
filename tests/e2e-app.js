@@ -1,4 +1,4 @@
-/* App-shell tests for 5.0: on-demand ranked bank, version, legacy-mode honesty, accessibility basics,
+/* App-shell tests for 5.1: on-demand ranked bank, version, legacy-mode honesty, accessibility basics,
    escaping, and that no secret is shipped.   node tests/e2e-app.js   (starts its own local server; Firebase blocked) */
 const { chromium } = require('playwright'); const http = require('http'); const fs = require('fs'), path = require('path');
 const ROOT = process.env.APP_DIR || path.join(__dirname, '..'); const PORT = 8773, BASE = 'http://localhost:' + PORT + '/Learn/index.html';
@@ -13,8 +13,12 @@ let pass = 0, fail = 0; const ok = (m, c, x) => { if (c) pass++; else { fail++; 
   const text = () => p.evaluate(() => document.querySelector('#app').innerText);
   try {
     // static checks on the shipped files
-    const html = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8');
-    ok('index.html is under 2 MB (' + Math.round(html.length / 1024) + ' KB)', html.length < 2 * 1024 * 1024);
+    const page = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8'), appJs = fs.readFileSync(path.join(ROOT, 'app.js'), 'utf8'), html = page + appJs;
+    ok('5.1: index.html is small (' + Math.round(page.length / 1024) + ' KB) and the app code is in app.js (' + Math.round(appJs.length / 1024) + ' KB, under 2 MB)', page.length < 120 * 1024 && appJs.length < 2 * 1024 * 1024);
+    const tagV = (/<script src="app\.js\?v=([^"]+)" defer/.exec(page) || [])[1], appV = (/const APP_VERSION = '([^']+)'/.exec(appJs) || [])[1];
+    ok('5.1: index.html loads app.js deferred, with the same version as APP_VERSION (so old and new are never mixed)', tagV && tagV === appV, tagV + ' vs ' + appV);
+    ok('5.1: the font stylesheet does not block the first paint', /fonts\.googleapis\.com\/css2[^>]*media="print" onload="this\.media='all'"/.test(page));
+    ok('5.1: the service worker saves app.js for offline use', /'app\.js'/.test(fs.readFileSync(path.join(ROOT, 'sw.js'), 'utf8')));
     ok('ranked bank is not inlined', !/RANKED_EXTRA_QUESTIONS\s*=\s*\{/.test(html));
     ok('FB_API_KEY is the project\'s public web key (4.8: secure mode on); no service-account or private key ships', /const FB_API_KEY = 'AIza[0-9A-Za-z_-]{35}';/.test(html) && !/private_key|BEGIN PRIVATE KEY|service_account/.test(html));
     const all = []; const walk = (d) => fs.readdirSync(d).forEach((n) => { const f = path.join(d, n); if (fs.statSync(f).isDirectory()) walk(f); else if (/\.(js|html|json|md|txt|css)$/.test(n) && fs.statSync(f).size < 3e6) all.push(f); }); walk(ROOT);
@@ -32,7 +36,8 @@ let pass = 0, fail = 0; const ok = (m, c, x) => { if (c) pass++; else { fail++; 
     ok('no C or C++ question uses C#/Java array syntax, and no C question uses bool without its header', !bank.c.concat(bank.cpp).some((q) => /int\[\] \w+ = new/.test(q.code)) && !bank.c.some((q) => /\bbool\b/.test(q.code)));
     ok('comparison questions: the marked answer matches the comparison', bank.cpp.concat(bank.cs, bank.c).filter((q) => /result = (\d+) > (\d+)/.test(q.code)).every((q) => { const m = /result = (\d+) > (\d+)/.exec(q.code); const t = +m[1] > +m[2]; return [t ? 'true' : 'false', t ? '1' : '0'].includes(q.options[q.answer]); }));
     // home page
-    await p.goto(BASE); await p.waitForSelector('#app .wrap, #app .card', { timeout: 15000 }); await p.waitForTimeout(600);
+    await p.goto(BASE); const skel = await p.evaluate(() => !!document.querySelector('[data-skel]')); await p.waitForSelector('#app .wrap:not([data-skel]), #app .card', { timeout: 15000 });
+    ok('5.1: the page shows a loading skeleton that the app replaces', skel === false || !(await p.evaluate(() => !!document.querySelector('[data-skel]')))); await p.waitForTimeout(600);
     ok('home page renders under /Learn/', (await text()).length > 200);
     ok('home page does not download the ranked bank', !reqs.some((u) => u.includes('ranked_extra.json') || u.includes('ranked_questions.json')));
     ok('html has lang and a title', await p.evaluate(() => document.documentElement.lang === 'en' && document.title.length > 3));
@@ -40,7 +45,7 @@ let pass = 0, fail = 0; const ok = (m, c, x) => { if (c) pass++; else { fail++; 
     await p.keyboard.press('Tab'); ok('keyboard focus lands on a visible control with an accessible name', await p.evaluate(() => { const e = document.activeElement; return !!e && e !== document.body && ((e.textContent || '').trim().length > 0 || e.getAttribute('aria-label') || e.title); }));
     const noName = await p.evaluate(() => Array.from(document.querySelectorAll('#app button, #app a[href]')).filter((e) => e.offsetParent && !(e.textContent || '').trim() && !e.getAttribute('aria-label') && !e.title).length); ok('every visible button and link on the home page has a name', noName === 0, noName);
     const noLabel = await p.evaluate(() => Array.from(document.querySelectorAll('#app input, #app select, #app textarea')).filter((e) => e.offsetParent && e.type !== 'hidden' && !e.getAttribute('aria-label') && !e.placeholder && !e.title && !(e.id && document.querySelector('label[for="' + e.id + '"]')) && !e.closest('label')).length); ok('every visible form field on the home page is labelled', noLabel === 0, noLabel);
-    ok('version 5.0 is reported', await p.evaluate(() => /5\.0/.test(document.body.innerHTML)));
+    ok('version 5.1 is reported', await p.evaluate(() => /5\.1/.test(document.body.innerHTML)));
     // quiz loads the bank on demand
     const before = reqs.length; await p.evaluate(() => { location.hash = '#/quiz'; }); await p.waitForFunction(() => !/Loading the question bank/.test(document.querySelector('#app').innerText), null, { timeout: 30000 });
     ok('opening Quiz downloads the bank', reqs.slice(before).some((u) => u.includes('ranked_extra.json'))); ok('quiz page renders after loading', await p.locator('.quizcard .opt').count() >= 2 && !/could not be loaded/.test(await text()));

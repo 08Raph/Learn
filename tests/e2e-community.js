@@ -5,7 +5,7 @@
 const { chromium } = require('playwright'); const { spawn } = require('child_process'); const fs = require('fs'), path = require('path');
 const { canRead, canWrite, get } = require('./rules-sim.js');
 const ROOT = process.env.APP_DIR || path.join(__dirname, '..'); const PORT = 8784, BASE = 'http://localhost:' + PORT + '/index.html';
-const APPV = (fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8').match(/const APP_VERSION = '([^']+)'/) || [])[1];
+const APPV = (fs.readFileSync(path.join(ROOT, 'app.js'), 'utf8').match(/const APP_VERSION = '([^']+)'/) || [])[1];
 const rules = JSON.parse(fs.readFileSync(path.join(ROOT, 'firebase', 'database.rules.json'), 'utf8'));
 let pass = 0, fail = 0; const ok = (m, c, x) => { if (c) pass++; else { fail++; console.log('  FAIL ' + m + (x ? ' [' + String(x).slice(0, 260) + ']' : '')); } };
 let db = { duel: { ping: 1 } }; const accounts = {}; let seq = 0; const denied = [], resets = []; let down = false;
@@ -37,8 +37,8 @@ const savedFor = (email) => { const uid = Object.keys(accounts).find((k) => acco
   const b = await chromium.launch(); const errs = [];
   const mk = async (seed, secure = true) => { const ctx = await b.newContext({ viewport: { width: 1024, height: 900 }, serviceWorkers: 'block' }); const p = await ctx.newPage(); p.on('pageerror', (e) => errs.push(e.message.slice(0, 160)));
     await ctx.route(/fonts\.(googleapis|gstatic)\.com|firebaseio\.com\/(?!.*mock-project)/, (r) => r.abort());
-    if (!secure) await ctx.route('**/index.html*', async (route) => { const res = await route.fetch(); const t = (await res.text()).replace(/const FB_API_KEY = '[^']*';/, "const FB_API_KEY = '';"); return route.fulfill({ response: res, body: t }); });
-    if (secure) await ctx.route('**/index.html*', async (route) => { const res = await route.fetch(); let t = await res.text(); if (!/const FB_API_KEY = '[^']*';/.test(t)) throw new Error('FB_API_KEY marker missing'); t = t.replace(/const FB_API_KEY = '[^']*';/, "const FB_API_KEY = 'TEST-WEB-KEY';").replace(/const DUEL_DB = '[^']*';/, "const DUEL_DB = 'https://mock-project-default-rtdb.firebaseio.com';"); return route.fulfill({ response: res, body: t }); });
+    if (!secure) await ctx.route('**/app.js*', async (route) => { const res = await route.fetch(); const t = (await res.text()).replace(/const FB_API_KEY = '[^']*';/, "const FB_API_KEY = '';"); return route.fulfill({ response: res, body: t }); });
+    if (secure) await ctx.route('**/app.js*', async (route) => { const res = await route.fetch(); let t = await res.text(); if (!/const FB_API_KEY = '[^']*';/.test(t)) throw new Error('FB_API_KEY marker missing'); t = t.replace(/const FB_API_KEY = '[^']*';/, "const FB_API_KEY = 'TEST-WEB-KEY';").replace(/const DUEL_DB = '[^']*';/, "const DUEL_DB = 'https://mock-project-default-rtdb.firebaseio.com';"); return route.fulfill({ response: res, body: t }); });
     await ctx.route(/identitytoolkit\.googleapis\.com|securetoken\.googleapis\.com|mock-project-default-rtdb\.firebaseio\.com/, backend);
     if (seed) seed = Object.assign({ seenPatch: APPV }, seed);
     if (seed) await ctx.addInitScript((s) => { if (!sessionStorage.getItem('seeded')) { sessionStorage.setItem('seeded', '1'); if (!localStorage.getItem('learn-code-v2')) localStorage.setItem('learn-code-v2', JSON.stringify(s)); } }, seed);
@@ -46,7 +46,7 @@ const savedFor = (email) => { const uid = Object.keys(accounts).find((k) => acco
   const T = (p) => p.evaluate(() => document.querySelector('#app').innerText);
   const S = (p) => p.evaluate(() => JSON.parse(localStorage.getItem('learn-code-v2') || '{}'));
   const signUp = async (p, email) => { await p.goto(BASE + '#/account'); await p.waitForSelector('#acForm'); await p.fill('#acEm', email); await p.fill('#acPw', 'password-' + email.length + 'xx'); await p.click('#acGo'); await p.waitForSelector('#acNow', { timeout: 15000 }); };
-  const EP = (fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8').match(/const AI_ENDPOINT = '([^']+)'/) || [])[1];
+  const EP = (fs.readFileSync(path.join(ROOT, 'app.js'), 'utf8').match(/const AI_ENDPOINT = '([^']+)'/) || [])[1];
   try {
     /* 1. AI help inside a lesson (the Worker is MOCKED here) */
     { const { ctx, p } = await mk(null); let sent = null, mode = 'ok';
@@ -54,13 +54,13 @@ const savedFor = (email) => { const uid = Object.keys(accounts).find((k) => acco
       const ids = await (async () => { await p.goto(BASE + '#/'); await p.waitForTimeout(800); return p.evaluate(() => window.__learnLessonIds('py')); })();
       await p.goto(BASE + '#/py/' + ids[0]); await p.waitForSelector('#aiBtn');
       ok('lesson: an Ask AI button sits next to Hint', await p.locator('#hintBtn + #resetBtn + #aiBtn, #aiBtn').count() === 1);
-      await p.click('#runBtn'); await p.waitForTimeout(600); await p.click('#aiBtn'); await p.waitForSelector('#aiQ'); await p.fill('#aiQ', 'why is this wrong?'); await p.click('#aiGo'); await p.waitForSelector('.aians', { timeout: 10000 });
-      const ans = await p.innerText('#aiAns');
+      await p.click('#runBtn'); await p.waitForTimeout(600); await p.click('#aiBtn'); await p.waitForSelector('#aiHelp .aiq'); await p.fill('#aiHelp .aiq', 'why is this wrong?'); await p.click('#aiHelp .aigo'); await p.waitForSelector('.aians', { timeout: 10000 });
+      const ans = await p.innerText('#aiHelp .aiout');
       ok('lesson AI: the reply is shown with formatting and labelled', /line 2/.test(ans) && await p.locator('.aians b').count() === 1 && await p.locator('.aians pre').count() === 1 && /Answered by GLM-4\.7 Flash/.test(ans));
       ok('lesson AI: HTML in the reply is shown as text, never run', !(await p.evaluate(() => window.__xss)) && await p.locator('.aians img').count() === 0);
       ok('lesson AI: the request carries the lesson, the code, the run result and the question, and asks for a hint not the solution', sent && /Do NOT write the full corrected program/.test(sent.system) && /Python course/.test(sent.system) && /My code:/.test(sent.messages[0].content) && /What happened when I ran it/.test(sent.messages[0].content) && /why is this wrong\?/.test(sent.messages[0].content), JSON.stringify(sent || {}).slice(0, 300));
-      mode = 'busy'; await p.click('#aiGo'); await p.waitForTimeout(800); ok('lesson AI: busy or daily limit gives a clear message', /AI is busy/.test(await p.innerText('#aiAns')));
-      mode = 'down'; await p.click('#aiGo'); await p.waitForTimeout(800); ok('lesson AI: unreachable gives a clear message and points to Hint', /did not answer|offline/.test(await p.innerText('#aiAns')) && /Hint/.test(await p.innerText('#aiAns')));
+      mode = 'busy'; await p.click('#aiHelp .aigo'); await p.waitForTimeout(800); ok('lesson AI: busy or daily limit gives a clear message', /AI is busy/.test(await p.innerText('#aiHelp .aiout')));
+      mode = 'down'; await p.click('#aiHelp .aigo'); await p.waitForTimeout(800); ok('lesson AI: unreachable gives a clear message and points to Hint', /did not answer|offline/.test(await p.innerText('#aiHelp .aiout')) && /Hint/.test(await p.innerText('#aiHelp .aiout')));
       await ctx.close(); }
     /* 2. weekly goal, leaderboard and calendar reminder */
     { const { ctx, p } = await mk({ bonus: 100 }); await p.goto(BASE + '#/'); await p.waitForSelector('#wkBtn');
@@ -131,6 +131,36 @@ const savedFor = (email) => { const uid = Object.keys(accounts).find((k) => acco
       const before = Object.keys(db.classes || {}).length;
       await p.goto(BASE + '#/account'); await p.waitForSelector('#acDel'); await p.click('#acDel'); await p.click('#acDel'); await p.waitForSelector('#acForm', { timeout: 20000 });
       ok('delete account: the classes it taught are deleted too', before === 1 && !Object.keys(db.classes || {}).length, JSON.stringify(db.classes || {}).slice(0, 100));
+      await ctx.close(); }
+    /* 6. 5.1: AI in the Playground, practice drills, review of mistakes, AI explanations, University exercises */
+    { const { ctx, p } = await mk(null); let sent = null;
+      await ctx.route(EP, async (r) => { sent = JSON.parse(r.request().postData()); await r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ reply: 'Because **2** is printed.' }) }); });
+      await p.goto(BASE + '#/play/py'); await p.waitForSelector('#aiBtn', { timeout: 10000 });
+      await p.click('#aiBtn'); await p.fill('.aiq', 'what does it do?'); await p.click('.aigo'); await p.waitForSelector('.aians', { timeout: 10000 });
+      ok('playground: Ask AI answers and is labelled', /Because 2 is printed/.test(await p.innerText('#aiHelp')) && /Answered by/.test(await p.innerText('#aiHelp')) && /Playground/.test(sent.system));
+      await p.goto(BASE + '#/practice'); await p.waitForSelector('#prGo');
+      ok('practice: the page offers mistakes review and drills in all 15 languages', /No mistakes to review/.test(await T(p)) && await p.locator('#prLang option').count() === 15);
+      await p.selectOption('#prLang', 'go'); await p.selectOption('#prDiff', '1'); await p.click('#prGo'); await p.waitForSelector('.quizcard', { timeout: 15000 });
+      ok('practice: a 10-question Go drill starts', /1 \/ 10/.test(await T(p)) && /^Go:/.test(await p.innerText('.quiz h3')));
+      let wrongs = 0;
+      for (let i = 0; i < 10; i++) { await p.waitForSelector('.opt'); const a = await p.evaluate(() => window.__prAnswer()); const pick = i < 2 ? (a + 1) % 4 : a; // wrong on the first two, right after
+        await p.locator('.opt').nth(pick).click(); const wrong = await p.locator('.opt.wrong').count(); wrongs += wrong;
+        if (i === 0 && wrong) { await p.click('#qAiBtn'); await p.waitForSelector('#qAiHelp .aians', { timeout: 10000 }); ok('practice: after a wrong answer, Explain with AI asks at once, with the correct answer and official explanation as ground truth', /Correct answer:/.test(sent.messages[0].content) && /Official explanation:/.test(sent.messages[0].content)); }
+        await p.click('#nxt'); }
+      await p.waitForSelector('#prAgain'); const st = await S(p);
+      ok('practice: results are shown and wrong answers are saved for review', /\/ 10 correct/.test(await T(p)) && Object.keys(st.miss || {}).length === wrongs && wrongs >= 1, wrongs + ' ' + JSON.stringify(st.miss || {}).slice(0, 120));
+      ok('practice: correct answers give XP, at most 30 a day', st.prXp && st.prXp.n === 10 - wrongs && st.bonus === 10 - wrongs);
+      await p.click('#prHome'); await p.waitForSelector('#prReview'); ok('practice: the review list shows the mistakes', new RegExp(wrongs + ' question').test(await T(p)));
+      for (let round = 0; round < 2; round++) { await p.goto(BASE + '#/practice'); await p.waitForSelector('#prReview'); await p.click('#prReview');
+        for (let i = 0; i < wrongs; i++) { await p.waitForSelector('.opt'); const idx = await p.evaluate(() => window.__prAnswer()); await p.locator('.opt').nth(idx).click(); if (round === 0 && i === 0) ok('review: a correct answer says one more is needed', /1 more correct answer/.test(await p.innerText('.why'))); await p.click('#nxt'); } }
+      ok('practice: a mistake leaves the review list after two correct reviews', !Object.keys((await S(p)).miss || {}).length);
+      await ctx.close(); }
+    { const { ctx, p } = await mk(null); await ctx.route(EP, (r) => r.abort());
+      await p.goto(BASE + '#/uni/labs/py'); await p.waitForTimeout(2500);
+      ok('University open lab: an Ask AI button is offered', await p.locator('.u-aibtn').count() === 1);
+      await p.goto(BASE + '#/uni/arena'); await p.waitForTimeout(500);
+      const examSrc = require('fs').readFileSync(require('path').join(ROOT, 'uni', 'uni-assess.js'), 'utf8');
+      ok('University: AI is only added to try-its, assignments, studio and the open lab, never examinations or interviews', /opts\.compact \|\| \/\^\(lab\|free\|studio\):\//.test(examSrc) && /mountTask\(\$\('\[data-code="' \+ i \+ '"\]'\), it, \{ graded: false \}\)/.test(examSrc));
       await ctx.close(); }
     ok('the app never sent a request without a token that the rules refused', !denied.some((x) => / as null/.test(x) && !/certs/.test(x)), denied.join(' ; '));
     ok('no page errors', errs.length === 0, errs.join(' | '));

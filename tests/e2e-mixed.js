@@ -4,7 +4,7 @@
 const { chromium } = require('playwright'); const http = require('http'); const fs = require('fs'), path = require('path');
 const ROOT = process.env.APP_DIR || path.join(__dirname, '..'); const PORT = 8781, BASE = 'http://localhost:' + PORT + '/Learn/index.html';
 const TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.png': 'image/png', '.txt': 'text/plain' };
-let swap = {}, swNext = false; const UV = (fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8').match(/const UNI_VER = '([^']+)'/) || [])[1]; // served path -> fixture file, changed per scenario
+let swap = {}, swNext = false; const UV = (fs.readFileSync(path.join(ROOT, 'app.js'), 'utf8').match(/const UNI_VER = '([^']+)'/) || [])[1]; // served path -> fixture file, changed per scenario
 const srv = http.createServer((q, r) => { let u = decodeURIComponent(q.url.split('?')[0]); if (!u.startsWith('/Learn/')) { r.writeHead(404); return r.end(); } u = u.slice(7) || 'index.html';
   if (u === 'sw.js' && swNext) { r.writeHead(200, { 'Content-Type': 'text/javascript', 'Cache-Control': 'no-cache' }); return r.end(fs.readFileSync(path.join(ROOT, 'sw.js'), 'utf8').replace(/const VER = '[^']+'/, "const VER = 'learn-test-next'")); }
   const f = swap[u] ? path.join(ROOT, 'tests', 'fixtures', swap[u]) : path.join(ROOT, u); if (!f.startsWith(ROOT) || !fs.existsSync(f) || fs.statSync(f).isDirectory()) { r.writeHead(404); return r.end(); }
@@ -33,7 +33,7 @@ async function page(b) { const ctx = await b.newContext({ serviceWorkers: 'block
     ok('old module: the rest of the University still works (Courses opens)', await (async () => { await p.goto(BASE + '#/uni/courses'); await p.waitForTimeout(1500); return /Stage 1/.test(await text(p)); })());
     await ctx.close(); }
   /* 4. a version stamp on every lazily loaded module matches university.js */
-  { const B = (fs.readFileSync(path.join(ROOT, 'uni', 'university.js'), 'utf8').match(/const BUILD = '([^']+)'/) || [])[1]; const I = (fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8').match(/const UNI_VER = '([^']+)'/) || [])[1];
+  { const B = (fs.readFileSync(path.join(ROOT, 'uni', 'university.js'), 'utf8').match(/const BUILD = '([^']+)'/) || [])[1]; const I = (fs.readFileSync(path.join(ROOT, 'app.js'), 'utf8').match(/const UNI_VER = '([^']+)'/) || [])[1];
     ok('BUILD in university.js equals UNI_VER in index.html', B && B === I, B + ' vs ' + I);
     /* every file the University loads with loadMod() must carry a stamp, or loading it would always fail */
     const allSrc = fs.readdirSync(path.join(ROOT, 'uni')).filter((f) => /\.js$/.test(f)).map((f) => fs.readFileSync(path.join(ROOT, 'uni', f), 'utf8')).join('\n');

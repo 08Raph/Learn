@@ -1,3 +1,6 @@
+08Raph Learn 5.1: faster start, practice drills, AI everywhere, tidier home page
+- NEW FILE app.js (the app code). Upload it together with index.html.
+
 08Raph Learn 5.0: AI in lessons, weekly goals and leaderboard, reminders, certificate links, classes
 
 - REQUIRED: publish the new firebase/database.rules.json again (Realtime Database -> Rules -> paste -> Publish).

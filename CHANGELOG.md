@@ -1,5 +1,29 @@
 # Changelog
 
+## 5.1 — 16 November 2026
+### Faster loading
+- The app code moved from an inline script in `index.html` (1.5 MB) to `app.js`, loaded with `defer` and a version
+  query (`app.js?v=5.1`, matching `APP_VERSION`, so the version-exact service worker never mixes old and new).
+  `index.html` is now 62 KB and shows a skeleton at once. The Google Fonts stylesheet no longer blocks the first paint.
+- Measured locally with the CPU slowed 4×: first paint about 0.8 s → about 0.1 s. With an emulated 1.5 Mbit/s,
+  150 ms connection (uncompressed local server): first paint about 9 s → about 0.5 s; the full app is ready at the
+  same time as before (the same amount of code still has to arrive). Not measured on a real iPad.
+### Practice
+- `#/practice`: 10-question drills from the bank in any of 15 languages, by level (beginner / intermediate /
+  advanced and professional); review list of wrong answers from drills and speed rounds (`S.miss`, synced), removed
+  after two correct reviews; 1 XP per correct answer, at most 30 a day. Home card.
+### AI everywhere
+- Reusable `aiPanel`. Ask AI in the Playground; in University try-its, assignments (hint only), studio projects and
+  the open lab; never in examinations, mock interviews or practice interviews. "Explain with AI" after a wrong answer
+  in drills and speed rounds (not in lesson checks, which can be retried).
+### Look and feel
+- Achievements folded away on the home page, with the four closest to unlocking shown; home page about 27% shorter.
+  Four-card row on the home page; two columns on phones.
+### Tests
+- Tests read constants from `app.js`; key injection intercepts `app.js`. New checks: deferred `app.js` version equals
+  `APP_VERSION`, fonts non-blocking, `app.js` in the offline list, skeleton replaced. `e2e-community.js` 40 → 51.
+  Two test-only read-only hooks: `window.__learnLessonIds`, `window.__prAnswer`.
+
 ## 5.0 — 16 November 2026
 ### Added
 - **Ask AI in lessons**: button next to Hint in every coding lesson. Sends the lesson, the student's code, the last

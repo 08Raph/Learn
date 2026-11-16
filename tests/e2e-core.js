@@ -22,7 +22,7 @@ const results = []; const ok = (name, cond, extra) => { results.push((cond ? 'PA
     ok('existing home renders', /Python|JavaScript/.test(homeTxt));
     ok('home has University button and banner', await p.locator('#uniBtn').count() === 1 && await p.locator('#uniBanner').count() === 1);
     // patch notes
-    ok('APP_VERSION has a patch note', await p.evaluate(() => /3\.0/.test(document.documentElement.innerHTML) ));
+    ok('APP_VERSION has a patch note (the newest note is for the running version)', await p.evaluate(async () => { const s = await (await fetch('app.js')).text(); const v = (/const APP_VERSION = '([^']+)'/.exec(s) || [])[1]; const n = (/const PATCH_NOTES = \[\s*\{ v: '([^']+)'/.exec(s) || [])[1]; return !!v && v === n; }));
 
     await go('#/uni'); await U();
     let t = await text();

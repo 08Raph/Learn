@@ -5,7 +5,7 @@
 const { chromium } = require('playwright'); const { spawn } = require('child_process'); const fs = require('fs'), path = require('path');
 const { canRead, canWrite, get } = require('./rules-sim.js');
 const ROOT = process.env.APP_DIR || path.join(__dirname, '..'); const PORT = 8783, BASE = 'http://localhost:' + PORT + '/index.html';
-const APPV = (fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8').match(/const APP_VERSION = '([^']+)'/) || [])[1];
+const APPV = (fs.readFileSync(path.join(ROOT, 'app.js'), 'utf8').match(/const APP_VERSION = '([^']+)'/) || [])[1];
 const rules = JSON.parse(fs.readFileSync(path.join(ROOT, 'firebase', 'database.rules.json'), 'utf8'));
 let pass = 0, fail = 0; const ok = (m, c, x) => { if (c) pass++; else { fail++; console.log('  FAIL ' + m + (x ? ' [' + String(x).slice(0, 260) + ']' : '')); } };
 let db = { duel: { ping: 1 } }; const accounts = {}; let seq = 0; const denied = [], resets = []; let down = false;
@@ -37,8 +37,8 @@ const savedFor = (email) => { const uid = Object.keys(accounts).find((k) => acco
   const b = await chromium.launch(); const errs = [];
   const mk = async (seed, secure = true) => { const ctx = await b.newContext({ viewport: { width: 1024, height: 900 }, serviceWorkers: 'block' }); const p = await ctx.newPage(); p.on('pageerror', (e) => errs.push(e.message.slice(0, 160)));
     await ctx.route(/fonts\.(googleapis|gstatic)\.com|firebaseio\.com\/(?!.*mock-project)/, (r) => r.abort());
-    if (!secure) await ctx.route('**/index.html*', async (route) => { const res = await route.fetch(); const t = (await res.text()).replace(/const FB_API_KEY = '[^']*';/, "const FB_API_KEY = '';"); return route.fulfill({ response: res, body: t }); });
-    if (secure) await ctx.route('**/index.html*', async (route) => { const res = await route.fetch(); let t = await res.text(); if (!/const FB_API_KEY = '[^']*';/.test(t)) throw new Error('FB_API_KEY marker missing'); t = t.replace(/const FB_API_KEY = '[^']*';/, "const FB_API_KEY = 'TEST-WEB-KEY';").replace(/const DUEL_DB = '[^']*';/, "const DUEL_DB = 'https://mock-project-default-rtdb.firebaseio.com';"); return route.fulfill({ response: res, body: t }); });
+    if (!secure) await ctx.route('**/app.js*', async (route) => { const res = await route.fetch(); const t = (await res.text()).replace(/const FB_API_KEY = '[^']*';/, "const FB_API_KEY = '';"); return route.fulfill({ response: res, body: t }); });
+    if (secure) await ctx.route('**/app.js*', async (route) => { const res = await route.fetch(); let t = await res.text(); if (!/const FB_API_KEY = '[^']*';/.test(t)) throw new Error('FB_API_KEY marker missing'); t = t.replace(/const FB_API_KEY = '[^']*';/, "const FB_API_KEY = 'TEST-WEB-KEY';").replace(/const DUEL_DB = '[^']*';/, "const DUEL_DB = 'https://mock-project-default-rtdb.firebaseio.com';"); return route.fulfill({ response: res, body: t }); });
     await ctx.route(/identitytoolkit\.googleapis\.com|securetoken\.googleapis\.com|mock-project-default-rtdb\.firebaseio\.com/, backend);
     if (seed) seed = Object.assign({ seenPatch: APPV }, seed);
     if (seed) await ctx.addInitScript((s) => { if (!sessionStorage.getItem('seeded')) { sessionStorage.setItem('seeded', '1'); if (!localStorage.getItem('learn-code-v2')) localStorage.setItem('learn-code-v2', JSON.stringify(s)); } }, seed);

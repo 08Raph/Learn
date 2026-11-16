@@ -4,7 +4,7 @@
    history, projects and portfolio, transcript, certificates.
    Grading reuses the engines already in index.html (gradeLesson, runCodeAsync).
    ============================================================ */
-(window.LEARN_MOD_BUILD = window.LEARN_MOD_BUILD || {})['uni-assess'] = '1.9.0'; // must equal BUILD in university.js
+(window.LEARN_MOD_BUILD = window.LEARN_MOD_BUILD || {})['uni-assess'] = '2.0.0'; // must equal BUILD in university.js
 (function () {
   'use strict';
   const U = window.LearnUniversity; const A = U.api; const { $, $$, E, md, inline, st, save, shell, link } = U;
@@ -75,6 +75,15 @@
     }
     const persist = (v) => { if (!opts.saveKey) return; clearTimeout(saveT); saveT = setTimeout(() => { const s = st(); s.scratch[opts.saveKey] = String(v).slice(0, 60000); save(); if (savedEl.isConnected) savedEl.textContent = 'Saved'; }, 500); if (savedEl) savedEl.textContent = ''; };
     const ed = A.mountEditor($('.u-ed', host), lang, start, () => run(), (v) => { persist(v); if (opts.onChange) opts.onChange(v); });
+    // 5.1: AI hints on try-its, assignments, studio projects and the open lab; never in examinations, mock or practice interviews
+    if (A.aiPanel && (opts.compact || /^(lab|free|studio):/.test(opts.saveKey || ''))) {
+      const graded = !opts.compact && !/^free:/.test(opts.saveKey || '');
+      $('.u-taskbar', host).insertAdjacentHTML('beforeend', '<button type="button" class="btn small u-aibtn">🤖 Ask AI</button>'); $('.u-hints', host).insertAdjacentHTML('beforebegin', '<div class="u-ai"></div>');
+      A.aiPanel($('.u-aibtn', host), $('.u-ai', host), { title: 'Ask the AI about your code', placeholder: 'e.g. Why does my test fail?', fallback: spec.hints && spec.hints.length ? 'Use Hint instead.' : '',
+        fine: graded ? 'This is graded work, so the AI only gives hints, never the solution. AI answers can be wrong.' : 'The AI gets the exercise, your code and the last output. AI answers can be wrong.',
+        system: 'You are a tutor at a self-study software-engineering university. Exercise (' + langName(lang) + '): ' + A.aiPlain(spec.prompt || spec.title || spec.md || '') + (graded ? ' This is GRADED work: give one short hint only. Never write the corrected program or the answer.' : ' Give a short hint first; do not write the full solution.') + ' Answer in under 150 words.',
+        user: (q) => A.aiCodeMsg(q, ed.get(), outEl ? outEl.innerText : '', 'Help me with this exercise.') });
+    }
     const fn = $('.fname', host); if (fn && html) fn.textContent = 'index.html';
     async function run() {
       if (busy) return; const code = ed.get();

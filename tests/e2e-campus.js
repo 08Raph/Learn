@@ -138,8 +138,8 @@ const R = []; const ok = (n, c, x) => R.push((c ? 'PASS ' : 'FAIL ') + n + (x ? 
 
     /* ---- service worker ---- */
     await p.evaluate(() => navigator.serviceWorker.ready); await p.waitForTimeout(1500);
-    const keys = await p.evaluate(() => caches.keys()); ok('service worker: only the current cache exists', keys.length === 1 && keys[0] === 'learn-v5.0', keys.join(','));
-    const cached = await p.evaluate(async () => { const c = await caches.open('learn-v5.0'); const ks = (await c.keys()).map((r) => new URL(r.url).pathname); return ['uni/uni-campus.js', 'uni/data/departments.js', 'uni/university.js'].every((f) => ks.some((k) => k.endsWith(f))); });
+    const keys = await p.evaluate(() => caches.keys()); ok('service worker: only the current cache exists', keys.length === 1 && keys[0] === 'learn-v5.1', keys.join(','));
+    const cached = await p.evaluate(async () => { const c = await caches.open('learn-v5.1'); const ks = (await c.keys()).map((r) => new URL(r.url).pathname); return ['uni/uni-campus.js', 'uni/data/departments.js', 'uni/university.js'].every((f) => ks.some((k) => k.endsWith(f))); });
     ok('service worker: new University files are precached', cached);
     await ctx.setOffline(true); await p.goto(BASE + '#/uni/dashboard').catch(() => {}); await p.goto(BASE + '#/uni/departments').catch(() => {}); await p.waitForTimeout(1500); t = await text().catch(() => '');
     ok('offline: departments page works from cache', /Eight departments/.test(t)); await ctx.setOffline(false);
@@ -168,7 +168,7 @@ const R = []; const ok = (n, c, x) => R.push((c ? 'PASS ' : 'FAIL ') + n + (x ? 
 
   /* ---- unit test: cloud-sync merge of University progress (function extracted from index.html) ---- */
   try {
-    const src = fs.readFileSync((process.env.APP_DIR || 'app') + '/index.html', 'utf8'); const m = /function mergeUni\(r\) \{[\s\S]*?\n\}\n/.exec(src);
+    const src = fs.readFileSync((process.env.APP_DIR || 'app') + '/app.js', 'utf8'); const m = /function mergeUni\(r\) \{[\s\S]*?\n\}\n/.exec(src);
     const run = new Function('S', 'r', m[0] + '; mergeUni(r); return S;');
     const local = { uni: { lessons: { 'c101:0': '2026-11-01' }, labs: { c101: { tries: 3 } }, exams: { c101: [{ at: '2026-11-01', score: 40, pass: false }] }, projects: {}, missed: { 'c101:x1': 2 }, days: ['2026-11-01'], time: 100, name: '' } };
     const remote = { lessons: { 'c101:1': '2026-11-02' }, labs: { c101: { pass: true, at: '2026-11-02', tries: 1 } }, exams: { c101: [{ at: '2026-11-01', score: 40, pass: false }, { at: '2026-11-03', score: 90, pass: true }] }, projects: { c101: { at: '2026-11-03', pct: 70 } }, missed: { 'c101:x1': 1, 'c101:x2': 4 }, days: ['2026-11-02'], time: 50, name: 'Ada' };
