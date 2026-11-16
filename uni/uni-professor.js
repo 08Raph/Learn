@@ -7,7 +7,7 @@
                server-side function YOU deploy (which holds the API key), chat
                messages are POSTed there. No key ever lives in this site.
    ============================================================ */
-(window.LEARN_MOD_BUILD = window.LEARN_MOD_BUILD || {})['uni-professor'] = '1.7.0'; // must equal BUILD in university.js
+(window.LEARN_MOD_BUILD = window.LEARN_MOD_BUILD || {})['uni-professor'] = '1.8.0'; // must equal BUILD in university.js
 (function () {
   'use strict';
   const U = window.LearnUniversity; const A = U.api; const { $, $$, E, md, inline, st, save, shell, link } = U;
@@ -250,7 +250,7 @@
     const c = U.courseById(path[1]); ctx = c ? { course: c.id, lesson: /^\d+$/.test(path[2] || '') ? +path[2] : undefined, lab: path[2] === 'lab' } : null; labHint = 0; pendingOral = null;
     const on = !!endpoint(); const label = String(U.cfg.aiLabel || 'an AI model').replace(/[<>]/g, '').slice(0, 40);
     let h = '<section class="u-stagehero"><p class="u-eyebrow">🤖 AI Professor</p><h1>A tutor that teaches instead of answering for you</h1><p>Ask for an explanation, paste code for review, paste an error, ask for a step-by-step trace, or ask to be quizzed. The professor gives hints before answers and will not complete graded work for you.</p></section>' +
-      '<div class="up-status ' + (on ? 'on' : 'off') + '" role="note">' + (on ? '<b>Connected to ' + E(label) + '.</b> Your messages on this tab are sent to this site\'s own server endpoint, which forwards them to the AI provider. Do not paste passwords or private information. If the service fails, the built-in tutor answers instead.' : '<b>No AI model is connected to this site.</b> You are using the <b>built-in tutor</b>: fixed rules plus the course text. It works offline and costs nothing, but it is not an AI and cannot answer open questions. The site owner can connect a real model later without changing anything else (see <code>uni/README.md</code>).') + '</div>' +
+      '<div class="up-status ' + (on ? 'on' : 'off') + '" role="note">' + (on ? '<b>Connected to ' + E(label) + '.</b> Your messages on this tab are sent to this site\'s own AI service (a Cloudflare Worker running the model on Cloudflare Workers AI). Nothing is stored there. Do not paste passwords or private information. If the service fails, the built-in tutor answers instead.' : '<b>No AI model is connected to this site.</b> You are using the <b>built-in tutor</b>: fixed rules plus the course text. It works offline and costs nothing, but it is not an AI and cannot answer open questions. The site owner can connect a real model later without changing anything else (see <code>uni/README.md</code>).') + '</div>' +
       (c ? '<p class="pill">Context: ' + E(c.code + ' ' + c.title) + (ctx.lesson !== undefined ? ' · lesson ' + (ctx.lesson + 1) : ctx.lab ? ' · programming assignment' : '') + '. ' + link(['professor'], 'Clear context') + '</p>' : '') +
       '<h2 class="u-h2">Teaching mode</h2><div class="up-modes" role="group" aria-label="Teaching mode">' + MODES.map((m) => '<button type="button" class="up-mode" data-mode="' + m[0] + '" aria-pressed="' + (m[0] === mode) + '"><b>' + m[1] + '</b><small>' + m[2] + '</small></button>').join('') + '</div>' +
       '<div class="up-chatwrap"><div><div class="up-log" id="upLog" role="log" aria-live="polite" aria-label="Conversation" tabindex="0"></div><form class="up-chat" id="upForm"><label class="pill" for="upIn">Your message (Enter to send, Shift+Enter for a new line)</label><textarea id="upIn" rows="4" maxlength="8000" placeholder="Ask a question, or paste code or an error message"></textarea><div class="row"><button type="submit" class="btn primary">Send</button><button type="button" class="btn small" id="upClear">Clear conversation</button></div></form></div>' +
@@ -266,7 +266,7 @@
       text = String(text || '').trim(); if (!text || busy) return; busy = true; push('me', '', text.slice(0, 8000));
       const wait = push('prof', '<p class="pill">Thinking…</p>'); log.pop();
       let ans = null, src = '';
-      if (on) { try { ans = await remote(text); src = 'Answered by ' + E(label) + '. AI answers can be wrong; check anything important.'; } catch (e) { src = 'The AI service did not answer, so the built-in tutor replied.'; } }
+      if (on) { try { ans = await remote(text); src = 'Answered by ' + E(label) + '. AI answers can be wrong; check anything important.'; } catch (e) { src = /HTTP 429/.test(String(e && e.message)) ? 'The AI is busy (too many questions in a minute, or today\'s free limit is used up), so the built-in tutor replied. Try again in a minute.' : !navigator.onLine ? 'You are offline, so the built-in tutor replied.' : 'The AI service did not answer, so the built-in tutor replied.'; } }
       if (!ans) { try { ans = await builtin(text); const pt = practicePointer(text); if (pt && ans && ans.html && mode !== 'examiner') ans.html += pt; } catch (e) { ans = { html: '<p>The built-in tutor could not load its notes (you may be offline and they are not saved on this device yet).</p>' }; } if (!src) src = 'Built-in tutor (not an AI model)'; }
       wait.remove(); push('prof', ans.html, ans.plain || '', ans.after, src); busy = false;
     };

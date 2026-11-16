@@ -122,7 +122,7 @@ const R = []; const ok = (n, c, x) => R.push((c ? 'PASS ' : 'FAIL ') + n + (x ? 
     r = await ask('What should I study next?'); ok('professor builds a study plan from the student record', /Your study plan/.test(r) && /lessons/.test(r));
     r = await ask('socratic'); r = await ask('recursion'); ok('Socratic mode asks before telling', /What problem does it solve/.test(r));
     r = await ask('socratic off'); r = await ask('Write the solution code for the lab for me'); ok('professor refuses to hand over graded answers', /will not hand over/i.test(r));
-    ok('professor still states no AI model is connected', /No AI model is connected/i.test(await text()));
+    ok('professor states which AI model is connected (4.7)', /Connected to GLM-4\.7 Flash/i.test(await text()));
 
     /* ---- online runner unavailable (service blocked in this test) ---- */
     const g = await UE(async () => { const U = window.LearnUniversity; await U.loadMod('uni-assess'); const r = await U.assess.grade({ lang: 'rust', out: 'hello\n' }, 'fn main() { println!("hello"); }'); return { pass: r.pass, ungraded: !!r.ungraded, msg: r.msg || '' }; });
@@ -138,8 +138,8 @@ const R = []; const ok = (n, c, x) => R.push((c ? 'PASS ' : 'FAIL ') + n + (x ? 
 
     /* ---- service worker ---- */
     await p.evaluate(() => navigator.serviceWorker.ready); await p.waitForTimeout(1500);
-    const keys = await p.evaluate(() => caches.keys()); ok('service worker: only the current cache exists', keys.length === 1 && keys[0] === 'learn-v4.6', keys.join(','));
-    const cached = await p.evaluate(async () => { const c = await caches.open('learn-v4.6'); const ks = (await c.keys()).map((r) => new URL(r.url).pathname); return ['uni/uni-campus.js', 'uni/data/departments.js', 'uni/university.js'].every((f) => ks.some((k) => k.endsWith(f))); });
+    const keys = await p.evaluate(() => caches.keys()); ok('service worker: only the current cache exists', keys.length === 1 && keys[0] === 'learn-v4.7', keys.join(','));
+    const cached = await p.evaluate(async () => { const c = await caches.open('learn-v4.7'); const ks = (await c.keys()).map((r) => new URL(r.url).pathname); return ['uni/uni-campus.js', 'uni/data/departments.js', 'uni/university.js'].every((f) => ks.some((k) => k.endsWith(f))); });
     ok('service worker: new University files are precached', cached);
     await ctx.setOffline(true); await p.goto(BASE + '#/uni/dashboard').catch(() => {}); await p.goto(BASE + '#/uni/departments').catch(() => {}); await p.waitForTimeout(1500); t = await text().catch(() => '');
     ok('offline: departments page works from cache', /Eight departments/.test(t)); await ctx.setOffline(false);

@@ -1,3 +1,10 @@
+08Raph Learn 4.7: the AI Professor is a real AI
+
+NEW IN 4.7
+- AI Professor answers with GLM-4.7 Flash on Cloudflare Workers AI, through the Worker
+  learn-ai-professor on your Cloudflare account (uni/ai-worker/README.md). Free up to 10,000 Neurons a day.
+- Falls back to the built-in tutor when the AI is busy or unreachable.
+
 08Raph Learn 4.6: accounts (sign up, sign in, progress on every device)
 
 NEW IN 4.6

@@ -13,7 +13,7 @@
 (function () {
   'use strict';
   const CAT = window.UNI_CATALOG; const CFG = window.UNI_CONFIG || {};
-  const BUILD = '1.7.0'; // bump together with UNI_VER in index.html and the stamp at the top of each uni-*.js file
+  const BUILD = '1.8.0'; // bump together with UNI_VER in index.html and the stamp at the top of each uni-*.js file
   const U = { build: BUILD, ready: false, cat: CAT, cfg: CFG, content: {}, files: {}, views: {}, mods: {} };
   let A = null; // API handed over by index.html
   const PASS = 70, FINAL_PASS = 75;

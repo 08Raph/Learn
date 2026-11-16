@@ -1,5 +1,19 @@
 # Changelog
 
+## 4.7 — 15 November 2026
+### Added
+- AI Professor connected to a real model: Cloudflare Worker `learn-ai-professor` (source in `uni/ai-worker/`)
+  running `@cf/zai-org/glm-4.7-flash` on Workers AI through the AI binding. No API key exists. Origin restricted
+  to `https://08raph.github.io`, about 8 requests a minute per address, server-side teaching rules, thinking off.
+- `uni/config.js`: `aiEndpoint` set to the Worker, `aiLabel` "GLM-4.7 Flash".
+- Clearer fallback messages: "The AI is busy" (rate limit or daily free limit), offline.
+### Changed
+- `e2e-core.js` 57 → 61: professor against a blocked endpoint and a mocked one (reply format, labelling, request
+  contents, 429 fallback, HTML in replies not executed).
+- `UNI_VER` 1.8.0; service worker cache `learn-v4.7`.
+### Not changed
+- Accounts (4.6) are still off until `FB_API_KEY` is set (see docs/FIREBASE_SETUP.md).
+
 ## 4.6 — 15 November 2026
 ### Added
 - Accounts: 👤 Sign in / Account button in the top bar and `#/account` page. Create account (email + password,

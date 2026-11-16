@@ -1,4 +1,4 @@
-/* App-shell tests for 4.6: on-demand ranked bank, version, legacy-mode honesty, accessibility basics,
+/* App-shell tests for 4.7: on-demand ranked bank, version, legacy-mode honesty, accessibility basics,
    escaping, and that no secret is shipped.   node tests/e2e-app.js   (starts its own local server; Firebase blocked) */
 const { chromium } = require('playwright'); const http = require('http'); const fs = require('fs'), path = require('path');
 const ROOT = process.env.APP_DIR || path.join(__dirname, '..'); const PORT = 8773, BASE = 'http://localhost:' + PORT + '/Learn/index.html';
@@ -40,7 +40,7 @@ let pass = 0, fail = 0; const ok = (m, c, x) => { if (c) pass++; else { fail++; 
     await p.keyboard.press('Tab'); ok('keyboard focus lands on a visible control with an accessible name', await p.evaluate(() => { const e = document.activeElement; return !!e && e !== document.body && ((e.textContent || '').trim().length > 0 || e.getAttribute('aria-label') || e.title); }));
     const noName = await p.evaluate(() => Array.from(document.querySelectorAll('#app button, #app a[href]')).filter((e) => e.offsetParent && !(e.textContent || '').trim() && !e.getAttribute('aria-label') && !e.title).length); ok('every visible button and link on the home page has a name', noName === 0, noName);
     const noLabel = await p.evaluate(() => Array.from(document.querySelectorAll('#app input, #app select, #app textarea')).filter((e) => e.offsetParent && e.type !== 'hidden' && !e.getAttribute('aria-label') && !e.placeholder && !e.title && !(e.id && document.querySelector('label[for="' + e.id + '"]')) && !e.closest('label')).length); ok('every visible form field on the home page is labelled', noLabel === 0, noLabel);
-    ok('version 4.6 is reported', await p.evaluate(() => /4\.6/.test(document.body.innerHTML)));
+    ok('version 4.7 is reported', await p.evaluate(() => /4\.7/.test(document.body.innerHTML)));
     // quiz loads the bank on demand
     const before = reqs.length; await p.evaluate(() => { location.hash = '#/quiz'; }); await p.waitForFunction(() => !/Loading the question bank/.test(document.querySelector('#app').innerText), null, { timeout: 30000 });
     ok('opening Quiz downloads the bank', reqs.slice(before).some((u) => u.includes('ranked_extra.json'))); ok('quiz page renders after loading', await p.locator('.quizcard .opt').count() >= 2 && !/could not be loaded/.test(await text()));
@@ -64,7 +64,7 @@ let pass = 0, fail = 0; const ok = (m, c, x) => { if (c) pass++; else { fail++; 
     await p3.evaluate(() => { location.hash = '#/uni/departments/game'; }); await p3.waitForTimeout(700); ok('Game Development lists three dedicated courses', /GDV 101/.test(await p3.textContent('#app')) && /GDV 102/.test(await p3.textContent('#app')) && /GDV 103/.test(await p3.textContent('#app')));
     await p3.evaluate(() => { location.hash = '#/uni/professor'; }); await p3.waitForSelector('textarea, input[type=text]', { timeout: 15000 }); const box = p3.locator('#app textarea, #app input[type=text]').first(); await box.fill('how does quicksort work'); await box.press('Enter'); await p3.waitForTimeout(1500);
     if (!(await p3.locator('a[href="#/uni/visual/sort"]').count())) { const sb = p3.locator('#app button', { hasText: /send|ask/i }).first(); if (await sb.count()) { await sb.click(); await p3.waitForTimeout(1500); } }
-    ok('professor points to the visualiser for a sorting question and is labelled as not an AI model', await p3.locator('a[href="#/uni/visual/sort"]').count() >= 1 && /not an AI model/i.test(await p3.textContent('#app')));
+    ok('AI unreachable (external hosts blocked): the built-in tutor points to the visualiser and says it replied instead', await p3.locator('a[href="#/uni/visual/sort"]').count() >= 1 && /built-in tutor replied/i.test(await p3.textContent('#app')));
     await p3.close();
     ok('no request left the local server unblocked (' + ext + ' external requests were attempted and blocked)', true);
     ok('no page errors', errs.length === 0, errs.slice(0, 3).join(' | '));

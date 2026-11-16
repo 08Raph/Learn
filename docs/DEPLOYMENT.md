@@ -1,4 +1,4 @@
-# Deploying Learn 4.6
+# Deploying Learn 4.7
 
 The site is static files. There is no build step and nothing to install.
 
@@ -18,9 +18,10 @@ from your repository.
 - **Local:** `python3 -m http.server 8000` in this folder, then open `http://localhost:8000/`.
 
 ## After uploading
-1. Open the site and reload once. The service worker (`learn-v4.6`) replaces the old cache; returning
+1. Open the site and reload once. The service worker (`learn-v4.7`) replaces the old cache; returning
    visitors get the new version on their second visit.
-2. Open the patch notes from the home page and confirm version 4.6.
+2. Open the patch notes from the home page and confirm version 4.7.
+   The AI Professor uses the Cloudflare Worker described in uni/ai-worker/README.md.
    Accounts (4.6) need Firebase switched on: docs/FIREBASE_SETUP.md, sections 4b and 5.
    Upload every file in one go (one commit). Since 4.5 the University checks that its files match; if a page says
    "Learn needs to finish updating" and names a file, that file on the website is still old: upload it again.

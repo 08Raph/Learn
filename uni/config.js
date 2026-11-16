@@ -7,6 +7,6 @@
                holds the key (see uni/ai-endpoint-example/) and put its https URL here.
    aiLabel     Name shown to students for the connected model, e.g. 'Claude'.            */
 window.UNI_CONFIG = {
-  aiEndpoint: '',
-  aiLabel: '',
+  aiEndpoint: 'https://learn-ai-professor.raphaelrst26.workers.dev/', // Cloudflare Worker in uni/ai-worker/ (Workers AI, no key)
+  aiLabel: 'GLM-4.7 Flash',
 };

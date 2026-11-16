@@ -12765,7 +12765,7 @@ function rankedGate() {
 /* ===== Software Engineering University (lazy-loaded from ./uni/) =====
    Nothing in ./uni/ is downloaded until the student opens #/uni. The module gets
    the page internals it needs through this API object instead of globals. */
-const UNI_VER = '1.7.0';
+const UNI_VER = '1.8.0';
 let uniLoad = null;
 function uniApi() {
   return {
@@ -17381,8 +17381,15 @@ function makeCard(lang) {
 document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeDrawer(); });
 
 /* ---------- patch notes (pop up once per update; brand-new players never see old notes) ---------- */
-const APP_VERSION = '4.6';
+const APP_VERSION = '4.7';
 const PATCH_NOTES = [
+  { v: '4.7', date: 'Nov 15, 2026', title: '🤖 The AI Professor is now a real AI', items: [
+    'The University\'s AI Professor now answers with a real AI model (GLM-4.7 Flash, running on Cloudflare Workers AI) instead of only fixed rules. It explains, reviews code, traces algorithms and quizzes you, in all 8 teaching modes.',
+    'It still teaches rather than doing your work: it gives hints first and will not complete graded assignments or exams.',
+    'Every AI answer is labelled. AI answers can be wrong, so check anything important.',
+    'If the AI is busy, offline, or today\'s free limit is used up, the built-in tutor answers instead and tells you why.',
+    'Your messages go to the site\'s own AI service only. No key is stored in the site, and nothing you type is saved there. Do not paste passwords or private information.',
+  ] },
   { v: '4.6', date: 'Nov 14, 2026', title: '👤 Accounts: sign up, sign in, and your progress on every device', items: [
     'New 👤 Sign in button at the top. Create an account with an email and password, or sign in to one you already have.',
     'Your progress is saved to your account a few seconds after it changes: language lessons, XP, badges, University lessons, examinations and notes. Sign in on another device to continue there.',

@@ -1,4 +1,4 @@
-# Learn 4.6: what data the site handles, why, and how to remove it
+# Learn 4.7: what data the site handles, why, and how to remove it
 
 Written for the site owner. Adapt it into a notice for your users.
 
@@ -31,7 +31,7 @@ are saved wherever the user chooses and are never sent anywhere by the site.
 | Switching the Python lab to real Python | Requests for the Pyodide files (about 7 MB, once). No code or data of the student is sent: the program runs on the device | jsDelivr CDN |
 | Pressing "Load video" | A request to the video host, which may set cookies | YouTube (privacy-enhanced embed domain) |
 | Web fonts | A request for the font files | Google Fonts |
-| AI Professor | **Nothing.** No AI service is connected. If you connect one, messages typed on that page go to your endpoint and on to the provider. | — |
+| AI Professor (4.7) | The messages typed on that page, the last 12 messages of that conversation, the teaching mode, and the course and lesson being studied. No name, email or account ID | The site's Worker `learn-ai-professor` on Cloudflare, which runs the model on Cloudflare Workers AI. The Worker's code stores nothing; Cloudflare's own processing is covered by Cloudflare's terms. |
 
 The University's departments, career centre, CV builder, study tools and challenges send **nothing** anywhere.
 There are no analytics, advertising or tracking scripts.

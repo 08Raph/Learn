@@ -1,15 +1,15 @@
-# Learn 4.6: test programme and results
+# Learn 4.7: test programme and results
 
 Run everything: `sh tests/run-all.sh` from the site folder (needs Node.js with Playwright and Chromium,
 and Python 3 for a local web server). Nothing in the tests touches a real Firebase project or any live site.
 
-## Results of the final run (15 November 2026, version 4.6, headless Chromium, local server)
+## Results of the final run (15 November 2026, version 4.7, headless Chromium, local server)
 
 | # | Suite | What it does | Kind | Passed | Failed |
 |---|---|---|---|---|---|
 | 1 | `validate-content.js` | Loads all 16 content files (65 courses: the 52 core courses and 13 electives, 327 lessons). Checks structure, 1,155 questions, 559 examination items, and runs **every reference solution and every starter** of 90 graded tasks and 12 interview exercises through the real grader: solutions must pass, starters must fail. | Real engines | 0 problems | 0 |
 | 2 | `e2e-studio.js` | Practice studio, visualiser, in-browser language environment check. | Real browser | 117 | 0 |
-| 3 | `e2e-core.js` | University core: navigation, lessons, quizzes, labs, examinations, grading, locking, transcript, videos, professor, four screen widths. | Real browser | 57 | 0 |
+| 3 | `e2e-core.js` | University core: navigation, lessons, quizzes, labs, examinations, grading, locking, transcript, videos, professor, four screen widths. | Real browser | 61 | 0 |
 | 4 | `e2e-campus.js` | Six stage finals, certificates, electives, departments, career centre, CV, study tools, cloud-sync merge, hostile input, service worker. | Real browser | 78 | 0 |
 | 5 | `firebase-rules.test.js` | 85 allow/deny scenarios against `firebase/database.rules.json`, including 8 for self-service deletion. | **Simulator** | 101 | 0 |
 | 6 | `e2e-secure-mode.js` | The real app with a key set: sign-in, identity claim, leaderboard, administrator codes, redemption, attacks, account upgrade, second device, **delete my online data** (every deletion allowed by the rules, nothing reconnects afterwards), legacy mode. | **Mocked backend** | 27 | 0 |
@@ -19,11 +19,20 @@ and Python 3 for a local web server). Nothing in the tests touches a real Fireba
 | 10 | `e2e-mixed.js` | (4.5) Old and new University files mixed: the 4.0 `university.js` with current files (the exact error reported on 13 November 2026), and a current `university.js` with the 4.3 `uni-campus.js`. Checks one automatic repair, no reload loop, the old file named on screen, recovery with Update now; version stamps on every lazily loaded module; the service worker never serving an old saved copy for a newer version (this check **fails with the 4.4 service worker** and passes with 4.5); offline start; the "new version is ready" bar with no forced reload. | Real browser and real service worker, local server | 26 | 0 |
 | 11 | `e2e-account.js` | (4.6) Accounts: page with accounts switched off; create account (validation, show password, existing email); progress on the device goes into the account; sign in on a second device combines both devices' progress without lowering XP; Save now; pick-up at start-up; automatic save within 15 s; another account cannot read or overwrite (401); offline message; forgot password (does not reveal whether an account exists); sign out; sign out and clear (two presses, account copy kept, everything back after signing in again); delete account. | **Mocked** Firebase backend enforcing `database.rules.json` with the simulator | 37 | 0 |
 
-**Totals:** 602 assertions passed and 0 failed across suites 2 to 11, plus the content validator with 0
-problems. Of the 602, **185 ran against a simulator or a mock** (suites 5, 6, 9 and 11) and must not be
+**Totals:** 606 assertions passed and 0 failed across suites 2 to 11, plus the content validator with 0
+problems. Of the 606, **185 ran against a simulator or a mock** (suites 5, 6, 9 and 11) and must not be
 read as tests of Google's servers. No test was skipped or removed to make a suite pass. In 4.6 the secure-mode mock (suite 6) was
 corrected to send the token claims Firebase sends (`auth.token.email` for email accounts); before that, its
 account-deletion check failed because the new `saves` rule needs that claim. The check itself was not changed.
+
+## Additional checks run for 4.7
+
+| Check | Result |
+|---|---|
+| AI Worker logic, in Node with a fake model | Allowed origin 204/200, other origin 403, empty question 400, body over 90 kB 413, 9th request in a minute 429, reply format `{ reply }`. |
+| Real model through the Cloudflare API, same settings as the Worker | Answered (about 1.5 Neurons for a two-sentence answer). With the model's thinking left on, it used the whole answer budget on thinking and returned no text, which is why the Worker switches thinking off. |
+| Deployed Worker, from a browser on the live site | **Not tested here** (this workspace cannot reach workers.dev). |
+| Checks changed because the professor is now connected | `e2e-campus.js` "professor still states no AI model is connected" became "states which AI model is connected"; `e2e-app.js` now expects the built-in tutor's fallback note (external hosts are blocked in that suite). Both describe the new intended behaviour. |
 
 ## Additional checks run for 4.5
 

@@ -114,7 +114,7 @@ const dayPlus = (n) => { const d = new Date(); d.setDate(d.getDate() + n); retur
     await p.reload(); await p.waitForTimeout(900); ok('backup: a reminder appears when there is progress and no backup', seeded && await p.locator('#bkNudge').count() === 1);
     await p.click('#bkNudgeGo'); ok('backup: the reminder opens the backup section', await p.evaluate(() => document.getElementById('bkDetails').open));
     const [bk] = await Promise.all([p.waitForEvent('download'), p.click('#bkFile')]); const bkText = fs.readFileSync(await bk.path(), 'utf8'); const bkObj = JSON.parse(bkText);
-    ok('backup: file is named by date and holds the app id, version and University progress', /^learn-backup-\d{4}-\d{2}-\d{2}\.json$/.test(bk.suggestedFilename()) && bkObj.app === 'learn' && bkObj.v === 3 && bkObj.ver === '4.6' && !!bkObj.d.uni && !!bkObj.d.uni.git.files);
+    ok('backup: file is named by date and holds the app id, version and University progress', /^learn-backup-\d{4}-\d{2}-\d{2}\.json$/.test(bk.suggestedFilename()) && bkObj.app === 'learn' && bkObj.v === 3 && bkObj.ver === '4.7' && !!bkObj.d.uni && !!bkObj.d.uni.git.files);
     ok('backup: the online sign-in identity is not copied into the file', !bkObj.d.duel || (!bkObj.d.duel.uid && !bkObj.d.duel.fc));
     ok('backup: the date of the last backup is shown and the reminder goes away', /Last backup file made on this device/.test(await p.innerText('#bkLast')) && await p.locator('#bkNudge').count() === 0);
     const pick = (name, content) => p.setInputFiles('#bkPick', { name, mimeType: 'application/json', buffer: Buffer.from(content) });

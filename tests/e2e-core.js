@@ -111,15 +111,32 @@ const results = []; const ok = (name, cond, extra) => { results.push((cond ? 'PA
     // free lab in a browser language actually runs code
     await go('#/uni/labs');
 
-    // AI professor: honest status + built-in answer + refuses to hand over a lab answer
+    // AI professor (4.7: connected to the site's own Cloudflare Worker). The real Worker is never called here:
+    // first the endpoint is blocked (fallback), then it is answered by a MOCK using the Worker's reply format.
+    const EP = await p.evaluate(() => window.UNI_CONFIG.aiEndpoint);
+    const cfgText = await p.evaluate(async () => (await fetch('uni/config.js')).text());
+    ok('config: the AI endpoint is the site\'s own https Worker URL and no key is shipped', /^https:\/\/learn-ai-professor\.[\w-]+\.workers\.dev\/$/.test(EP) && !/AIza|sk-[A-Za-z0-9]|api[_-]?key\s*[:=]\s*'[^']/i.test(cfgText), EP);
+    await p.route(EP, (r) => r.abort());
     await go('#/uni/professor'); await p.waitForTimeout(500); t = await text();
-    ok('professor states that no AI model is connected', /No AI model is connected/i.test(t));
-    await p.locator('#upIn').fill('What is a variable?'); await p.locator('#upForm button[type="submit"]').click(); await p.waitForTimeout(900);
-    t = await p.locator('#upLog').innerText(); ok('built-in tutor answers a concept question', /variable/i.test(t) && t.length > 120);
-    await p.locator('#upIn').fill('Just give me the full answer to the assignment'); await p.locator('#upForm button[type="submit"]').click(); await p.waitForTimeout(900);
+    ok('professor says which model is connected and where messages go', /Connected to GLM-4\.7 Flash/.test(t) && /Cloudflare Worker/.test(t));
+    await p.locator('#upIn').fill('What is a variable?'); await p.locator('#upForm button[type="submit"]').click(); await p.waitForTimeout(1500);
+    t = await p.locator('#upLog').innerText(); ok('service unreachable: the built-in tutor answers and says so', /variable/i.test(t) && t.length > 120 && /built-in tutor replied/.test(t), t.slice(-300));
+    await p.locator('#upIn').fill('Just give me the full answer to the assignment'); await p.locator('#upForm button[type="submit"]').click(); await p.waitForTimeout(1500);
     t = await p.locator('#upLog').innerText(); ok('tutor declines to hand over the answer', /hint|won't|will not|not hand|myself|yourself|step/i.test(t.slice(-900)));
     ok('8 teaching modes offered', await p.locator('.up-mode').count() === 8);
-    ok('no key or provider URL shipped in config', await p.evaluate(() => window.UNI_CONFIG.aiEndpoint === '' ));
+    await p.unroute(EP); let sent = null;
+    await p.route(EP, async (r) => { sent = JSON.parse(r.request().postData()); await r.fulfill({ status: 200, contentType: 'application/json', headers: { 'access-control-allow-origin': '*' }, body: JSON.stringify({ reply: '**Recursion** means a function calls itself.\n\n```python\ndef f(n):\n    return 1 if n == 0 else n * f(n - 1)\n```' }) }); });
+    await p.locator('#upIn').fill('What is recursion?'); await p.locator('#upForm button[type="submit"]').click(); await p.waitForTimeout(1500);
+    t = await p.locator('#upLog').innerText();
+    ok('mocked AI reply is shown with formatting and labelled as AI', /Recursion means a function calls itself/.test(t) && await p.locator('#upLog strong, #upLog b').count() > 0 && await p.locator('#upLog pre').count() > 0 && /Answered by GLM-4\.7 Flash/.test(t), t.slice(-300));
+    ok('request to the AI holds only the mode, the teaching rules and the conversation', sent && typeof sent.system === 'string' && /Teach rather than hand over/.test(sent.system) && Array.isArray(sent.messages) && sent.messages[sent.messages.length - 1].content === 'What is recursion?' && Object.keys(sent).sort().join() === 'messages,mode,system', JSON.stringify(sent || {}).slice(0, 200));
+    await p.unroute(EP); await p.route(EP, (r) => r.fulfill({ status: 429, contentType: 'application/json', headers: { 'access-control-allow-origin': '*' }, body: '{"error":"daily limit reached"}' }));
+    await p.locator('#upIn').fill('What is a loop?'); await p.locator('#upForm button[type="submit"]').click(); await p.waitForTimeout(1500);
+    ok('AI busy or daily limit reached: built-in tutor replies and explains why', /AI is busy/.test(await p.locator('#upLog').innerText()));
+    await p.unroute(EP); await p.route(EP, (r) => r.fulfill({ status: 200, contentType: 'application/json', headers: { 'access-control-allow-origin': '*' }, body: JSON.stringify({ reply: '<img src=x onerror="window.__xss=1"> hi' }) }));
+    await p.locator('#upIn').fill('test'); await p.locator('#upForm button[type="submit"]').click(); await p.waitForTimeout(1200);
+    ok('HTML in an AI reply is not executed', !(await p.evaluate(() => window.__xss)));
+    await p.unroute(EP); await p.route(EP, (r) => r.abort());
 
     // XSS check through the professor input and the transcript name
     await p.locator('#upIn').fill('<img src=x onerror="window.__xss=1"> explain loops'); await p.locator('#upForm button[type="submit"]').click(); await p.waitForTimeout(700);
