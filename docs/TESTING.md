@@ -1,9 +1,9 @@
-# Learn 4.8: test programme and results
+# Learn 5.0: test programme and results
 
 Run everything: `sh tests/run-all.sh` from the site folder (needs Node.js with Playwright and Chromium,
 and Python 3 for a local web server). Nothing in the tests touches a real Firebase project or any live site.
 
-## Results of the final run (15 November 2026, version 4.8, headless Chromium, local server)
+## Results of the final run (16 November 2026, version 5.0, headless Chromium, local server)
 
 | # | Suite | What it does | Kind | Passed | Failed |
 |---|---|---|---|---|---|
@@ -11,19 +11,28 @@ and Python 3 for a local web server). Nothing in the tests touches a real Fireba
 | 2 | `e2e-studio.js` | Practice studio, visualiser, in-browser language environment check. | Real browser | 117 | 0 |
 | 3 | `e2e-core.js` | University core: navigation, lessons, quizzes, labs, examinations, grading, locking, transcript, videos, professor, four screen widths. | Real browser | 61 | 0 |
 | 4 | `e2e-campus.js` | Six stage finals, certificates, electives, departments, career centre, CV, study tools, cloud-sync merge, hostile input, service worker. | Real browser | 78 | 0 |
-| 5 | `firebase-rules.test.js` | 85 allow/deny scenarios against `firebase/database.rules.json`, including 8 for self-service deletion. | **Simulator** | 101 | 0 |
+| 5 | `firebase-rules.test.js` | 85 allow/deny scenarios against `firebase/database.rules.json`, including 8 for self-service deletion. | **Simulator** | 135 | 0 |
 | 6 | `e2e-secure-mode.js` | The real app with a key set: sign-in, identity claim, leaderboard, administrator codes, redemption, attacks, account upgrade, second device, **delete my online data** (every deletion allowed by the rules, nothing reconnects afterwards), legacy mode. | **Mocked backend** | 27 | 0 |
 | 7 | `e2e-app.js` | App shell under `/Learn/`: size, on-demand bank, offline retry, no secrets, skip link, focus, names and labels, deep links, version; **question bank**: count, no duplicates as shown, 4 distinct options and an explanation each, no invalid C/C++ syntax, comparison answers correct, no leftover filler; quiz headings are real questions and capitalised; badge contrast; theme icon; knowledge-check layout. | Real browser | 40 | 0 |
 | 8 | `e2e-tools.js` | University search (4.5): finds the right lesson first, highlights words, keeps the query in the address, indexes all 327 lessons, ignores unsafe text. 17 Git-simulator unit checks in Node; all 10 simulator tasks unsolved at start and solved by their sample solutions; a wrong approach failing; the terminal UI (errors, Tab, history, editor, extra keys); spaced review intervals 1/3/7/mastered and clean-up; mock interview (timer, coding marked by tests, time-out, report, history); portfolio (escaping, unsafe links dropped, section toggles, download); backup file and code (download, damaged and foreign files rejected, prototype keys ignored, preview, merge, replace with a second press, round trip); all ten six-lesson electives; lesson notes (autosave, reopen, course order, escaping, search with highlight, markup in searches, download, deletion, kept out of the portfolio, malformed notes dropped); video check wording; contrast of 24 theme colour pairs in both themes and all 21 accent colours. | Real browser + Node | 98 | 0 |
 | 9 | `e2e-realpy.js` | Real Python integration. **Part A uses a MOCKED Pyodide** served in place of the CDN file: engine switch, no download until chosen, pinned CDN path, output, `input()`, EOF, tidied tracebacks, endless loop stopped after 10 s with the page responsive, automatic restart, remembered choice, graded exercises never offered it; the main Playground switch (4.3). **Part B blocks the CDN for real**: clear message, switch returns to the teaching engine, code still runs. | **Mocked** (A) / real browser (B) | 20 | 0 |
 | 10 | `e2e-mixed.js` | (4.5) Old and new University files mixed: the 4.0 `university.js` with current files (the exact error reported on 13 November 2026), and a current `university.js` with the 4.3 `uni-campus.js`. Checks one automatic repair, no reload loop, the old file named on screen, recovery with Update now; version stamps on every lazily loaded module; the service worker never serving an old saved copy for a newer version (this check **fails with the 4.4 service worker** and passes with 4.5); offline start; the "new version is ready" bar with no forced reload. | Real browser and real service worker, local server | 26 | 0 |
 | 11 | `e2e-account.js` | (4.6) Accounts: page with accounts switched off; create account (validation, show password, existing email); progress on the device goes into the account; sign in on a second device combines both devices' progress without lowering XP; Save now; pick-up at start-up; automatic save within 15 s; another account cannot read or overwrite (401); offline message; forgot password (does not reveal whether an account exists); sign out; sign out and clear (two presses, account copy kept, everything back after signing in again); delete account. | **Mocked** Firebase backend enforcing `database.rules.json` with the simulator | 37 | 0 |
+| 12 | `e2e-community.js` | (5.0) Ask AI in a lesson (request contents, formatting, HTML not run, busy and offline messages); weekly goal and weekly XP; opt-in weekly leaderboard (only name and XP posted, leave deletes); calendar reminder file; certificate links (only earned courses, name required, record stored, signed-out check page, not alterable even by the owner, unknown and malformed links); classes (create, consent text, wrong code, join stores only name and numbers, teacher view and update, students cannot read the class, leave, remove, delete); account deletion removes classes. | **Mocked** Firebase backend enforcing the rules with the simulator, and a **mocked** AI service | 40 | 0 |
 
-**Totals:** 606 assertions passed and 0 failed across suites 2 to 11, plus the content validator with 0
-problems. Of the 606, **185 ran against a simulator or a mock** (suites 5, 6, 9 and 11) and must not be
+**Totals:** 680 assertions passed and 0 failed across suites 2 to 12, plus the content validator with 0
+problems. Of the 680, **259 ran against a simulator or a mock** (suites 5, 6, 9, 11 and 12) and must not be
 read as tests of Google's servers. No test was skipped or removed to make a suite pass. In 4.6 the secure-mode mock (suite 6) was
 corrected to send the token claims Firebase sends (`auth.token.email` for email accounts); before that, its
 account-deletion check failed because the new `saves` rule needs that claim. The check itself was not changed.
+
+## Additional checks run for 5.0
+- `audit-screens.js` now also opens This week, Classes, Certificates and a certificate check: 264 page views, 0 script
+  errors, 0 overflow, 0 small tap targets, 0 unnamed controls, 0 low-contrast text.
+- During this release a "1 FAILED" line was missed once by a lower-case-only filter on the `run-all.sh` output (the
+  account suite; the bug it found is fixed, see CHANGELOG). The output is now read case-insensitively.
+- **Not tested here:** the new database rules on Google's servers (publish them, then try a weekly leaderboard, a
+  certificate link and a class on the live site), and the AI Worker answering lesson questions from the live site.
 
 ## Changes to the tests in 4.8
 `FB_API_KEY` is now set in `index.html`. The parts that check legacy mode (`e2e-secure-mode.js` last check,

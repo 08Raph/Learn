@@ -1,4 +1,4 @@
-/* App-shell tests for 4.9: on-demand ranked bank, version, legacy-mode honesty, accessibility basics,
+/* App-shell tests for 5.0: on-demand ranked bank, version, legacy-mode honesty, accessibility basics,
    escaping, and that no secret is shipped.   node tests/e2e-app.js   (starts its own local server; Firebase blocked) */
 const { chromium } = require('playwright'); const http = require('http'); const fs = require('fs'), path = require('path');
 const ROOT = process.env.APP_DIR || path.join(__dirname, '..'); const PORT = 8773, BASE = 'http://localhost:' + PORT + '/Learn/index.html';
@@ -40,7 +40,7 @@ let pass = 0, fail = 0; const ok = (m, c, x) => { if (c) pass++; else { fail++; 
     await p.keyboard.press('Tab'); ok('keyboard focus lands on a visible control with an accessible name', await p.evaluate(() => { const e = document.activeElement; return !!e && e !== document.body && ((e.textContent || '').trim().length > 0 || e.getAttribute('aria-label') || e.title); }));
     const noName = await p.evaluate(() => Array.from(document.querySelectorAll('#app button, #app a[href]')).filter((e) => e.offsetParent && !(e.textContent || '').trim() && !e.getAttribute('aria-label') && !e.title).length); ok('every visible button and link on the home page has a name', noName === 0, noName);
     const noLabel = await p.evaluate(() => Array.from(document.querySelectorAll('#app input, #app select, #app textarea')).filter((e) => e.offsetParent && e.type !== 'hidden' && !e.getAttribute('aria-label') && !e.placeholder && !e.title && !(e.id && document.querySelector('label[for="' + e.id + '"]')) && !e.closest('label')).length); ok('every visible form field on the home page is labelled', noLabel === 0, noLabel);
-    ok('version 4.9 is reported', await p.evaluate(() => /4\.9/.test(document.body.innerHTML)));
+    ok('version 5.0 is reported', await p.evaluate(() => /5\.0/.test(document.body.innerHTML)));
     // quiz loads the bank on demand
     const before = reqs.length; await p.evaluate(() => { location.hash = '#/quiz'; }); await p.waitForFunction(() => !/Loading the question bank/.test(document.querySelector('#app').innerText), null, { timeout: 30000 });
     ok('opening Quiz downloads the bank', reqs.slice(before).some((u) => u.includes('ranked_extra.json'))); ok('quiz page renders after loading', await p.locator('.quizcard .opt').count() >= 2 && !/could not be loaded/.test(await text()));

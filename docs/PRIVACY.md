@@ -1,4 +1,4 @@
-# Learn 4.7: what data the site handles, why, and how to remove it
+# Learn 5.0: what data the site handles, why, and how to remove it
 
 Written for the site owner. Adapt it into a notice for your users.
 
@@ -25,6 +25,11 @@ are saved wherever the user chooses and are never sent anywhere by the site.
 | Online play, friends, rooms, leaderboards, reward codes | Display name, avatar, scores, invitations and room messages, presence, which reward codes were redeemed | Your Firebase Realtime Database. **Legacy mode:** readable and writable by anyone. **Secure mode:** readable by signed-in players as the rules allow, writable only by the owner (see SECURITY.md). |
 | Secure mode sign-in | A random account ID; sign-in times; **an email address and password only if the player chooses to add them** | Google Firebase Authentication. The password is stored by Google as a hash; the site never stores it. The email is used for sign-in only and is not shown to other players. |
 | Accounts (4.6), if the student creates one | Email and password (to Google Firebase Authentication, password stored as a hash). Their progress — the same data as a backup file — at `saves/<account id>` in your database | Readable and writable **only by that account**. Administrators cannot read it (the rules forbid it). |
+| Ask AI in a lesson (5.0) | The lesson's title and task, the code in the editor, the last output, and the question typed | The site's AI Worker on Cloudflare (as for the AI Professor). Nothing is stored there. |
+| Weekly leaderboard (5.0), only after pressing Join | Online name and this week's XP | `duel/wk/<week>/<player>`, readable by signed-in players. Leaving deletes it. |
+| Certificate link (5.0), only when the student creates one | The name they type, the certificate title and detail, the date, and the account ID | `certs/<id>`, **readable by anyone who has the link**. Deletable by the owner (account deletion deletes them). |
+| Classes (5.0), only after joining | The display name typed for the class, and counts: lessons, University lessons, XP, weekly XP, days studied, last active. Never email, code or answers | `classes/<code>/m/<account id>`, readable by the class's teacher only. Leaving or the teacher removing the student deletes it. |
+| Daily reminder (5.0) | Nothing. A calendar file is created on the device | — |
 | Administrator actions and code redemptions (secure mode) | Account ID, action, a short detail, time | `duel/audit` in your database, readable by administrators |
 | Cloud sync, if the user sets it up | Their whole save, as a private Gist | GitHub, in the user's own account |
 | Running Java, Go, Rust, PHP, Ruby, Swift, Kotlin or Bash | The code being run | Judge0 CE, Piston or Wandbox (public services) |

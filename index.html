@@ -331,6 +331,23 @@ a.dcard{color:var(--text);text-decoration:none}
 .acl{display:block;font-weight:700;margin:12px 0 6px}.acl small{font-weight:500;color:var(--muted)}
 .acin{width:100%;min-height:46px;font-size:16px;box-sizing:border-box}
 #acctBtn{text-decoration:none;white-space:nowrap;display:inline-flex;align-items:center;gap:6px}
+/* 5.0 */
+a.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;text-decoration:none;min-height:44px;box-sizing:border-box}
+.wkhome{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px;margin:18px 0 6px}
+.wkcard{display:flex;align-items:center;gap:12px;text-align:left;background:var(--surface);color:var(--text);border:1px solid var(--border);border-radius:16px;padding:12px 14px;min-height:64px;cursor:pointer;font:inherit;touch-action:manipulation}
+.wkcard:hover{border-color:var(--accent)}.wkcard small{display:block;font-size:11px;letter-spacing:.06em;color:var(--muted);font-weight:700}.wkcard b{display:block}.wkcard span>span{display:block;font-size:13px;color:var(--muted)}
+.wkico{font-size:26px;width:46px;text-align:center}
+.wkring{--p:0;flex:none;width:52px;height:52px;border-radius:50%;display:grid;place-items:center;background:conic-gradient(var(--accent) calc(var(--p)*1%),var(--surface2) 0)}
+.wkring b{display:grid;place-items:center;width:40px;height:40px;border-radius:50%;background:var(--surface);font-size:12px}
+.wkring.big{width:84px;height:84px}.wkring.big b{width:66px;height:66px;font-size:17px}.wkbig{display:flex;gap:16px;align-items:center}
+.wklb{list-style:none;padding:0;margin:0;display:grid;gap:6px}.wklb li{display:flex;align-items:center;gap:10px;padding:8px 12px;border:1px solid var(--border);border-radius:12px}.wklb li.me{border-color:var(--accent);font-weight:700}
+.wkpos{width:26px;text-align:center;color:var(--muted);font-weight:700}.wkname{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.aibox{margin-top:12px;padding:12px 14px;border:1px solid var(--border);border-radius:14px;background:var(--surface2)}.aibox small{color:var(--muted);font-weight:500}
+.aians{margin-top:10px;line-height:1.55}.aians p{margin:6px 0}.aithink,.aierr{margin:10px 0 0}.aierr{color:var(--bad)}.aifine{margin:8px 0 0;font-size:13px;color:var(--muted)}
+.celist{list-style:none;padding:0;margin:8px 0;display:grid;gap:8px}.celist li{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 12px;border:1px solid var(--border);border-radius:12px;flex-wrap:wrap}.celist small{display:block;color:var(--muted)}
+.clsbox{margin-top:14px;padding-top:14px;border-top:1px solid var(--border)}.clsm{margin-top:10px}
+.clstable{overflow-x:auto}.clstable table{border-collapse:collapse;width:100%;min-width:560px;font-size:14px}.clstable th,.clstable td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--border)}.clstable th{color:var(--muted);font-weight:700}
+.vfok{font-size:20px;font-weight:800;color:var(--good);margin:0 0 10px}.vfname{font-size:30px;margin:4px 0}.vftitle{margin:4px 0 8px}.vfnote{margin-top:14px;padding:10px 12px;border-radius:12px;background:var(--surface2);font-size:14px;line-height:1.5}
 </style>
 <style id="tsim-css">
 .tsteps{list-style:none;margin:10px 0;padding:0;display:grid;gap:6px}
@@ -11692,7 +11709,7 @@ const KEY = 'learn-code-v2';
 let S = { done: {}, code: {}, cur: {}, pg: {}, theme: null, quiz: {}, days: [], badges: {}, fs: 15, lastLang: null, spent: 0, bonus: 0, owned: {}, equip: {}, doneAt: {}, daily: {}, gh: {}, web: {}, quizDay: '' };
 const FIRST_RUN = (() => { try { return !localStorage.getItem(KEY); } catch (e) { return true; } })();
 try { const s = JSON.parse(localStorage.getItem(KEY) || 'null'); if (s && typeof s === 'object') S = Object.assign(S, s); } catch (e) {}
-const save = () => { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {} if (window.__acctTouch) window.__acctTouch(); };
+const save = () => { if (window.__learnClearing) return; try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {} if (window.__acctTouch) window.__acctTouch(); };
 
 const $ = (s, r) => (r || document).querySelector(s);
 const $$ = (s, r) => Array.from((r || document).querySelectorAll(s));
@@ -12520,19 +12537,19 @@ const badge = (lang, big) => '<span class="badge' + (big ? ' big' : '') + '" sty
 const tierTag = (t) => '<span class="tier t-' + t + '">' + TIER_BY_KEY[t].name + '</span>';
 function toHash(v) {
   if (v.name === 'lesson' && LANGS[v.lang] && LANGS[v.lang].lessons[v.idx]) return '#/' + v.lang + '/' + LANGS[v.lang].lessons[v.idx].id;
-  if (v.name === 'uni') return '#/uni' + (v.path && v.path.length ? '/' + v.path.join('/') : ''); if (v.name === 'project') return '#/project'; if (v.name === 'play') return '#/play/' + v.lang; if (v.name === 'shop') return '#/shop'; if (v.name === 'account') return '#/account'; if (v.name === 'avatar') return '#/avatar'; if (v.name === 'locker') return '#/locker'; if (v.name === 'catalog') return '#/catalog'; if (v.name === 'stats') return '#/stats'; if (v.name === 'quiz') return '#/quiz'; if (v.name === 'duel') return '#/duel'; if (v.name === 'web') return '#/web' + (v.id ? '/' + v.id : ''); return '#/';
+  if (v.name === 'uni') return '#/uni' + (v.path && v.path.length ? '/' + v.path.join('/') : ''); if (v.name === 'project') return '#/project'; if (v.name === 'play') return '#/play/' + v.lang; if (v.name === 'shop') return '#/shop'; if (v.name === 'account') return '#/account'; if (v.name === 'week') return '#/week'; if (v.name === 'classes') return '#/classes'; if (v.name === 'certs') return '#/certs'; if (v.name === 'verify') return '#/verify/' + (v.id || ''); if (v.name === 'avatar') return '#/avatar'; if (v.name === 'locker') return '#/locker'; if (v.name === 'catalog') return '#/catalog'; if (v.name === 'stats') return '#/stats'; if (v.name === 'quiz') return '#/quiz'; if (v.name === 'duel') return '#/duel'; if (v.name === 'web') return '#/web' + (v.id ? '/' + v.id : ''); return '#/';
 }
 function fromHash() {
   const p = location.hash.replace(/^#\/?/, '').split('/').filter(Boolean);
   if (p[0] === 'c' && p[1] && !(LANGS.c && LANGS.c.lessons.some((l) => l.id === p[1]))) { try { window.__ch = JSON.parse(atob(p[1])); window.__chFresh = true; history.replaceState(null, '', location.pathname + '#/'); } catch (e) {} return { name: 'home' }; }
   if (p[0] === 'uni') return { name: 'uni', path: p.slice(1).map((x) => { try { return decodeURIComponent(x); } catch (e) { return x; } }).filter((x) => /^[\w.\-]{1,40}$/.test(x)).slice(0, 6) };
-  if (!p.length) return { name: 'home' }; if (p[0] === 'shop') return { name: 'shop' }; if (p[0] === 'account') return { name: 'account' }; if (p[0] === 'avatar') return { name: 'avatar' }; if (p[0] === 'locker') return { name: 'locker' }; if (p[0] === 'catalog') return { name: 'catalog' };
+  if (!p.length) return { name: 'home' }; if (p[0] === 'shop') return { name: 'shop' }; if (p[0] === 'account') return { name: 'account' }; if (p[0] === 'week') return { name: 'week' }; if (p[0] === 'classes') return { name: 'classes' }; if (p[0] === 'certs') return { name: 'certs' }; if (p[0] === 'verify') return { name: 'verify', id: String(p[1] || '').slice(0, 40) }; if (p[0] === 'avatar') return { name: 'avatar' }; if (p[0] === 'locker') return { name: 'locker' }; if (p[0] === 'catalog') return { name: 'catalog' };
   if (p[0] === 'stats' || p[0] === 'quiz' || p[0] === 'web' || p[0] === 'duel') return { name: p[0], id: p[1] };
   if (p[0] === 'project') return { name: 'project' }; if (p[0] === 'play') return { name: 'play', lang: LANGS[p[1]] ? p[1] : 'py' };
   if (LANGS[p[0]]) { const i = LANGS[p[0]].lessons.findIndex((l) => l.id === p[1]); return { name: 'lesson', lang: p[0], idx: i < 0 ? nextLessonIdx(p[0]) : i }; }
   return { name: 'home' };
 }
-function setTitle() { if (view.name === 'uni') { document.title = 'Software Engineering University · Learn to Code'; return; } const l = view.name === 'lesson' && LANGS[view.lang].lessons[view.idx]; document.title = l ? LANGS[view.lang].name + ': ' + l.title + ' · Learn to Code' : view.name === 'account' ? 'Account · Learn to Code' : 'Learn to Code'; }
+function setTitle() { if (view.name === 'uni') { document.title = 'Software Engineering University · Learn to Code'; return; } const l = view.name === 'lesson' && LANGS[view.lang].lessons[view.idx]; document.title = l ? LANGS[view.lang].name + ': ' + l.title + ' · Learn to Code' : view.name === 'account' ? 'Account · Learn to Code' : view.name === 'week' ? 'This week · Learn to Code' : view.name === 'classes' ? 'Classes · Learn to Code' : view.name === 'certs' ? 'Certificates · Learn to Code' : view.name === 'verify' ? 'Certificate check · Learn to Code' : 'Learn to Code'; }
 function go(v) {
   view = v; const h = toHash(v);
   if (location.hash !== h) { try { history.pushState(null, '', h); } catch (e) { location.hash = h; } }
@@ -12549,7 +12566,7 @@ function bindTheme() {
     S.theme = dark ? 'light' : 'dark'; root.dataset.theme = S.theme; bump('theme'); save();
   });
 }
-function render() { try { if (view.name === 'duel' && render.last !== 'duel') FBA.paused = false; } catch (e) { /* FBA not created yet */ } render.last = view.name; /* online requests resume when Multiplayer is opened again after a deletion */ closeDrawer(); applyRewards(); setTitle(); { const f = checkBadges(); if (f.length) setTimeout(() => badgeToast(f), 600); } duelGuard(); if ((view.name === 'duel' || view.name === 'quiz') && RANKED_STATE !== 2) return rankedGate(); if (view.name === 'duel') return renderDuel(); if (view.name === 'uni') return renderUni(); if (view.name === 'home') renderHome(); else if (view.name === 'shop') renderShop(); else if (view.name === 'account') renderAccount(); else if (view.name === 'avatar') renderAvatar(); else if (view.name === 'locker') renderLocker(); else if (view.name === 'catalog') renderCatalog(); else if (view.name === 'stats') renderStats(); else if (view.name === 'quiz') renderQuiz(); else if (view.name === 'web') renderWeb(); else if (view.name === 'lesson') renderLesson(); else if (view.name === 'project') renderProject(); else renderPlay(); }
+function render() { try { if (view.name === 'duel' && render.last !== 'duel') FBA.paused = false; } catch (e) { /* FBA not created yet */ } render.last = view.name; /* online requests resume when Multiplayer is opened again after a deletion */ closeDrawer(); applyRewards(); setTitle(); { const f = checkBadges(); if (f.length) setTimeout(() => badgeToast(f), 600); } duelGuard(); if ((view.name === 'duel' || view.name === 'quiz') && RANKED_STATE !== 2) return rankedGate(); if (view.name === 'duel') return renderDuel(); if (view.name === 'uni') return renderUni(); if (view.name === 'home') renderHome(); else if (view.name === 'shop') renderShop(); else if (view.name === 'account') renderAccount(); else if (view.name === 'week') renderWeek(); else if (view.name === 'classes') renderClasses(); else if (view.name === 'certs') renderCerts(); else if (view.name === 'verify') renderVerify(view.id); else if (view.name === 'avatar') renderAvatar(); else if (view.name === 'locker') renderLocker(); else if (view.name === 'catalog') renderCatalog(); else if (view.name === 'stats') renderStats(); else if (view.name === 'quiz') renderQuiz(); else if (view.name === 'web') renderWeb(); else if (view.name === 'lesson') renderLesson(); else if (view.name === 'project') renderProject(); else renderPlay(); }
 
 
 /* Online account card (Multiplayer → More). Honest about which mode the site is in. */
@@ -12581,7 +12598,7 @@ async function fbDeleteMe(progress) {
   try {
   if (fbOn()) { try { await fbRaw('PUT', 'audit/' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8), { by: FBA.uid, pid, a: 'delete-account', d: '', t: TS }); } catch (e) { /* the audit entry is best effort */ } }
   progress('Removing presence, leaderboard and name…');
-  await del('presence/' + pid); for (const m of [1, 2, 3, 4, 5]) await del('lb/' + m + '/' + pid);
+  await del('presence/' + pid); for (const m of [1, 2, 3, 4, 5]) await del('lb/' + m + '/' + pid); await del('wk/' + isoWeek(new Date()) + '/' + pid);
   if (d.nk) await del('names/' + d.nk); if (d.fc) await del('codes/' + d.fc);
   progress('Removing friends, requests and invitations…');
   for (const node of ['fl', 'frq', 'inv']) { let v = null; try { v = await dbGet(node + '/' + pid); } catch (e) { failed.push(node); } if (v && typeof v === 'object') for (const u of Object.keys(v)) { await del(node + '/' + pid + '/' + u); if (node === 'fl') await del('fl/' + u + '/' + pid); } }
@@ -12590,6 +12607,12 @@ async function fbDeleteMe(progress) {
     progress('Removing your online identity…');
     await del('owners/' + pid); await del('uids/' + FBA.uid);
     if (acctEmail()) { try { await savesReq('DELETE'); done.push('saved progress'); } catch (e) { failed.push('saved progress'); } }
+    if (acctEmail()) { // 5.0: classes joined or taught, and certificate links
+      for (const c of Object.keys(S.clsJ || {})) { try { await clsReq('DELETE', c + '/m/' + FBA.uid); } catch (e) { if (e.status !== 401) failed.push('class ' + c); } }
+      for (const c of Object.keys(S.clsT || {})) { try { await clsReq('DELETE', c); } catch (e) { if (e.status !== 401) failed.push('class ' + c); } }
+      for (const id of Object.keys(S.certs || {})) { try { await certsReq('DELETE', id); } catch (e) { if (e.status !== 401) failed.push('certificate'); } }
+      S.clsJ = {}; S.clsT = {}; S.certs = {}; S.wkJoin = false; save(); done.push('classes and certificates');
+    }
     try { const tok = await fbToken(); await fbPost(FB_IDT + 'delete', { idToken: tok }); done.push('auth account'); } catch (e) { failed.push('auth account'); }
     fbSignOut();
   }
@@ -12651,6 +12674,7 @@ function acctSync() {
     }
     acctMeta({ at, h, last: new Date().toISOString(), email: acctEmail() });
     ACCT.state = 'ok'; ACCT.err = '';
+    clsPushAll().catch(() => {});
     if (merged) { if (ACCT_QUIET.includes(view.name)) toast('☁️ Progress from your account was added. It shows when you open the next page.'); else { render(); toast('☁️ Progress from your account was added on this device'); } }
     return merged;
   })().catch((e) => {
@@ -12726,7 +12750,7 @@ function renderAccount() {
   const out = async (clear) => {
     if (clear) { msg.textContent = 'Saving to your account before clearing…'; await acctSync(); if (ACCT.state !== 'ok') { msg.textContent = 'Your latest progress could not be saved to your account, so nothing was cleared. Try again when you are online.'; return; } }
     clearTimeout(ACCT.timer); fbSignOut(); acctMeta(null); const d = duelInit(); d.uid = ''; d.fc = null; save();
-    if (clear) { const th = S.theme; try { localStorage.removeItem(KEY); if (th) localStorage.setItem(KEY, JSON.stringify({ theme: th })); } catch (e) {} location.hash = '#/'; location.reload(); return; }
+    if (clear) { const th = S.theme; window.__learnClearing = true; try { localStorage.removeItem(KEY); if (th) localStorage.setItem(KEY, JSON.stringify({ theme: th })); } catch (e) {} location.hash = '#/'; location.reload(); return; }
     toast('Signed out. Your progress stays on this device.'); acctMode = 'in'; renderAccount();
   };
   $('#acOut').addEventListener('click', () => out(false));
@@ -12753,6 +12777,199 @@ function acctStart() {
   window.addEventListener('online', () => acctSchedule(1000));
 }
 
+/* ===== 5.0: AI help in lessons, verifiable certificates, weekly goal and leaderboard, reminders, classes ===== */
+const AI_ENDPOINT = 'https://learn-ai-professor.raphaelrst26.workers.dev/'; // same Cloudflare Worker as the AI Professor (uni/ai-worker/)
+function aiMd(s) { // escape first, then a few Markdown forms; nothing from the reply is ever inserted as HTML
+  const parts = String(s || '').split(/```[a-zA-Z+#]*\n?/);
+  return parts.map((p, i) => (i % 2 ? '<pre class="codeblock">' + esc(p.replace(/\n$/, '')) + '</pre>' : '<p>' + esc(p.trim()).replace(/\*\*([^*\n]+)\*\*/g, '<b>$1</b>').replace(/`([^`\n]+)`/g, '<code>$1</code>').replace(/\n{2,}/g, '</p><p>').replace(/\n/g, '<br>') + '</p>')).join('').replace(/<p><\/p>/g, '');
+}
+async function aiAsk(system, messages) {
+  const ctl = new AbortController(), t = setTimeout(() => ctl.abort(), 45000);
+  try {
+    const r = await fetch(AI_ENDPOINT, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ mode: 'tutor', system, messages }), signal: ctl.signal });
+    if (r.status === 429) throw Object.assign(new Error('busy'), { busy: true });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const j = await r.json(); if (!j || typeof j.reply !== 'string' || !j.reply.trim()) throw new Error('empty'); return j.reply;
+  } finally { clearTimeout(t); }
+}
+function mountLessonAi(lang, les, getCode, getOut) {
+  const host = $('#aiHelp'), btn = $('#aiBtn'); if (!host || !btn) return;
+  btn.addEventListener('click', () => {
+    if ($('#aiQ')) { $('#aiQ').focus(); return; }
+    host.innerHTML = '<div class="aibox"><label for="aiQ"><b>🤖 Ask the AI about your code</b> <small>(optional: type a question, or just press Ask)</small></label><div class="row" style="gap:8px;margin-top:6px"><input id="aiQ" class="dinput" maxlength="500" placeholder="e.g. Why does my loop stop early?" style="flex:1;min-width:0;min-height:44px"><button class="btn primary small" id="aiGo" type="button">Ask</button></div><div id="aiAns" aria-live="polite"></div><p class="aifine">The AI gets this lesson, your code and the last output. It gives hints, not the solution. AI answers can be wrong.</p></div>';
+    const q = $('#aiQ'), go2 = $('#aiGo'), out = $('#aiAns'); q.focus();
+    const ask = async () => {
+      const code = String(getCode() || '').slice(0, 5000), res = String(getOut() || '').slice(0, 2000), question = q.value.trim();
+      go2.disabled = true; out.innerHTML = '<p class="aithink">Thinking…</p>'; bump('aiAsks'); save();
+      const system = 'You are a programming tutor inside the lesson "' + les.title + '" (' + les.concept + ') of the ' + LANGS[lang].name + ' course. The task is: ' + String(les.task).replace(/<[^>]+>/g, '').slice(0, 600) + ' Give a short hint that helps the student find the problem themselves. Point to the line or idea that is wrong. Do NOT write the full corrected program. Answer in under 150 words.';
+      const user = (question ? question + '\n\n' : 'Help me with this lesson.\n\n') + 'My code:\n```\n' + code + '\n```\n' + (res ? 'What happened when I ran it:\n```\n' + res + '\n```' : 'I have not run it yet.');
+      try { const a = await aiAsk(system, [{ role: 'user', content: user }]); out.innerHTML = '<div class="aians">' + aiMd(a) + '</div><p class="aifine">Answered by GLM-4.7 Flash. Check anything important.</p>'; }
+      catch (e) { out.innerHTML = '<p class="aierr">' + (e.busy ? 'The AI is busy (too many questions in a minute, or today\'s free limit is used up). Try again in a minute, or press Hint.' : !navigator.onLine ? 'You are offline, so the AI cannot answer. Press Hint for help.' : 'The AI did not answer. Try again, or press Hint.') + '</p>'; }
+      go2.disabled = false;
+    };
+    go2.addEventListener('click', ask); q.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); ask(); } });
+  });
+}
+
+/* ----- weeks ----- */
+function isoWeek(d) { const t = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate())); const day = t.getUTCDay() || 7; t.setUTCDate(t.getUTCDate() + 4 - day); const y = t.getUTCFullYear(); const w = Math.ceil(((t - Date.UTC(y, 0, 1)) / 864e5 + 1) / 7); return y + '-W' + String(w).padStart(2, '0'); }
+function weekXp() { const k = isoWeek(new Date()), x = xp(); if (!S.wk || S.wk.k !== k || typeof S.wk.b !== 'number' || S.wk.b > x) { S.wk = { k, b: x }; save(); } return x - S.wk.b; }
+const WK_GOALS = [50, 150, 300, 500];
+const wkGoal = () => (WK_GOALS.includes(S.wkGoal) ? S.wkGoal : 150);
+function weekDaysLeft() { const d = new Date().getDay(); return d === 0 ? 1 : 8 - d; }
+function weekCardHtml() {
+  const x = weekXp(), g = wkGoal(), pct = Math.min(100, Math.round(x / g * 100));
+  return '<div class="wkhome"><button class="wkcard" id="wkBtn" type="button"><span class="wkring" style="--p:' + pct + '"><b>' + pct + '%</b></span><span><small>THIS WEEK</small><b>' + x + ' / ' + g + ' XP</b><span>' + (x >= g ? 'Weekly goal reached 🎉' : weekDaysLeft() + ' day' + (weekDaysLeft() === 1 ? '' : 's') + ' left · weekly leaderboard') + '</span></span></button>' +
+    '<button class="wkcard small" id="clsBtn" type="button"><span class="wkico" aria-hidden="true">🏫</span><span><small>CLASSES</small><b>Teach or join</b><span>Share progress with a teacher</span></span></button>' +
+    '<button class="wkcard small" id="certBtn" type="button"><span class="wkico" aria-hidden="true">🎓</span><span><small>CERTIFICATES</small><b>Shareable links</b><span>Anyone can check them</span></span></button></div>';
+}
+function bindWeekCard() { const a = $('#wkBtn'), b = $('#clsBtn'), c = $('#certBtn'); if (a) a.addEventListener('click', () => go({ name: 'week' })); if (b) b.addEventListener('click', () => go({ name: 'classes' })); if (c) c.addEventListener('click', () => go({ name: 'certs' })); }
+async function wkPost() { // weekly leaderboard entry for this player (only after they joined it)
+  if (!S.wkJoin || !dbUrl()) return; const me = duelMe(); const k = isoWeek(new Date());
+  await dbPut('wk/' + k + '/' + me.uid, { n: me.name, x: Math.min(20000, weekXp()), at: TS });
+}
+let wkTimer = 0; function wkSchedule() { if (!S.wkJoin) return; clearTimeout(wkTimer); wkTimer = setTimeout(() => wkPost().catch(() => {}), 20000); }
+function icsReminder(hhmm) {
+  const [h, m] = hhmm.split(':').map(Number); const d = new Date(); d.setHours(h, m, 0, 0); if (d < new Date()) d.setDate(d.getDate() + 1);
+  const p = (n) => String(n).padStart(2, '0'); const loc = d.getFullYear() + p(d.getMonth() + 1) + p(d.getDate()) + 'T' + p(h) + p(m) + '00';
+  const stamp = new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d+/, ''); const url = location.href.split('#')[0];
+  const ics = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Learn//Reminder//EN', 'BEGIN:VEVENT', 'UID:learn-reminder-' + Date.now() + '@learn', 'DTSTAMP:' + stamp, 'DTSTART:' + loc, 'DURATION:PT15M', 'RRULE:FREQ=DAILY', 'SUMMARY:Practise coding on Learn', 'DESCRIPTION:15 minutes of practice keeps your streak going. ' + url, 'URL:' + url, 'BEGIN:VALARM', 'ACTION:DISPLAY', 'DESCRIPTION:Time to practise on Learn', 'TRIGGER:PT0M', 'END:VALARM', 'END:VEVENT', 'END:VCALENDAR'].join('\r\n');
+  const blob = new Blob([ics], { type: 'text/calendar' }); const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'learn-daily-reminder.ics'; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 60000);
+}
+async function renderWeek() {
+  const x = weekXp(), g = wkGoal(), pct = Math.min(100, Math.round(x / g * 100)), k = isoWeek(new Date());
+  app.innerHTML = '<div class="wrap">' + topbar('<button class="btn small" id="back">← Home</button><div class="crumb">📅 This week</div>') +
+    '<div class="card"><h2 style="margin-top:0">Weekly goal</h2><div class="wkbig"><span class="wkring big" style="--p:' + pct + '"><b>' + pct + '%</b></span><div><p style="margin:0"><b>' + x + ' of ' + g + ' XP</b> this week (' + k + ', Monday to Sunday).</p><p class="muted" style="margin:6px 0 0">' + (x >= g ? 'Goal reached. Everything else this week is a bonus.' : (g - x) + ' XP to go, ' + weekDaysLeft() + ' day' + (weekDaysLeft() === 1 ? '' : 's') + ' left. A lesson is worth 10 to 30 XP.') + '</p></div></div>' +
+    '<div class="row" role="group" aria-label="Weekly goal" style="gap:8px;margin-top:12px;flex-wrap:wrap">' + WK_GOALS.map((n) => '<button class="btn small' + (n === g ? ' primary' : '') + '" data-g="' + n + '" aria-pressed="' + (n === g) + '" type="button">' + n + ' XP</button>').join('') + '</div></div>' +
+    '<div class="card" style="margin-top:12px"><h2 style="margin-top:0">🏆 Weekly leaderboard</h2><p class="muted" style="margin-top:0">Everyone starts at 0 on Monday. It shows your online name and this week\'s XP only.</p><div id="wkLb">' + (S.wkJoin ? '<p class="muted">Loading…</p>' : '<button class="btn primary" id="wkJoin" type="button">Join this week\'s leaderboard</button>') + '</div></div>' +
+    '<div class="card" style="margin-top:12px"><h2 style="margin-top:0">⏰ Daily reminder</h2><p style="margin-top:0">Adds a daily "Practise coding on Learn" event with an alert to your own calendar (iPad, iPhone, Google or Outlook Calendar). Nothing is sent anywhere, and you can delete the event in your calendar at any time.</p><div class="row" style="gap:8px;flex-wrap:wrap;align-items:center"><label for="wkTime"><b>Time</b></label><input id="wkTime" type="time" value="' + esc(S.wkTime || '18:00') + '" class="dinput" style="min-height:44px"><button class="btn primary" id="wkIcs" type="button">Add to my calendar</button></div></div></div>';
+  bindTheme(); $('#back').addEventListener('click', () => go({ name: 'home' }));
+  $$('[data-g]').forEach((b) => b.addEventListener('click', () => { S.wkGoal = +b.dataset.g; save(); renderWeek(); }));
+  $('#wkIcs').addEventListener('click', () => { const v = $('#wkTime').value || '18:00'; S.wkTime = v; save(); icsReminder(v); toast('📅 Open the downloaded file to add the reminder to your calendar'); });
+  const box = $('#wkLb');
+  const load = async () => {
+    if (!dbUrl()) { box.innerHTML = '<p class="muted">The online leaderboard is not available on this copy of Learn.</p>'; return; }
+    try {
+      await wkPost(); const raw = (await dbGet('wk/' + k)) || {}; const me = duelMe();
+      const rows = Object.keys(raw).map((id) => ({ id, n: String((raw[id] || {}).n || 'Player').slice(0, 24), x: +(raw[id] || {}).x || 0 })).sort((a, b) => b.x - a.x).slice(0, 50);
+      box.innerHTML = rows.length ? '<ol class="wklb">' + rows.map((r, i) => '<li class="' + (r.id === me.uid ? 'me' : '') + '"><span class="wkpos">' + (i + 1) + '</span><span class="wkname">' + esc(r.n) + (r.id === me.uid ? ' (you)' : '') + '</span><b>' + r.x + ' XP</b></li>').join('') + '</ol><p class="muted"><button class="btn small" id="wkLeave" type="button">Leave the weekly leaderboard</button></p>' : '<p class="muted">Nobody is on the board yet this week.</p>';
+      const lv = $('#wkLeave'); if (lv) lv.addEventListener('click', async () => { S.wkJoin = false; save(); try { await dbReq('DELETE', 'wk/' + k + '/' + me.uid); } catch (e) {} renderWeek(); });
+    } catch (e) { box.innerHTML = '<p class="muted">Could not load the leaderboard' + (navigator.onLine ? '' : ' (you are offline)') + '. Your weekly XP still counts.</p>'; }
+  };
+  const j = $('#wkJoin'); if (j) j.addEventListener('click', () => { S.wkJoin = true; save(); box.innerHTML = '<p class="muted">Joining…</p>'; load(); }); else load();
+}
+
+/* ----- verifiable certificates: certs/<id> is public by id, immutable, created only by an email account ----- */
+const certId = () => { const a = new Uint8Array(12); crypto.getRandomValues(a); return Array.from(a, (b) => 'abcdefghjkmnpqrstuvwxyz23456789'[b % 31]).join(''); };
+async function certsReq(method, id, body, anon) {
+  const tok = anon ? '' : await fbToken();
+  const r = await fetch(dbUrl() + '/certs/' + encodeURIComponent(id) + '.json' + (tok ? '?auth=' + encodeURIComponent(tok) : ''), { method, body: body === undefined ? undefined : JSON.stringify(body) });
+  if (!r.ok) { const e = new Error('certs ' + r.status); e.status = r.status; throw e; } return r.json();
+}
+const certUrl = (id) => location.href.split('#')[0] + '#/verify/' + id;
+async function certIssue(t, detail, name) { // returns the verification URL; only call after checking the certificate is earned
+  if (!acctEmail()) throw Object.assign(new Error('sign in'), { signin: true });
+  await fbToken(); // FBA.uid is only known once the token is loaded
+  const id = certId(); const nm = String(name || '').replace(/[<>]/g, '').trim().slice(0, 60) || 'Learner';
+  await certsReq('PUT', id, { n: nm, t: String(t).slice(0, 120), s: String(detail || '').slice(0, 200), at: TS, o: FBA.uid, v: APP_VERSION });
+  S.certs = S.certs || {}; S.certs[id] = { t: String(t).slice(0, 120), at: dayStr(new Date()) }; save(); return certUrl(id);
+}
+async function shareLink(url, title) { try { if (navigator.share) { await navigator.share({ title, url }); return 'shared'; } } catch (e) { if (e && e.name === 'AbortError') return 'cancelled'; } try { await navigator.clipboard.writeText(url); return 'copied'; } catch (e) { return 'shown'; } }
+function earnedCerts() { return LANG_ORDER.filter((k) => countDone(k) === lessonsOf(k).length).map((k) => ({ key: 'lang-' + k, t: LANGS[k].name + ' course — Learn to Code', s: lessonsOf(k).length + ' lessons completed' })); }
+function renderCerts() {
+  const em = acctEmail(), list = earnedCerts(), mine = Object.entries(S.certs || {});
+  app.innerHTML = '<div class="wrap">' + topbar('<button class="btn small" id="back">← Home</button><div class="crumb">🎓 Certificates</div>') +
+    '<div class="card"><h2 style="margin-top:0">Shareable certificate links</h2><p style="margin-top:0">Create a link to a certificate you have earned. Anyone who opens it sees your name, the course and the date, and that the record has not been changed since it was created.</p><p class="muted">Learn is self-study and not accredited. Progress is recorded on your own device, so a link proves that a Learn account created the certificate on that date, not that the work was independently checked. The link says this too.</p>' +
+    (!fbOn() ? '<p class="pill">Certificate links need accounts, which are not switched on for this copy of Learn.</p>' : !em ? '<p><b>Sign in to create links.</b> <a class="btn small primary" href="#/account">👤 Sign in or create an account</a></p>' :
+      '<label class="acl" for="ceName">Name on the certificates</label><input id="ceName" class="dinput acin" maxlength="60" value="' + esc(S.certName || '') + '" placeholder="Your name">' +
+      '<h3>Language courses</h3>' + (list.length ? '<ul class="celist">' + list.map((c) => '<li><span><b>' + esc(c.t) + '</b><small>' + esc(c.s) + '</small></span><button class="btn small primary" data-ce="' + c.key + '" type="button">Create link</button></li>').join('') + '</ul>' : '<p class="muted">Finish every lesson of a language course to earn its certificate.</p>') +
+      '<p class="muted">University stage and pathway certificates: open the University → Transcript and certificates, and press <b>🔗 Verification link</b>.</p>') +
+    '<p class="pill" id="ceMsg" role="status" aria-live="polite"></p></div>' +
+    (mine.length ? '<div class="card" style="margin-top:12px"><h3 style="margin-top:0">Links you created on this device</h3><ul class="celist">' + mine.map(([id, c]) => '<li><span><b>' + esc(c.t) + '</b><small>' + esc(c.at) + '</small></span><a class="btn small" href="#/verify/' + esc(id) + '">Open</a></li>').join('') + '</ul></div>' : '') + '</div>';
+  bindTheme(); $('#back').addEventListener('click', () => go({ name: 'home' }));
+  const msg = $('#ceMsg'), nm = $('#ceName'); if (nm) nm.addEventListener('input', () => { S.certName = nm.value.replace(/[<>]/g, '').slice(0, 60); save(); });
+  $$('[data-ce]').forEach((b) => b.addEventListener('click', async () => {
+    const c = earnedCerts().find((x) => x.key === b.dataset.ce); if (!c) return; if (!(nm.value || '').trim()) { msg.textContent = 'Type the name to show on the certificate first.'; nm.focus(); return; }
+    b.disabled = true; msg.textContent = 'Creating the link…';
+    try { const url = await certIssue(c.t, c.s, nm.value); const how = await shareLink(url, c.t); msg.textContent = how === 'copied' ? 'Link copied: ' + url : 'Link: ' + url; renderCertsKeepMsg(msg.textContent); }
+    catch (e) { msg.textContent = e.signin ? 'Sign in first.' : 'Could not create the link' + (navigator.onLine ? '. Try again.' : ': you are offline.'); b.disabled = false; }
+  }));
+}
+function renderCertsKeepMsg(t) { renderCerts(); const m = $('#ceMsg'); if (m) m.textContent = t; }
+async function renderVerify(id) {
+  app.innerHTML = '<div class="wrap">' + topbar('<button class="btn small" id="back">← Learn</button><div class="crumb">🔎 Certificate check</div>') + '<div class="card" id="vfBox" role="status" aria-live="polite"><p>Checking…</p></div></div>';
+  bindTheme(); $('#back').addEventListener('click', () => go({ name: 'home' }));
+  const box = $('#vfBox');
+  if (!/^[a-z2-9]{12}$/.test(id || '')) { box.innerHTML = '<h2 style="margin-top:0">Not a valid certificate link</h2><p>Check that the whole link was copied.</p>'; return; }
+  if (!dbUrl()) { box.innerHTML = '<p>Certificate checks are not available on this copy of Learn.</p>'; return; }
+  try {
+    const c = await certsReq('GET', id, undefined, true);
+    if (!c || typeof c.n !== 'string') { box.innerHTML = '<h2 style="margin-top:0">❌ No certificate with this link</h2><p>It may have been deleted by its owner, or the link is wrong.</p>'; return; }
+    const date = new Date(+c.at || 0).toLocaleDateString([], { year: 'numeric', month: 'long', day: 'numeric' });
+    box.innerHTML = '<p class="vfok">✅ Genuine Learn certificate record</p><p class="muted" style="margin:0">This records that</p><h2 class="vfname">' + esc(c.n) + '</h2><p class="muted" style="margin:0">completed</p><h3 class="vftitle">' + esc(c.t) + '</h3>' + (c.s ? '<p>' + esc(c.s) + '</p>' : '') + '<p><b>Created ' + esc(date) + '</b> · reference ' + esc(id) + '</p>' +
+      '<p class="vfnote">This record was created by a signed-in Learn account and cannot be changed afterwards. <b>Learn is a free self-study website and this is not an accredited qualification.</b> Progress is recorded on the learner\'s own device and is not independently examined, so this confirms the record, not the quality of the work.</p>';
+  } catch (e) { box.innerHTML = '<p>Could not check the certificate' + (navigator.onLine ? '. Try again later.' : ': you are offline.') + '</p>'; }
+}
+
+/* ----- classes: classes/<CODE> {t: teacher, n: name, m: {uid: {n, p}}} ----- */
+const CLS_ALPH = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+const clsCode = () => { const a = new Uint8Array(6); crypto.getRandomValues(a); return Array.from(a, (b) => CLS_ALPH[b % 32]).join(''); };
+async function clsReq(method, path, body) {
+  const tok = await fbToken(); const r = await fetch(dbUrl() + '/classes/' + path + '.json?auth=' + encodeURIComponent(tok), { method, body: body === undefined ? undefined : JSON.stringify(body) });
+  if (r.status === 401) { FBA.tok = null; FBA.exp = 0; } if (!r.ok) { const e = new Error('classes ' + r.status); e.status = r.status; throw e; } return r.json();
+}
+function clsSummary() { const u = S.uni || {}; return { l: doneTotal(), u: Object.keys(u.lessons || {}).length, x: xp(), w: weekXp(), d: (S.days || []).length, at: TS }; }
+async function clsPushAll() { // after each save to the account: refresh what each joined class sees
+  if (!acctEmail() || !S.clsJ || !Object.keys(S.clsJ).length) return; await fbToken(); for (const code of Object.keys(S.clsJ)) { const j = S.clsJ[code]; try { await clsReq('PUT', code + '/m/' + FBA.uid, { n: String(j.me || 'Student').slice(0, 40), p: clsSummary() }); } catch (e) { if (e.status === 401) { delete S.clsJ[code]; save(); } } }
+}
+async function renderClasses() {
+  const em = acctEmail(); S.clsJ = S.clsJ || {}; S.clsT = S.clsT || {};
+  let body;
+  if (!fbOn()) body = '<div class="card"><p>Classes need accounts, which are not switched on for this copy of Learn.</p></div>';
+  else if (!em) body = '<div class="card"><h2 style="margin-top:0">Classes</h2><p>Teachers create a class and get a join code. Students join with the code and share their progress with the teacher.</p><p><b>Sign in first</b> (teachers and students both need an account).</p><a class="btn primary" href="#/account">👤 Sign in or create an account</a></div>';
+  else body =
+    '<div class="card"><h2 style="margin-top:0">🧑‍🎓 Join a class</h2><p style="margin-top:0">Your teacher will see <b>only</b>: the name you type below, how many lessons and University lessons you have finished, your XP (total and this week), how many days you have studied, and when you were last active. They will <b>not</b> see your email, your code or your answers. You can leave at any time.</p>' +
+      '<div class="row" style="gap:8px;flex-wrap:wrap"><div style="flex:1;min-width:150px"><label class="acl" for="cjCode">Class code</label><input id="cjCode" class="dinput acin" maxlength="6" autocapitalize="characters" autocomplete="off" placeholder="ABC123"></div><div style="flex:2;min-width:180px"><label class="acl" for="cjName">Your name for this class</label><input id="cjName" class="dinput acin" maxlength="40" value="' + esc(S.certName || '') + '"></div></div>' +
+      '<button class="btn primary" id="cjGo" type="button" style="margin-top:12px">Join and share my progress</button><p class="pill" id="cjMsg" role="status" aria-live="polite"></p>' +
+      (Object.keys(S.clsJ).length ? '<h3>Your classes</h3><ul class="celist">' + Object.entries(S.clsJ).map(([c, j]) => '<li><span><b>' + esc(j.cn || c) + '</b><small>code ' + esc(c) + ' · shown as ' + esc(j.me || '') + '</small></span><button class="btn small" data-leave="' + esc(c) + '" type="button">Leave</button></li>').join('') + '</ul>' : '') + '</div>' +
+    '<div class="card" style="margin-top:12px"><h2 style="margin-top:0">🧑‍🏫 Teach a class</h2><div class="row" style="gap:8px;flex-wrap:wrap;align-items:flex-end"><div style="flex:1;min-width:200px"><label class="acl" for="ctName">Class name</label><input id="ctName" class="dinput acin" maxlength="60" placeholder="e.g. Grade 10 Computer Science"></div><button class="btn primary" id="ctGo" type="button">Create class</button></div><p class="pill" id="ctMsg" role="status" aria-live="polite"></p>' +
+      (Object.keys(S.clsT).length ? Object.entries(S.clsT).map(([c, n]) => '<div class="clsbox"><div class="row" style="justify-content:space-between;gap:8px;flex-wrap:wrap"><h3 style="margin:0">' + esc(n) + ' <span class="pill">code ' + esc(c) + '</span></h3><span><button class="btn small" data-share="' + esc(c) + '" type="button">Share code</button> <button class="btn small" data-del="' + esc(c) + '" type="button">Delete class</button></span></div><div class="clsm" data-cls="' + esc(c) + '"><p class="muted">Loading students…</p></div></div>').join('') : '') + '</div>';
+  app.innerHTML = '<div class="wrap">' + topbar('<button class="btn small" id="back">← Home</button><div class="crumb">🏫 Classes</div>') + body + '</div>';
+  bindTheme(); $('#back').addEventListener('click', () => go({ name: 'home' }));
+  if (!fbOn() || !em) return;
+  const cj = $('#cjGo'), cjm = $('#cjMsg');
+  cj.addEventListener('click', async () => {
+    const code = $('#cjCode').value.trim().toUpperCase(), nm = $('#cjName').value.replace(/[<>]/g, '').trim();
+    if (!/^[A-Z2-9]{6}$/.test(code)) { cjm.textContent = 'A class code has 6 letters and digits.'; return; } if (!nm) { cjm.textContent = 'Type the name your teacher will see.'; return; }
+    cj.disabled = true; cjm.textContent = 'Joining…';
+    try { await fbToken(); const cn = await clsReq('GET', code + '/n'); if (typeof cn !== 'string') { cjm.textContent = 'No class has that code. Check it with your teacher.'; cj.disabled = false; return; }
+      await clsReq('PUT', code + '/m/' + FBA.uid, { n: nm.slice(0, 40), p: clsSummary() }); S.clsJ[code] = { cn: cn.slice(0, 60), me: nm.slice(0, 40) }; save(); toast('🏫 Joined ' + esc(cn)); renderClasses(); }
+    catch (e) { cjm.textContent = 'Could not join' + (navigator.onLine ? '. Try again.' : ': you are offline.'); cj.disabled = false; }
+  });
+  $$('[data-leave]').forEach((b) => b.addEventListener('click', async () => { const c = b.dataset.leave; b.disabled = true; try { await fbToken(); await clsReq('DELETE', c + '/m/' + FBA.uid); } catch (e) { if (e.status !== 401) { b.disabled = false; toast('Could not leave right now. Try again.'); return; } } delete S.clsJ[c]; save(); toast('You left the class. Your teacher no longer sees your progress.'); renderClasses(); }));
+  const ct = $('#ctGo'), ctm = $('#ctMsg');
+  ct.addEventListener('click', async () => {
+    const n = $('#ctName').value.replace(/[<>]/g, '').trim(); if (!n) { ctm.textContent = 'Give the class a name.'; return; }
+    ct.disabled = true; ctm.textContent = 'Creating…'; try { await fbToken(); } catch (e) {}
+    for (let i = 0; i < 4; i++) { const code = clsCode(); try { await clsReq('PUT', code, { t: FBA.uid, n: n.slice(0, 60), at: TS }); S.clsT[code] = n.slice(0, 60); save(); toast('🏫 Class created. Code: ' + code); renderClasses(); return; } catch (e) { if (e.status !== 401) break; } }
+    ctm.textContent = 'Could not create the class' + (navigator.onLine ? '. Try again.' : ': you are offline.'); ct.disabled = false;
+  });
+  $$('[data-share]').forEach((b) => b.addEventListener('click', async () => { const c = b.dataset.share; const how = await shareLink(location.href.split('#')[0] + '#/classes', 'Join my class on Learn with code ' + c); try { await navigator.clipboard.writeText(c); } catch (e) {} toast(how === 'shared' ? 'Shared' : 'Class code ' + c + (how === 'copied' ? ' copied' : '')); }));
+  $$('[data-del]').forEach((b) => { let armed = false; b.addEventListener('click', async () => { if (!armed) { armed = true; b.textContent = 'Press again to delete'; return; } const c = b.dataset.del; try { await clsReq('DELETE', c); } catch (e) { if (e.status !== 401) { toast('Could not delete right now.'); return; } } delete S.clsT[c]; save(); renderClasses(); }); });
+  for (const box of $$('.clsm')) {
+    const c = box.dataset.cls;
+    try {
+      const d = await clsReq('GET', c); if (!d) { box.innerHTML = '<p class="muted">This class no longer exists.</p>'; continue; }
+      const ms = Object.entries(d.m || {}).map(([uid, v]) => ({ uid, n: String((v || {}).n || 'Student').slice(0, 40), p: (v || {}).p || {} })).sort((a, b) => (b.p.x || 0) - (a.p.x || 0));
+      const ago = (t) => { if (!t) return '—'; const m = Math.round((Date.now() - t) / 60000); return m < 60 ? m + ' min ago' : m < 1440 ? Math.round(m / 60) + ' h ago' : Math.round(m / 1440) + ' days ago'; };
+      box.innerHTML = ms.length ? '<div class="clstable" role="region" aria-label="Students" tabindex="0"><table><thead><tr><th scope="col">Student</th><th scope="col">Lessons</th><th scope="col">University</th><th scope="col">XP</th><th scope="col">This week</th><th scope="col">Days</th><th scope="col">Last active</th><th scope="col">Action</th></tr></thead><tbody>' +
+        ms.map((s) => '<tr><td>' + esc(s.n) + '</td><td>' + (+s.p.l || 0) + '</td><td>' + (+s.p.u || 0) + '</td><td>' + (+s.p.x || 0) + '</td><td>' + (+s.p.w || 0) + '</td><td>' + (+s.p.d || 0) + '</td><td>' + ago(+s.p.at) + '</td><td><button class="btn small" data-rm="' + esc(c) + '|' + esc(s.uid) + '" type="button" aria-label="Remove ' + esc(s.n) + '">Remove</button></td></tr>').join('') + '</tbody></table></div><p class="muted">' + ms.length + ' student' + (ms.length === 1 ? '' : 's') + '. Progress updates when a student uses Learn while signed in.</p>' : '<p class="muted">No students yet. Share the code ' + esc(c) + ' with your class.</p>';
+      $$('[data-rm]', box).forEach((b) => b.addEventListener('click', async () => { const [cc, uid] = b.dataset.rm.split('|'); try { await clsReq('DELETE', cc + '/m/' + uid); b.closest('tr').remove(); } catch (e) { toast('Could not remove right now.'); } }));
+    } catch (e) { box.innerHTML = '<p class="muted">Could not load this class' + (e.status === 401 ? ' (it may have been deleted).' : navigator.onLine ? '.' : ': you are offline.') + '</p>'; }
+  }
+}
+
 /* Quiz and match pages wait for the question bank (loaded on demand, see loadRanked). */
 function rankedGate() {
   const want = toHash(view);
@@ -12765,7 +12982,7 @@ function rankedGate() {
 /* ===== Software Engineering University (lazy-loaded from ./uni/) =====
    Nothing in ./uni/ is downloaded until the student opens #/uni. The module gets
    the page internals it needs through this API object instead of globals. */
-const UNI_VER = '1.8.0';
+const UNI_VER = '1.9.0';
 let uniLoad = null;
 function uniApi() {
   return {
@@ -12777,7 +12994,7 @@ function uniApi() {
     openLesson: (lang) => { if (LANGS[lang]) go({ name: 'lesson', lang, idx: nextLessonIdx(lang) }); },
     addXp: (n) => { n = Math.max(0, Math.min(500, Math.floor(+n || 0))); if (n) { S.bonus = (S.bonus || 0) + n; save(); } return n; },
     markDay: () => { const d = dayStr(new Date()); if (!S.days.includes(d)) { S.days.push(d); save(); } },
-    dayStr, repair: learnRepair, repairTried: learnRepairTried,
+    dayStr, repair: learnRepair, repairTried: learnRepairTried, certIssue, shareLink, acctEmail, accountsOn: fbOn,
   };
 }
 /* Repair a mix of old and new files: delete Learn's offline copies (not the Pyodide download), ask the service
@@ -12830,7 +13047,7 @@ function renderHome() {
     '<div class="bar"><div style="width:' + r.pct + '%"></div></div><div class="xpline"><span>' + r.x + ' XP</span><span>' + (r.next ? (r.next.xp - r.x) + ' XP to ' + r.next.name : 'Top rank reached!') + '</span></div>' +
     '<div class="mini"><div><b>' + done + '</b><small>of ' + TOTAL + ' lessons</small></div><div><b>' + Object.keys(S.quiz).length + '</b><small>quiz answers</small></div><div><b>' + Object.keys(S.badges).length + '</b><small>of ' + BADGES.length + ' badges</small></div></div></div></div>' +
     '<div class="path" aria-label="Learning path">' + TIERS.map((t, i) => '<div class="step t-' + t.key + '"><span class="num">' + (i + 1) + '</span><div><b>' + t.name + '</b><small>' + t.blurb + '</small></div></div>').join('<span class="arrow">→</span>') + '</div>' +
-    uniBannerHtml() + chBanner() + dailyHtml() + searchHtml() + '<h2 class="sect">Choose a language</h2><div class="cards">' + LANG_ORDER.map((k) => { const L = LANGS[k], d = countDone(k), n = lessonsOf(k).length;
+    weekCardHtml() + uniBannerHtml() + chBanner() + dailyHtml() + searchHtml() + '<h2 class="sect">Choose a language</h2><div class="cards">' + LANG_ORDER.map((k) => { const L = LANGS[k], d = countDone(k), n = lessonsOf(k).length;
       return '<button class="lcard" data-lang="' + k + '">' + badge(k, true) + '<h3>' + L.name + '</h3><p>' + esc(L.blurb) + '</p><div class="tiers3">' + tiersFor(k).map((t) => { const td = tierDone(k, t.key), tt = tierLessons(k, t.key).length; return '<div class="t3"><span class="t3l t-' + t.key + '">' + t.name.slice(0, 3) + '</span><div class="bar sm"><div class="f-' + t.key + '" style="width:' + Math.round(td / tt * 100) + '%"></div></div><span class="t3n">' + td + '/' + tt + '</span></div>'; }).join('') + '</div><div class="meta"><span>' + d + ' of ' + n + ' done</span><span>' + (d === 0 ? 'Start' : d === n ? 'Complete ✓' : 'Continue') + ' →</span></div></button>'; }).join('') + '</div>' +
     '<h2 class="sect">Command line</h2><div class="cards">' + termCardHtml('term') + '</div>' +
     '<h2 class="sect">Capstone</h2><div class="cards">' + termCardHtml('cloud') + '</div>' +
@@ -12845,7 +13062,7 @@ function renderHome() {
   $('#shopBtn').addEventListener('click', () => go({ name: 'shop' })); $('#lockerHomeBtn').addEventListener('click', () => go({ name: 'locker' })); $('#catHomeBtn').addEventListener('click', () => go({ name: 'catalog' }));
   $('#avatarBtn').addEventListener('click', () => go({ name: 'avatar' }));
   $$('.dcard[data-dk]').forEach((b) => b.addEventListener('click', () => go({ name: 'lesson', lang: b.dataset.dk, idx: +b.dataset.di })));
-  mountExtras(); bindHome();
+  mountExtras(); bindHome(); bindWeekCard();
   bindBackup();
   $('#resetAll').addEventListener('click', () => { if (confirm('Erase all saved progress, XP and code on this device?')) { S = { done: {}, code: {}, cur: {}, pg: {}, theme: S.theme, quiz: {}, days: [], badges: {}, fs: S.fs, lastLang: null, spent: 0, bonus: 0, owned: {}, equip: {}, doneAt: {}, daily: {}, gh: {}, web: {}, quizDay: '' }; save(); render(); } });
 }
@@ -12881,7 +13098,7 @@ function renderLesson() {
     '<div class="exwrap"><div class="exlabel">Example</div><pre class="codeblock">' + hl(les.example, lang) + '</pre><div class="btns"><button class="btn small" id="runEx">▶ Run example</button><button class="btn small" id="useEx">Copy to editor</button></div><div class="exout"></div></div>' +
     '</section>' +
     '<section class="card work"><h3>Your turn</h3><p class="task">' + les.task + '</p>' + (les.type === 'terminal' ? '<div id="termhost"></div>' : les.type === 'deploy' ? '<div id="deployhost"></div>' : '<div id="edhost"></div>') +
-    '<div class="btns"><button class="btn primary" id="runBtn">' + (les.type === 'terminal' ? '✓ Check my work' : les.type === 'deploy' ? '🚀 Deploy App<span class="kbd">' + RUNKEY + '</span>' : '▶ Run and check<span class="kbd">' + RUNKEY + '</span>') + '</button><button class="btn" id="hintBtn">Hint</button><button class="btn" id="resetBtn">Reset</button></div>' +
+    '<div class="btns"><button class="btn primary" id="runBtn">' + (les.type === 'terminal' ? '✓ Check my work' : les.type === 'deploy' ? '🚀 Deploy App<span class="kbd">' + RUNKEY + '</span>' : '▶ Run and check<span class="kbd">' + RUNKEY + '</span>') + '</button><button class="btn" id="hintBtn">Hint</button><button class="btn" id="resetBtn">Reset</button>' + (les.type === 'terminal' || les.type === 'deploy' ? '' : '<button class="btn" id="aiBtn" type="button">🤖 Ask AI</button>') + '</div><div id="aiHelp"></div>' +
     (les.type === 'terminal' || les.type === 'deploy' ? '' : stdinBox(lang) + outHolder) + '<div id="verdict"></div><div id="reveal"></div>' +
     '<div class="nav"><button class="btn" id="prev"' + (view.idx === 0 ? ' disabled' : '') + '>← Back</button><button class="btn" id="next">' + (isLast ? 'Finish' : 'Next lesson →') + '</button></div></section>' +
     '<section class="card quizcard">' +
@@ -12939,6 +13156,7 @@ function renderLesson() {
     });
   });
   $('#resetBtn').addEventListener('click', () => { ed.set(les.starter); $('#verdict').innerHTML = ''; });
+  if (les.type !== 'terminal' && les.type !== 'deploy') mountLessonAi(lang, les, () => ed.get(), () => { const o = $('.work .out'), v = $('#verdict'); return ((o ? o.innerText : '') + '\n' + (v ? v.innerText : '')).trim(); });
   $('#prev').addEventListener('click', () => go({ name: 'lesson', lang, idx: view.idx - 1 }));
   $('#next').addEventListener('click', () => (isLast ? go({ name: 'home' }) : go({ name: 'lesson', lang, idx: view.idx + 1 })));
   $('#runEx').addEventListener('click', async () => { if (les.type === 'deploy') return; if (les.type === 'terminal') { ed.set(les.example); return; } const t0 = performance.now(); if (STATIC_LANGS.includes(lang)) { const bx = $('.exout'); bx.innerHTML = '<div class="out"><div class="lab">OUTPUT</div><div class="dim">Running online…</div></div>'; } const r = await runCodeAsync(lang, les.example, ''); const ms = performance.now() - t0; const box = $('.exout'); box.innerHTML = '<div class="out"></div>'; showOut($('.out', box), r, lang, ms); });
@@ -15210,7 +15428,7 @@ function snapshot() { return { done: S.done, code: S.code, cur: S.cur, pg: S.pg,
    A backup is a JSON file: { app: 'learn', v: 3, at, ver, d: { ...progress... } }. Restoring never trusts the file:
    only known keys are read, each must have the right shape, prototype keys are dropped, and the student chooses
    between merging (keeps the best of both, the default) and replacing. A preview is shown before anything changes. */
-const BK_KEYS = { done: 'o', code: 'o', cur: 'o', pg: 'o', quiz: 'o', days: 'a', badges: 'o', fs: 'n', spent: 'n', bonus: 'n', owned: 'o', equip: 'o', doneAt: 'o', daily: 'o', web: 'o', quizDay: 's', duel: 'o', uni: 'o', avatar: 'any', avatarOwned: 'o', redeemed: 'o', cnt: 'o', theme: 's', lastLang: 's', playLang: 's' };
+const BK_KEYS = { done: 'o', code: 'o', cur: 'o', pg: 'o', quiz: 'o', days: 'a', badges: 'o', fs: 'n', spent: 'n', bonus: 'n', owned: 'o', equip: 'o', doneAt: 'o', daily: 'o', web: 'o', quizDay: 's', duel: 'o', uni: 'o', avatar: 'any', avatarOwned: 'o', redeemed: 'o', cnt: 'o', theme: 's', lastLang: 's', playLang: 's', wkGoal: 'n', wkTime: 's', certName: 's', certs: 'o', clsJ: 'o', clsT: 'o' };
 function backupPayload() { const d = {}; Object.keys(BK_KEYS).forEach((k) => { if (S[k] !== undefined && S[k] !== null) d[k] = S[k]; }); if (d.duel) { d.duel = Object.assign({}, d.duel); delete d.duel.uid; delete d.duel.fc; } return { app: 'learn', v: 3, at: new Date().toISOString(), ver: APP_VERSION, d }; }
 function backupParse(text) {
   if (typeof text !== 'string' || text.length > 25e6) throw new Error('That file is too large to be a Learn backup.');
@@ -15268,11 +15486,12 @@ function mergeUni(r) {
 }
 function mergeIn(d) {
   mergeUni(d.uni);
-  ['done', 'quiz', 'badges', 'owned', 'doneAt', 'equip', 'code', 'pg', 'cur', 'web', 'avatarOwned', 'redeemed'].forEach((k) => { S[k] = Object.assign({}, d[k] || {}, S[k]); });
+  ['done', 'quiz', 'badges', 'owned', 'doneAt', 'equip', 'code', 'pg', 'cur', 'web', 'avatarOwned', 'redeemed', 'certs', 'clsJ', 'clsT'].forEach((k) => { S[k] = Object.assign({}, d[k] || {}, S[k]); });
   { const a = d.cnt || {}, b = S.cnt || {}, m = {}; Object.keys(Object.assign({}, a, b)).forEach((k) => { m[k] = Math.max(a[k] || 0, b[k] || 0); }); S.cnt = m; }
   if (!S.avatar && d.avatar) S.avatar = d.avatar;
   S.days = Array.from(new Set((S.days || []).concat(d.days || []))).sort();
   S.spent = Math.max(S.spent || 0, d.spent || 0); S.bonus = Math.max(S.bonus || 0, d.bonus || 0);
+  ['wkGoal', 'wkTime', 'certName'].forEach((k) => { if (S[k] === undefined && d[k] !== undefined) S[k] = d[k]; });
 }
 async function gh(path, opt) {
   const r = await fetch(GH + path, Object.assign({ headers: { Authorization: 'Bearer ' + S.gh.token, Accept: 'application/vnd.github+json' } }, opt));
@@ -17382,8 +17601,14 @@ function makeCard(lang) {
 document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeDrawer(); });
 
 /* ---------- patch notes (pop up once per update; brand-new players never see old notes) ---------- */
-const APP_VERSION = '4.9';
+const APP_VERSION = '5.0';
 const PATCH_NOTES = [
+  { v: '5.0', date: 'Nov 16, 2026', title: '🎉 Learn 5.0: AI help, weekly goals, certificates and classes', items: [
+    '🤖 Ask AI in every coding lesson: it reads your code and the last result and gives you a hint (not the answer).',
+    '📅 This week: set a weekly XP goal, join the weekly leaderboard (everyone starts at 0 on Monday), and add a daily practice reminder to your calendar.',
+    '🎓 Certificate links: share a link to a certificate you earned. Anyone can open it to check it is a real Learn record (sign in needed to create one).',
+    '🏫 Classes: teachers create a class and get a join code; students join and share their progress numbers (never their code, answers or email). Leave at any time.',
+  ] },
   { v: '4.9', date: 'Nov 15, 2026', title: '🔧 Create account fixed', items: [
     'Fixed: Create account could say "This sign-in method is not switched on" even when it was. Learn now uses the account-linking method that Firebase requires on newer projects.',
     'If signing in ever fails, the message now includes a short error code you can pass on to the site owner.',
@@ -17549,7 +17774,8 @@ function maybeShowPatchNotes() {
 }
 document.addEventListener('click', (e) => { const b = e.target.closest && e.target.closest('#pnOpen'); if (b) openPatchNotes(PATCH_NOTES.slice(0, 5), false); });
 view = fromHash();
-window.__acctTouch = () => acctSchedule(15000);
+window.__acctTouch = () => { acctSchedule(15000); wkSchedule(); };
+window.__learnLessonIds = (k) => (LANGS[k] ? lessonsOf(k).map((l) => l.id) : []); // read-only, used by tests/e2e-community.js
 render();
 acctStart();
 maybeShowPatchNotes();

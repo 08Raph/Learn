@@ -1,3 +1,8 @@
+08Raph Learn 5.0: AI in lessons, weekly goals and leaderboard, reminders, certificate links, classes
+
+- REQUIRED: publish the new firebase/database.rules.json again (Realtime Database -> Rules -> paste -> Publish).
+- 4.9 fixed Create account on Firebase projects with email enumeration protection.
+
 08Raph Learn 4.8: sign up and sign in are on
 
 - FB_API_KEY is set, so accounts (Sign in / Create account) and secure online play are on.

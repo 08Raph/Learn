@@ -1,5 +1,27 @@
 # Changelog
 
+## 5.0 — 16 November 2026
+### Added
+- **Ask AI in lessons**: button next to Hint in every coding lesson. Sends the lesson, the student's code, the last
+  output/verdict and an optional question to the AI Worker with instructions to give a hint, not the solution.
+  Replies are escaped before a small Markdown subset is applied. Busy, offline and failure messages.
+- **This week** (`#/week`): weekly XP goal (50/150/300/500), opt-in weekly leaderboard at `duel/wk/<ISO week>/<player>`
+  (online name and weekly XP only; leave removes the entry), daily reminder as a downloaded calendar file (.ics with a
+  daily repeat and an alert; nothing is sent anywhere). Home page cards for This week, Classes and Certificates.
+- **Certificate links** (`#/certs`, University transcript "🔗 Verification link", check page `#/verify/<id>`): an
+  earned certificate can be published at `certs/<id>`, readable by anyone with the id, never changeable, deletable by
+  its owner. The check page says it is not accredited and not independently examined.
+- **Classes** (`#/classes`): a teacher (email account) creates a class with a 6-character code; students join with the
+  code and a display name and share only: lessons, University lessons, XP, weekly XP, days studied, last active.
+  Teacher dashboard, remove student, delete class; students can leave. Updated after each save to the account.
+- Deleting an account also deletes its classes, class memberships, certificate links and weekly entry.
+- Rules: `certs`, `classes`, `duel/wk`. Tests: `firebase-rules.test.js` 101 → 135; new `e2e-community.js` (40, suite 12).
+### Fixed
+- "Sign out and clear this device" could write the old progress back during the reload (now no saves while clearing).
+### Needs the owner
+- **Publish the updated `firebase/database.rules.json`** in the Firebase console, or the weekly leaderboard,
+  certificate links and classes are refused by the database.
+
 ## 4.9 — 15 November 2026
 ### Fixed
 - Create account failed on the live project with OPERATION_NOT_ALLOWED. With Firebase *email enumeration

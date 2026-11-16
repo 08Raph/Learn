@@ -4,7 +4,7 @@
    history, projects and portfolio, transcript, certificates.
    Grading reuses the engines already in index.html (gradeLesson, runCodeAsync).
    ============================================================ */
-(window.LEARN_MOD_BUILD = window.LEARN_MOD_BUILD || {})['uni-assess'] = '1.8.0'; // must equal BUILD in university.js
+(window.LEARN_MOD_BUILD = window.LEARN_MOD_BUILD || {})['uni-assess'] = '1.9.0'; // must equal BUILD in university.js
 (function () {
   'use strict';
   const U = window.LearnUniversity; const A = U.api; const { $, $$, E, md, inline, st, save, shell, link } = U;
@@ -296,12 +296,22 @@
     if (els.length) h += '<h3>Department electives (not counted toward stages or graduation)</h3><div class="u-tablewrap"><table class="u-table"><thead><tr><th>Code</th><th>Course</th><th>Lessons</th><th>Assignment</th><th>Exam (best / attempts)</th><th>Project</th><th>Grade</th></tr></thead><tbody>' + els.map((c) => { const g = U.courseGrade(c), at = U.attempts(c.id); return '<tr><td>' + E(c.code) + '</td><td>' + E(c.title) + '</td><td>' + U.lessonsDone(c) + '/' + c.n + '</td><td>' + ((st().labs[c.id] || {}).pass ? 'Passed' : '–') + '</td><td>' + (at.length ? U.bestOf(c.id) + '% / ' + at.length + (at.some((x) => x.self) ? ' †' : '') : '–') + '</td><td>' + (U.projectDone(c) ? U.projectPct(c) + '% ‡' : '–') + '</td><td>' + (g ? g.pct + '% (' + g.letter + ')' : '–') + '</td></tr>'; }).join('') + '</tbody></table></div>';
     h += '<p class="u-fine">† contains self-assessed marks. Study time recorded: ' + U.fmtTime(u.time) + '.</p></section>';
     h += '<section class="u-print-hide"><h2 class="u-h2">Certificates</h2><p class="pill">Certificates are completion records for this website\'s learning pathway. Each one states that it is not an accredited academic qualification.</p><div class="u-certs">' +
-      U.cat.stages.map((s) => { const ok = U.stageComplete(s.id); return '<div class="card u-cert ' + (ok ? 'ok' : '') + '"><p class="u-eyebrow">Stage ' + s.id + '</p><h3>' + E(s.level) + '</h3><p>' + (ok ? 'Earned. All courses and the final examination are complete.' : U.stageCoursesDone(s.id) + ' of ' + U.coursesOf(s.id).length + ' courses' + (U.finalPassed(s.id) ? ' · final passed (next stage unlocked; finish the courses to earn this certificate)' : ' · final not passed')) + '</p>' + (ok ? '<button type="button" class="btn small" data-cert="s' + s.id + '">⬇ Download certificate (PNG)</button>' : '<span class="uc-state lock">Not earned yet</span>') + '</div>'; }).join('') +
-      '<div class="card u-cert u-certmain ' + (gr.ok ? 'ok' : '') + '"><p class="u-eyebrow">Full pathway</p><h3>Master\'s-level equivalent pathway in Software Engineering</h3><ul class="u-reqs">' + gr.items.map((r) => '<li class="' + (r.ok ? 'ok' : '') + '"><span aria-hidden="true">' + (r.ok ? '✓' : '○') + '</span>' + E(r.t) + '<small>' + E(r.d) + '</small></li>').join('') + '</ul>' + (gr.ok ? '<button type="button" class="btn primary" data-cert="all">⬇ Download completion certificate (PNG)</button>' : '<span class="uc-state lock">Not earned yet</span>') + '</div></div></section>';
+      U.cat.stages.map((s) => { const ok = U.stageComplete(s.id); return '<div class="card u-cert ' + (ok ? 'ok' : '') + '"><p class="u-eyebrow">Stage ' + s.id + '</p><h3>' + E(s.level) + '</h3><p>' + (ok ? 'Earned. All courses and the final examination are complete.' : U.stageCoursesDone(s.id) + ' of ' + U.coursesOf(s.id).length + ' courses' + (U.finalPassed(s.id) ? ' · final passed (next stage unlocked; finish the courses to earn this certificate)' : ' · final not passed')) + '</p>' + (ok ? '<button type="button" class="btn small" data-cert="s' + s.id + '">⬇ Download certificate (PNG)</button> <button type="button" class="btn small" data-vlink="s' + s.id + '">🔗 Verification link</button>' : '<span class="uc-state lock">Not earned yet</span>') + '</div>'; }).join('') +
+      '<div class="card u-cert u-certmain ' + (gr.ok ? 'ok' : '') + '"><p class="u-eyebrow">Full pathway</p><h3>Master\'s-level equivalent pathway in Software Engineering</h3><ul class="u-reqs">' + gr.items.map((r) => '<li class="' + (r.ok ? 'ok' : '') + '"><span aria-hidden="true">' + (r.ok ? '✓' : '○') + '</span>' + E(r.t) + '<small>' + E(r.d) + '</small></li>').join('') + '</ul>' + (gr.ok ? '<button type="button" class="btn primary" data-cert="all">⬇ Download completion certificate (PNG)</button> <button type="button" class="btn small" data-vlink="all">🔗 Verification link</button>' : '<span class="uc-state lock">Not earned yet</span>') + '</div></div></section>';
     shell('transcript', h, [['University', []], ['Transcript and certificates']]);
     $('#utName').addEventListener('input', (e) => { const v = e.target.value.replace(/[<>]/g, '').slice(0, 60); st().name = v; save(); $('#utShow').textContent = v || 'Student'; });
     $('#utPrint').addEventListener('click', () => window.print());
     $$('[data-cert]').forEach((b) => b.addEventListener('click', () => certificate(b.dataset.cert)));
+    $$('[data-vlink]').forEach((b) => b.addEventListener('click', async () => { // 5.0: shareable, verifiable record of an earned certificate
+      const which = b.dataset.vlink, all = which === 'all', s = all ? null : U.stageById(which.slice(1));
+      if (all ? !U.gradReqs().ok : !(s && U.stageComplete(s.id))) return;
+      if (!A.accountsOn || !A.accountsOn()) { A.toast('Certificate links need accounts, which are not switched on here.'); return; }
+      if (!A.acctEmail()) { A.toast('Sign in first: 👤 Sign in at the top of the home page.'); return; }
+      const t = all ? "Master's-level equivalent pathway in Software Engineering — Learn University" : 'Stage ' + s.id + ': ' + s.title + ' — Learn University';
+      const d = all ? U.overall().tot + ' courses, six stage finals and the capstone projects' : U.coursesOf(s.id).length + ' courses and the stage final examination';
+      b.disabled = true; try { const url = await A.certIssue(t, d, st().name || 'Student'); const how = await A.shareLink(url, t); A.toast(how === 'copied' ? '🔗 Link copied' : '🔗 Link created'); b.insertAdjacentHTML('afterend', '<p class="u-fine">Verification link: <a href="' + E(url) + '">' + E(url) + '</a></p>'); }
+      catch (e) { A.toast('Could not create the link' + (navigator.onLine ? '. Try again.' : ': you are offline.')); } b.disabled = false;
+    }));
   };
   function certificate(which) {
     const u = st(); const all = which === 'all'; const s = all ? null : U.stageById(which.slice(1));

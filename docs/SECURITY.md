@@ -88,6 +88,14 @@ mode is live.
   enumeration protection* reduces this (the app already treats `INVALID_LOGIN_CREDENTIALS` correctly).
 - Progress is not tamper-proof: a student can still edit their own progress (see G).
 
+### K. 5.0 features
+- Certificate links are public by id (12 random characters from 31, about 59 bits) and immutable; the account ID is
+  stored in the record so that only the owner can delete it. They prove the record, not the work (see G).
+- Classes: only the teacher can read a class; students can write only their own entry, with fixed numeric fields
+  (no free text except the display name). A teacher can remove students; nobody can list classes.
+- Weekly leaderboard values are reported by the client, like the other leaderboards, and capped at 20,000.
+- Ask AI sends the student's code to the site's Worker; the Worker's origin check and rate limit apply.
+
 ## Administrators and privacy
 Administrators can: create and delete reward codes, list codes, read the audit log, and, through the
 Firebase console, see account IDs and any email a player chose to add. The rules give administrators **no**
