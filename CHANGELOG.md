@@ -1,5 +1,14 @@
 # Changelog
 
+## 4.9 — 15 November 2026
+### Fixed
+- Create account failed on the live project with OPERATION_NOT_ALLOWED. With Firebase *email enumeration
+  protection* on (the default for new projects), `accounts:update` may not set an email. The app now links
+  email + password to the anonymous account with `accounts:signUp` and the `idToken`, as the Firebase SDK does.
+- Sign-in error messages include the Firebase error code when it is not one the app explains.
+- Test mocks (`e2e-account.js`, `e2e-secure-mode.js`) now refuse `accounts:update` with an email, as Firebase does,
+  so this cannot come back unnoticed.
+
 ## 4.8 — 15 November 2026
 ### Changed
 - `FB_API_KEY` set to the public web API key of Firebase project `learn-a72fb`: **secure mode and accounts are on**.

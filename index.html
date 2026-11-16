@@ -16225,12 +16225,12 @@ function fbReset() { FBA.tok = null; FBA.exp = 0; FBA.uid = null; FBA.email = ''
 async function fbEmail(kind, email, password) { // 'in' = sign in, 'up' = turn this anonymous account into an email account
   if (!fbOn()) throw new Error('Secure mode is not set up.');
   let j;
-  if (kind === 'up') { const tok = await fbToken(); j = await fbPost(FB_IDT + 'update', { idToken: tok, email, password, returnSecureToken: true }); }
+  if (kind === 'up') { const tok = await fbToken(); j = await fbPost(FB_IDT + 'signUp', { idToken: tok, email, password, returnSecureToken: true }); } // 4.9: signUp with idToken links email+password to this anonymous account (what the Firebase SDK does). The older accounts:update is refused when email enumeration protection is on.
   else j = await fbPost(FB_IDT + 'signInWithPassword', { email, password, returnSecureToken: true });
   fbReset(); fbSet(j.idToken, j.refreshToken, j.localId, j.expiresIn, j.email || email); await fbReady(); fbAudit(kind === 'up' ? 'account-upgrade' : 'sign-in');
 }
 function fbSignOut() { fbStore(null); fbReset(); }
-const fbErrText = (e) => { const c = String((e && e.code) || (e && e.message) || ''); return /EMAIL_EXISTS/.test(c) ? 'That email already has an account. Use Sign in.' : /INVALID_LOGIN_CREDENTIALS|INVALID_PASSWORD|EMAIL_NOT_FOUND/.test(c) ? 'Wrong email or password.' : /WEAK_PASSWORD/.test(c) ? 'Choose a longer password (at least 6 characters; 12 or more is better).' : /INVALID_EMAIL/.test(c) ? 'That email address is not valid.' : /TOO_MANY_ATTEMPTS/.test(c) ? 'Too many attempts. Wait a few minutes and try again.' : /OPERATION_NOT_ALLOWED|ADMIN_ONLY_OPERATION/.test(c) ? 'This sign-in method is not switched on in the Firebase project yet.' : 'Could not reach the sign-in service.'; };
+const fbErrText = (e) => { const c = String((e && e.code) || (e && e.message) || ''); return /EMAIL_EXISTS/.test(c) ? 'That email already has an account. Use Sign in.' : /INVALID_LOGIN_CREDENTIALS|INVALID_PASSWORD|EMAIL_NOT_FOUND/.test(c) ? 'Wrong email or password.' : /WEAK_PASSWORD/.test(c) ? 'Choose a longer password (at least 6 characters; 12 or more is better).' : /INVALID_EMAIL/.test(c) ? 'That email address is not valid.' : /TOO_MANY_ATTEMPTS/.test(c) ? 'Too many attempts. Wait a few minutes and try again.' : /OPERATION_NOT_ALLOWED|ADMIN_ONLY_OPERATION/.test(c) ? 'This sign-in method is not switched on in the Firebase project yet (' + c.split(' ')[0].slice(0, 40) + ').' : /^[A-Z_]{4,}/.test(c) ? 'Sign-in failed (' + c.split(' ')[0].slice(0, 40) + '). Try again, or tell the site owner this code.' : 'Could not reach the sign-in service.'; };
 /* Append-only audit trail of security-sensitive actions (secure mode only). Readable by administrators only. */
 function fbAudit(action, detail) { if (!fbOn() || !FBA.uid) return; const id = Date.now().toString(36) + Math.random().toString(36).slice(2, 8); fbRaw('PUT', 'audit/' + id, { by: FBA.uid, pid: FBA.pid || '', a: String(action).slice(0, 40), d: String(detail || '').slice(0, 120), t: { '.sv': 'timestamp' } }).catch(() => {}); }
 async function dbReq(method, path, body) {
@@ -17382,8 +17382,12 @@ function makeCard(lang) {
 document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeDrawer(); });
 
 /* ---------- patch notes (pop up once per update; brand-new players never see old notes) ---------- */
-const APP_VERSION = '4.8';
+const APP_VERSION = '4.9';
 const PATCH_NOTES = [
+  { v: '4.9', date: 'Nov 15, 2026', title: '🔧 Create account fixed', items: [
+    'Fixed: Create account could say "This sign-in method is not switched on" even when it was. Learn now uses the account-linking method that Firebase requires on newer projects.',
+    'If signing in ever fails, the message now includes a short error code you can pass on to the site owner.',
+  ] },
   { v: '4.8', date: 'Nov 15, 2026', title: '👤 Sign up and sign in are on', items: [
     'Press 👤 Sign in at the top to create an account with your email and a password, or to sign in. Your progress is saved to your account and follows you to every device.',
     'Online play now uses secure accounts: nobody can change your name, scores or friends except you.',
