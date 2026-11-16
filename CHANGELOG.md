@@ -1,5 +1,13 @@
 # Changelog
 
+## 4.8 — 15 November 2026
+### Changed
+- `FB_API_KEY` set to the public web API key of Firebase project `learn-a72fb`: **secure mode and accounts are on**.
+  The key identifies the project and is public by design; protection comes from `firebase/database.rules.json`,
+  which the owner must publish in the Firebase console at the same time.
+- Tests: suites that need legacy mode now blank the key for that part; the secret scan allows exactly this one
+  public key in `FB_API_KEY` and still fails on any other key.
+
 ## 4.7 — 15 November 2026
 ### Added
 - AI Professor connected to a real model: Cloudflare Worker `learn-ai-professor` (source in `uni/ai-worker/`)

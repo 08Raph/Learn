@@ -1,9 +1,9 @@
-# Learn 4.7: test programme and results
+# Learn 4.8: test programme and results
 
 Run everything: `sh tests/run-all.sh` from the site folder (needs Node.js with Playwright and Chromium,
 and Python 3 for a local web server). Nothing in the tests touches a real Firebase project or any live site.
 
-## Results of the final run (15 November 2026, version 4.7, headless Chromium, local server)
+## Results of the final run (15 November 2026, version 4.8, headless Chromium, local server)
 
 | # | Suite | What it does | Kind | Passed | Failed |
 |---|---|---|---|---|---|
@@ -24,6 +24,13 @@ problems. Of the 606, **185 ran against a simulator or a mock** (suites 5, 6, 9 
 read as tests of Google's servers. No test was skipped or removed to make a suite pass. In 4.6 the secure-mode mock (suite 6) was
 corrected to send the token claims Firebase sends (`auth.token.email` for email accounts); before that, its
 account-deletion check failed because the new `saves` rule needs that claim. The check itself was not changed.
+
+## Changes to the tests in 4.8
+`FB_API_KEY` is now set in `index.html`. The parts that check legacy mode (`e2e-secure-mode.js` last check,
+`e2e-account.js` part 0) blank the key in the page they load; the secure-mode parts replace it with a test key
+as before. `e2e-app.js` now checks that the key is a public web key (`AIza…`) and that no private or
+service-account key ships, and its secret scan allows only that one line. **Sign-in has not been tried against
+Google's servers from here** (this workspace cannot reach them): create a test account on the live site once.
 
 ## Additional checks run for 4.7
 

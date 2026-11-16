@@ -1,4 +1,4 @@
-/* App-shell tests for 4.7: on-demand ranked bank, version, legacy-mode honesty, accessibility basics,
+/* App-shell tests for 4.8: on-demand ranked bank, version, legacy-mode honesty, accessibility basics,
    escaping, and that no secret is shipped.   node tests/e2e-app.js   (starts its own local server; Firebase blocked) */
 const { chromium } = require('playwright'); const http = require('http'); const fs = require('fs'), path = require('path');
 const ROOT = process.env.APP_DIR || path.join(__dirname, '..'); const PORT = 8773, BASE = 'http://localhost:' + PORT + '/Learn/index.html';
@@ -16,10 +16,10 @@ let pass = 0, fail = 0; const ok = (m, c, x) => { if (c) pass++; else { fail++; 
     const html = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8');
     ok('index.html is under 2 MB (' + Math.round(html.length / 1024) + ' KB)', html.length < 2 * 1024 * 1024);
     ok('ranked bank is not inlined', !/RANKED_EXTRA_QUESTIONS\s*=\s*\{/.test(html));
-    ok('FB_API_KEY ships empty (legacy mode until the owner configures it)', /const FB_API_KEY = '';/.test(html));
+    ok('FB_API_KEY is the project\'s public web key (4.8: secure mode on); no service-account or private key ships', /const FB_API_KEY = 'AIza[0-9A-Za-z_-]{35}';/.test(html) && !/private_key|BEGIN PRIVATE KEY|service_account/.test(html));
     const all = []; const walk = (d) => fs.readdirSync(d).forEach((n) => { const f = path.join(d, n); if (fs.statSync(f).isDirectory()) walk(f); else if (/\.(js|html|json|md|txt|css)$/.test(n) && fs.statSync(f).size < 3e6) all.push(f); }); walk(ROOT);
-    const secret = all.filter((f) => /-----BEGIN (RSA |EC )?PRIVATE KEY|"private_key"\s*:|AIza[0-9A-Za-z_-]{35}|sk-ant-[A-Za-z0-9]|sk-[A-Za-z0-9]{40,}/.test(fs.readFileSync(f, 'utf8')));
-    ok('no private key, service account or API key in any shipped text file', secret.length === 0, secret.join(','));
+    const secret = all.filter((f) => /-----BEGIN (RSA |EC )?PRIVATE KEY|"private_key"\s*:|AIza[0-9A-Za-z_-]{35}|sk-ant-[A-Za-z0-9]|sk-[A-Za-z0-9]{40,}/.test(fs.readFileSync(f, 'utf8').replace(/const FB_API_KEY = 'AIza[0-9A-Za-z_-]{35}';/, '')));
+    ok('no private key, service account or API key in any shipped text file (the one public Firebase web key in FB_API_KEY excepted)', secret.length === 0, secret.join(','));
     ok('.nojekyll present', fs.existsSync(path.join(ROOT, '.nojekyll')));
     const rules = JSON.parse(fs.readFileSync(path.join(ROOT, 'firebase', 'database.rules.json'), 'utf8')); ok('rules file: root is closed by default', rules.rules['.read'] === false && rules.rules['.write'] === false);
     const bank = JSON.parse(fs.readFileSync(path.join(ROOT, 'ranked_extra.json'), 'utf8')); const nq = Object.values(bank).reduce((n, a) => n + a.length, 0);
@@ -40,7 +40,7 @@ let pass = 0, fail = 0; const ok = (m, c, x) => { if (c) pass++; else { fail++; 
     await p.keyboard.press('Tab'); ok('keyboard focus lands on a visible control with an accessible name', await p.evaluate(() => { const e = document.activeElement; return !!e && e !== document.body && ((e.textContent || '').trim().length > 0 || e.getAttribute('aria-label') || e.title); }));
     const noName = await p.evaluate(() => Array.from(document.querySelectorAll('#app button, #app a[href]')).filter((e) => e.offsetParent && !(e.textContent || '').trim() && !e.getAttribute('aria-label') && !e.title).length); ok('every visible button and link on the home page has a name', noName === 0, noName);
     const noLabel = await p.evaluate(() => Array.from(document.querySelectorAll('#app input, #app select, #app textarea')).filter((e) => e.offsetParent && e.type !== 'hidden' && !e.getAttribute('aria-label') && !e.placeholder && !e.title && !(e.id && document.querySelector('label[for="' + e.id + '"]')) && !e.closest('label')).length); ok('every visible form field on the home page is labelled', noLabel === 0, noLabel);
-    ok('version 4.7 is reported', await p.evaluate(() => /4\.7/.test(document.body.innerHTML)));
+    ok('version 4.8 is reported', await p.evaluate(() => /4\.8/.test(document.body.innerHTML)));
     // quiz loads the bank on demand
     const before = reqs.length; await p.evaluate(() => { location.hash = '#/quiz'; }); await p.waitForFunction(() => !/Loading the question bank/.test(document.querySelector('#app').innerText), null, { timeout: 30000 });
     ok('opening Quiz downloads the bank', reqs.slice(before).some((u) => u.includes('ranked_extra.json'))); ok('quiz page renders after loading', await p.locator('.quizcard .opt').count() >= 2 && !/could not be loaded/.test(await text()));

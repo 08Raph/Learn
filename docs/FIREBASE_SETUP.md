@@ -100,6 +100,10 @@ Use a **separate test project**, not `learn-a72fb`.
    If anything legitimate is refused, the browser console shows a `permission_denied` request: note the
    path and adjust the rules in the test project before going further.
 
+## Status (15 November 2026, Learn 4.8)
+`FB_API_KEY` is set in `index.html` for project `learn-a72fb`. The owner reported enabling the web app; Email/Password
+and Anonymous sign-in must be enabled, and `firebase/database.rules.json` must be published (section 5, step 7).
+
 ## 4b. Accounts and saved progress (4.6)
 
 The 👤 Sign in page (`#/account`) uses the same Firebase Authentication as online play. When a student creates

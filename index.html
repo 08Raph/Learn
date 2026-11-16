@@ -15998,9 +15998,10 @@ const DUEL_N = 9, DUEL_T = 15;
 const DUEL_TIMES = [10, 15, 20, 30, 45, 60], DUEL_QS = [5, 9, 12, 15];
 /* Online play: your Firebase Realtime Database URL (free). Everyone who opens your site plays on this database. */
 const DUEL_DB = 'https://learn-a72fb-default-rtdb.firebaseio.com';
-/* Firebase web API key. Leave '' for legacy mode. Fill it in ONLY after following docs/FIREBASE_SETUP.md,
-   because the secure database rules must be published at the same time. This key is public by design. */
-const FB_API_KEY = '';
+/* Firebase web API key (project learn-a72fb). Set on 15 Nov 2026 (4.8): secure mode and accounts are on.
+   '' = legacy mode. This key is public by design: it identifies the project, it is not a password. Protection comes
+   from firebase/database.rules.json, which must be published in the Firebase console (docs/FIREBASE_SETUP.md). */
+const FB_API_KEY = 'AIzaSyAQtiO2ED0DlnMAx2Wi-QmXCj6k2SGhkyU';
 const BOT_NAMES = ['Nova', 'ByteBuddy', 'Pixel', 'Kernel_K', 'Lambda_Lee', 'Null_Ninja', 'Syntax_Sam', 'Loop_Lord', 'Cache_Cat', 'Stack_Star', 'Debug_Dan', 'Regex_Rae'];
 const DUEL_STALE = 20000;
 let DU = null, DUQ = null, duelNote = '';
@@ -17381,8 +17382,13 @@ function makeCard(lang) {
 document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeDrawer(); });
 
 /* ---------- patch notes (pop up once per update; brand-new players never see old notes) ---------- */
-const APP_VERSION = '4.7';
+const APP_VERSION = '4.8';
 const PATCH_NOTES = [
+  { v: '4.8', date: 'Nov 15, 2026', title: '👤 Sign up and sign in are on', items: [
+    'Press 👤 Sign in at the top to create an account with your email and a password, or to sign in. Your progress is saved to your account and follows you to every device.',
+    'Online play now uses secure accounts: nobody can change your name, scores or friends except you.',
+    'Accounts are optional. You can keep learning without one, exactly as before.',
+  ] },
   { v: '4.7', date: 'Nov 15, 2026', title: '🤖 The AI Professor is now a real AI', items: [
     'The University\'s AI Professor now answers with a real AI model (GLM-4.7 Flash, running on Cloudflare Workers AI) instead of only fixed rules. It explains, reviews code, traces algorithms and quizzes you, in all 8 teaching modes.',
     'It still teaches rather than doing your work: it gives hints first and will not complete graded assignments or exams.',

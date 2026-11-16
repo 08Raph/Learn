@@ -1,3 +1,9 @@
+08Raph Learn 4.8: sign up and sign in are on
+
+- FB_API_KEY is set, so accounts (Sign in / Create account) and secure online play are on.
+- REQUIRED: publish firebase/database.rules.json in the Firebase console (Realtime Database -> Rules
+  -> paste -> Publish). Without it, saved progress is not protected.
+
 08Raph Learn 4.7: the AI Professor is a real AI
 
 NEW IN 4.7

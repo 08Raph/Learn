@@ -1,5 +1,5 @@
 /* Offline support: app shell is cached on first visit; updates are fetched in the background. */
-const VER = 'learn-v4.7';
+const VER = 'learn-v4.8';
 // Real Python (Pyodide) is downloaded from the CDN only when a student switches it on, and kept in its own cache
 // so that app updates do not throw away a 7 MB download.
 const PYO = 'learn-pyodide-0.26.4', PYO_PREFIX = 'https://cdn.jsdelivr.net/pyodide/v0.26.4/full/';
