@@ -1,3 +1,6 @@
+08Raph Learn 5.2: 24 coding challenges, activity heatmap, save everything for offline
+- NEW FILE challenges.js. Upload it together with index.html and app.js.
+
 08Raph Learn 5.1: faster start, practice drills, AI everywhere, tidier home page
 - NEW FILE app.js (the app code). Upload it together with index.html.
 

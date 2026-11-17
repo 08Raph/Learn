@@ -12027,19 +12027,19 @@ const badge = (lang, big) => '<span class="badge' + (big ? ' big' : '') + '" sty
 const tierTag = (t) => '<span class="tier t-' + t + '">' + TIER_BY_KEY[t].name + '</span>';
 function toHash(v) {
   if (v.name === 'lesson' && LANGS[v.lang] && LANGS[v.lang].lessons[v.idx]) return '#/' + v.lang + '/' + LANGS[v.lang].lessons[v.idx].id;
-  if (v.name === 'uni') return '#/uni' + (v.path && v.path.length ? '/' + v.path.join('/') : ''); if (v.name === 'project') return '#/project'; if (v.name === 'play') return '#/play/' + v.lang; if (v.name === 'shop') return '#/shop'; if (v.name === 'account') return '#/account'; if (v.name === 'week') return '#/week'; if (v.name === 'practice') return '#/practice'; if (v.name === 'prq') return '#/practice/q'; if (v.name === 'classes') return '#/classes'; if (v.name === 'certs') return '#/certs'; if (v.name === 'verify') return '#/verify/' + (v.id || ''); if (v.name === 'avatar') return '#/avatar'; if (v.name === 'locker') return '#/locker'; if (v.name === 'catalog') return '#/catalog'; if (v.name === 'stats') return '#/stats'; if (v.name === 'quiz') return '#/quiz'; if (v.name === 'duel') return '#/duel'; if (v.name === 'web') return '#/web' + (v.id ? '/' + v.id : ''); return '#/';
+  if (v.name === 'uni') return '#/uni' + (v.path && v.path.length ? '/' + v.path.join('/') : ''); if (v.name === 'project') return '#/project'; if (v.name === 'play') return '#/play/' + v.lang; if (v.name === 'shop') return '#/shop'; if (v.name === 'account') return '#/account'; if (v.name === 'week') return '#/week'; if (v.name === 'chal') return '#/challenges' + (v.id ? '/' + v.id : ''); if (v.name === 'practice') return '#/practice'; if (v.name === 'prq') return '#/practice/q'; if (v.name === 'classes') return '#/classes'; if (v.name === 'certs') return '#/certs'; if (v.name === 'verify') return '#/verify/' + (v.id || ''); if (v.name === 'avatar') return '#/avatar'; if (v.name === 'locker') return '#/locker'; if (v.name === 'catalog') return '#/catalog'; if (v.name === 'stats') return '#/stats'; if (v.name === 'quiz') return '#/quiz'; if (v.name === 'duel') return '#/duel'; if (v.name === 'web') return '#/web' + (v.id ? '/' + v.id : ''); return '#/';
 }
 function fromHash() {
   const p = location.hash.replace(/^#\/?/, '').split('/').filter(Boolean);
   if (p[0] === 'c' && p[1] && !(LANGS.c && LANGS.c.lessons.some((l) => l.id === p[1]))) { try { window.__ch = JSON.parse(atob(p[1])); window.__chFresh = true; history.replaceState(null, '', location.pathname + '#/'); } catch (e) {} return { name: 'home' }; }
   if (p[0] === 'uni') return { name: 'uni', path: p.slice(1).map((x) => { try { return decodeURIComponent(x); } catch (e) { return x; } }).filter((x) => /^[\w.\-]{1,40}$/.test(x)).slice(0, 6) };
-  if (!p.length) return { name: 'home' }; if (p[0] === 'shop') return { name: 'shop' }; if (p[0] === 'account') return { name: 'account' }; if (p[0] === 'week') return { name: 'week' }; if (p[0] === 'practice') return { name: p[1] === 'q' && PR.qs.length ? 'prq' : 'practice' }; if (p[0] === 'classes') return { name: 'classes' }; if (p[0] === 'certs') return { name: 'certs' }; if (p[0] === 'verify') return { name: 'verify', id: String(p[1] || '').slice(0, 40) }; if (p[0] === 'avatar') return { name: 'avatar' }; if (p[0] === 'locker') return { name: 'locker' }; if (p[0] === 'catalog') return { name: 'catalog' };
+  if (!p.length) return { name: 'home' }; if (p[0] === 'shop') return { name: 'shop' }; if (p[0] === 'account') return { name: 'account' }; if (p[0] === 'week') return { name: 'week' }; if (p[0] === 'challenges') return { name: 'chal', id: /^[a-z0-9-]{2,40}$/.test(p[1] || '') ? p[1] : '' }; if (p[0] === 'practice') return { name: p[1] === 'q' && PR.qs.length ? 'prq' : 'practice' }; if (p[0] === 'classes') return { name: 'classes' }; if (p[0] === 'certs') return { name: 'certs' }; if (p[0] === 'verify') return { name: 'verify', id: String(p[1] || '').slice(0, 40) }; if (p[0] === 'avatar') return { name: 'avatar' }; if (p[0] === 'locker') return { name: 'locker' }; if (p[0] === 'catalog') return { name: 'catalog' };
   if (p[0] === 'stats' || p[0] === 'quiz' || p[0] === 'web' || p[0] === 'duel') return { name: p[0], id: p[1] };
   if (p[0] === 'project') return { name: 'project' }; if (p[0] === 'play') return { name: 'play', lang: LANGS[p[1]] ? p[1] : 'py' };
   if (LANGS[p[0]]) { const i = LANGS[p[0]].lessons.findIndex((l) => l.id === p[1]); return { name: 'lesson', lang: p[0], idx: i < 0 ? nextLessonIdx(p[0]) : i }; }
   return { name: 'home' };
 }
-function setTitle() { if (view.name === 'uni') { document.title = 'Software Engineering University · Learn to Code'; return; } const l = view.name === 'lesson' && LANGS[view.lang].lessons[view.idx]; document.title = l ? LANGS[view.lang].name + ': ' + l.title + ' · Learn to Code' : view.name === 'account' ? 'Account · Learn to Code' : view.name === 'week' ? 'This week · Learn to Code' : view.name === 'practice' || view.name === 'prq' ? 'Practice · Learn to Code' : view.name === 'classes' ? 'Classes · Learn to Code' : view.name === 'certs' ? 'Certificates · Learn to Code' : view.name === 'verify' ? 'Certificate check · Learn to Code' : 'Learn to Code'; }
+function setTitle() { if (view.name === 'uni') { document.title = 'Software Engineering University · Learn to Code'; return; } const l = view.name === 'lesson' && LANGS[view.lang].lessons[view.idx]; document.title = l ? LANGS[view.lang].name + ': ' + l.title + ' · Learn to Code' : view.name === 'account' ? 'Account · Learn to Code' : view.name === 'week' ? 'This week · Learn to Code' : view.name === 'chal' ? 'Challenges · Learn to Code' : view.name === 'practice' || view.name === 'prq' ? 'Practice · Learn to Code' : view.name === 'classes' ? 'Classes · Learn to Code' : view.name === 'certs' ? 'Certificates · Learn to Code' : view.name === 'verify' ? 'Certificate check · Learn to Code' : 'Learn to Code'; }
 function go(v) {
   view = v; const h = toHash(v);
   if (location.hash !== h) { try { history.pushState(null, '', h); } catch (e) { location.hash = h; } }
@@ -12056,7 +12056,7 @@ function bindTheme() {
     S.theme = dark ? 'light' : 'dark'; root.dataset.theme = S.theme; bump('theme'); save();
   });
 }
-function render() { try { if (view.name === 'duel' && render.last !== 'duel') FBA.paused = false; } catch (e) { /* FBA not created yet */ } render.last = view.name; /* online requests resume when Multiplayer is opened again after a deletion */ closeDrawer(); applyRewards(); setTitle(); { const f = checkBadges(); if (f.length) setTimeout(() => badgeToast(f), 600); } duelGuard(); if ((view.name === 'duel' || view.name === 'quiz') && RANKED_STATE !== 2) return rankedGate(); if (view.name === 'duel') return renderDuel(); if (view.name === 'uni') return renderUni(); if (view.name === 'home') renderHome(); else if (view.name === 'shop') renderShop(); else if (view.name === 'account') renderAccount(); else if (view.name === 'week') renderWeek(); else if (view.name === 'practice') renderPractice(); else if (view.name === 'prq') renderPracticeQ(); else if (view.name === 'classes') renderClasses(); else if (view.name === 'certs') renderCerts(); else if (view.name === 'verify') renderVerify(view.id); else if (view.name === 'avatar') renderAvatar(); else if (view.name === 'locker') renderLocker(); else if (view.name === 'catalog') renderCatalog(); else if (view.name === 'stats') renderStats(); else if (view.name === 'quiz') renderQuiz(); else if (view.name === 'web') renderWeb(); else if (view.name === 'lesson') renderLesson(); else if (view.name === 'project') renderProject(); else renderPlay(); }
+function render() { try { if (view.name === 'duel' && render.last !== 'duel') FBA.paused = false; } catch (e) { /* FBA not created yet */ } render.last = view.name; /* online requests resume when Multiplayer is opened again after a deletion */ closeDrawer(); applyRewards(); setTitle(); { const f = checkBadges(); if (f.length) setTimeout(() => badgeToast(f), 600); } duelGuard(); if ((view.name === 'duel' || view.name === 'quiz') && RANKED_STATE !== 2) return rankedGate(); if (view.name === 'duel') return renderDuel(); if (view.name === 'uni') return renderUni(); if (view.name === 'home') renderHome(); else if (view.name === 'shop') renderShop(); else if (view.name === 'account') renderAccount(); else if (view.name === 'week') renderWeek(); else if (view.name === 'chal') (view.id ? renderChallenge(view.id) : renderChallenges()); else if (view.name === 'practice') renderPractice(); else if (view.name === 'prq') renderPracticeQ(); else if (view.name === 'classes') renderClasses(); else if (view.name === 'certs') renderCerts(); else if (view.name === 'verify') renderVerify(view.id); else if (view.name === 'avatar') renderAvatar(); else if (view.name === 'locker') renderLocker(); else if (view.name === 'catalog') renderCatalog(); else if (view.name === 'stats') renderStats(); else if (view.name === 'quiz') renderQuiz(); else if (view.name === 'web') renderWeb(); else if (view.name === 'lesson') renderLesson(); else if (view.name === 'project') renderProject(); else renderPlay(); }
 
 
 /* Online account card (Multiplayer → More). Honest about which mode the site is in. */
@@ -12213,7 +12213,7 @@ function renderAccount() {
       '<p class="pill" id="acMsg" role="status" aria-live="polite" style="margin:12px 0 0"></p></form>' +
       '<p class="u-fine" style="margin:12px 0 0;font-size:13px;opacity:.85">Your email is used only to sign in and to reset your password. It is stored by Google Firebase Authentication and is never shown to other players. Accounts are optional: you can keep learning without one.</p></div>';
   }
-  app.innerHTML = '<div class="wrap">' + topbar('<button class="btn small" id="back">← Home</button><div class="crumb">👤 Account</div>') + body + '</div>';
+  app.innerHTML = '<div class="wrap">' + topbar('<button class="btn small" id="back">← Home</button><div class="crumb">👤 Account</div>') + body + offlineCardHtml() + '</div>'; bindOffline();
   bindTheme(); $('#back').addEventListener('click', () => go({ name: 'home' }));
   if (!fbOn()) return;
   const msg = $('#acMsg');
@@ -12329,9 +12329,9 @@ function weekCardHtml() {
   const x = weekXp(), g = wkGoal(), pct = Math.min(100, Math.round(x / g * 100));
   return '<div class="wkhome"><button class="wkcard" id="wkBtn" type="button"><span class="wkring" style="--p:' + pct + '"><b>' + pct + '%</b></span><span><small>THIS WEEK</small><b>' + x + ' / ' + g + ' XP</b><span>' + (x >= g ? 'Weekly goal reached 🎉' : weekDaysLeft() + ' day' + (weekDaysLeft() === 1 ? '' : 's') + ' left · weekly leaderboard') + '</span></span></button>' +
     '<button class="wkcard small" id="clsBtn" type="button"><span class="wkico" aria-hidden="true">🏫</span><span><small>CLASSES</small><b>Teach or join</b><span>Share progress with a teacher</span></span></button>' +
-    practiceCardHtml() + '<button class="wkcard small" id="certBtn" type="button"><span class="wkico" aria-hidden="true">🎓</span><span><small>CERTIFICATES</small><b>Shareable links</b><span>Anyone can check them</span></span></button></div>';
+    practiceCardHtml() + '<button class="wkcard small" id="chBtn" type="button"><span class="wkico" aria-hidden="true">🧩</span><span><small>CHALLENGES</small><b>24 coding problems</b><span>Python or JavaScript, auto-tested</span></span></button>' + '<button class="wkcard small" id="certBtn" type="button"><span class="wkico" aria-hidden="true">🎓</span><span><small>CERTIFICATES</small><b>Shareable links</b><span>Anyone can check them</span></span></button></div>';
 }
-function bindWeekCard() { const pr = $('#prBtn'); if (pr) pr.addEventListener('click', () => go({ name: 'practice' })); const a = $('#wkBtn'), b = $('#clsBtn'), c = $('#certBtn'); if (a) a.addEventListener('click', () => go({ name: 'week' })); if (b) b.addEventListener('click', () => go({ name: 'classes' })); if (c) c.addEventListener('click', () => go({ name: 'certs' })); }
+function bindWeekCard() { const chb = $('#chBtn'); if (chb) chb.addEventListener('click', () => go({ name: 'chal' })); const pr = $('#prBtn'); if (pr) pr.addEventListener('click', () => go({ name: 'practice' })); const a = $('#wkBtn'), b = $('#clsBtn'), c = $('#certBtn'); if (a) a.addEventListener('click', () => go({ name: 'week' })); if (b) b.addEventListener('click', () => go({ name: 'classes' })); if (c) c.addEventListener('click', () => go({ name: 'certs' })); }
 async function wkPost() { // weekly leaderboard entry for this player (only after they joined it)
   if (!S.wkJoin || !dbUrl()) return; const me = duelMe(); const k = isoWeek(new Date());
   await dbPut('wk/' + k + '/' + me.uid, { n: me.name, x: Math.min(20000, weekXp()), at: TS });
@@ -12544,6 +12544,129 @@ function renderPracticeQ() {
     const n = $('#nxt'); n.style.display = ''; n.focus();
   }));
   $('#nxt').addEventListener('click', () => { PR.i++; renderPracticeQ(); });
+}
+
+/* ===== 5.2 Coding challenges: write a function, automatic tests (Python and JavaScript) ===== */
+let CHAL = null;
+function chalLoad() {
+  if (CHAL) return Promise.resolve(CHAL); if (window.LEARN_CHALLENGES) return Promise.resolve(CHAL = window.LEARN_CHALLENGES);
+  return new Promise((ok, no) => { const s = document.createElement('script'); s.src = 'challenges.js?v=' + APP_VERSION; s.onload = () => (window.LEARN_CHALLENGES ? ok(CHAL = window.LEARN_CHALLENGES) : no(new Error('empty'))); s.onerror = () => no(new Error('load')); document.head.appendChild(s); });
+}
+function pyRepr(v) { if (v === true) return 'True'; if (v === false) return 'False'; if (v === null) return 'None'; if (typeof v === 'string') return "'" + v.replace(/\\/g, '\\\\').replace(/'/g, "\\'") + "'"; if (Array.isArray(v)) return '[' + v.map(pyRepr).join(', ') + ']'; return String(v); }
+const pyStrOut = (v) => (typeof v === 'string' ? v : pyRepr(v));
+const jsLit = (v) => JSON.stringify(v);
+const LEVELS = { 1: ['Warm-up', 'var(--good)'], 2: ['Core', 'var(--accent)'], 3: ['Tough', 'var(--bad)'] };
+const chalDone = (id, l) => !!(S.chal && S.chal[id] && S.chal[id][l]);
+function chalStarter(c, l) { return l === 'py' ? 'def ' + c.py + '(' + c.p + '):\n    # write your code here\n    pass\n' : 'function ' + c.js + '(' + c.p + ') {\n  // write your code here\n}\n'; }
+function chalHarness(c, l, code) {
+  const call = (t) => (l === 'py' ? c.py + '(' + t.a.map(pyRepr).join(', ') + ')' : c.js + '(' + t.a.map(jsLit).join(', ') + ')');
+  return code + '\n' + c.tests.map((t, i) => (l === 'py' ? 'print("@@T' + i + '@@")\nprint(' + call(t) + ')' : 'console.log("@@T' + i + '@@"); console.log(JSON.stringify(' + call(t) + '));')).join('\n') + '\n';
+}
+function chalParse(c, l, out) {
+  const res = c.tests.map(() => ({ got: null })); const parts = String(out || '').split(/@@T(\d+)@@\n?/);
+  for (let i = 1; i < parts.length; i += 2) { const k = +parts[i]; if (res[k]) res[k].got = parts[i + 1].replace(/\n$/, ''); }
+  return res.map((r, i) => { const exp = l === 'py' ? pyStrOut(c.tests[i].e) : JSON.stringify(c.tests[i].e); return { exp, got: r.got, ok: r.got !== null && r.got === exp }; });
+}
+async function renderChallenges() {
+  app.innerHTML = '<div class="wrap">' + topbar('<button class="btn small" id="back">← Home</button><div class="crumb">🧩 Challenges</div>') + '<div class="card" role="status"><p>Loading challenges…</p></div></div>';
+  bindTheme(); $('#back').addEventListener('click', () => go({ name: 'home' }));
+  let list; try { list = await chalLoad(); } catch (e) { app.querySelector('.card').innerHTML = '<p>The challenges could not be loaded' + (navigator.onLine ? '. Try again.' : ': you are offline and they are not saved yet.') + '</p>'; return; }
+  if (view.name !== 'chal') return;
+  const solved = list.filter((c) => chalDone(c.id, 'py') || chalDone(c.id, 'js')).length;
+  app.querySelector('.wrap').innerHTML = topbar('<button class="btn small" id="back">← Home</button><div class="crumb">🧩 Challenges</div>') +
+    '<div class="card"><h2 style="margin-top:0">Coding challenges</h2><p style="margin-top:0">Classic programming problems. Write one function in Python or JavaScript and press <b>Run tests</b>: your code is checked against several inputs, some of them hidden. ' + solved + ' of ' + list.length + ' solved. Each first solve in a language gives 20 XP.</p></div>' +
+    [1, 2, 3].map((lv) => '<h2 class="sect">' + LEVELS[lv][0] + '</h2><div class="chgrid">' + list.filter((c) => c.lv === lv).map((c) => '<a class="chcard" href="#/challenges/' + c.id + '"><b>' + esc(c.t) + '</b><span>' + esc(c.d.slice(0, 90)) + (c.d.length > 90 ? '…' : '') + '</span><small>' + (chalDone(c.id, 'py') ? '<span class="chok">✓ Python</span> ' : '') + (chalDone(c.id, 'js') ? '<span class="chok">✓ JavaScript</span>' : '') + (!chalDone(c.id, 'py') && !chalDone(c.id, 'js') ? c.tests.length + ' tests' : '') + '</small></a>').join('') + '</div>').join('');
+  bindTheme(); $('#back').addEventListener('click', () => go({ name: 'home' }));
+}
+async function renderChallenge(id) {
+  let list; try { list = await chalLoad(); } catch (e) { go({ name: 'chal' }); return; }
+  const c = list.find((x) => x.id === id); if (!c) { go({ name: 'chal' }); return; }
+  S.chalCode = S.chalCode || {}; let l = S.chalLang === 'js' ? 'js' : 'py'; const shown = 2;
+  const draw = () => {
+    const key = c.id + ':' + l, code = S.chalCode[key] || chalStarter(c, l);
+    app.innerHTML = '<div class="wrap">' + topbar('<button class="btn small" id="back">← Challenges</button><div class="crumb">🧩 ' + esc(c.t) + '</div>', '<span class="pill" style="color:' + LEVELS[c.lv][1] + '">' + LEVELS[c.lv][0] + '</span>') +
+      '<div class="playgrid"><section class="card"><h2 style="margin-top:0">' + esc(c.t) + '</h2><p>' + esc(c.d) + '</p>' +
+      '<div class="seg" role="tablist" aria-label="Language" style="margin:6px 0 12px"><button role="tab" data-cl="py" aria-selected="' + (l === 'py') + '" class="' + (l === 'py' ? 'on' : '') + '">Python' + (chalDone(c.id, 'py') ? ' ✓' : '') + '</button><button role="tab" data-cl="js" aria-selected="' + (l === 'js') + '" class="' + (l === 'js' ? 'on' : '') + '">JavaScript' + (chalDone(c.id, 'js') ? ' ✓' : '') + '</button></div>' +
+      '<h3>Examples</h3><ul class="chex">' + c.tests.slice(0, shown).map((t) => '<li><code>' + esc(l === 'py' ? c.py + '(' + t.a.map(pyRepr).join(', ') + ')' : c.js + '(' + t.a.map(jsLit).join(', ') + ')') + '</code> → <code>' + esc(l === 'py' ? pyRepr(t.e) : JSON.stringify(t.e)) + '</code></li>').join('') + '</ul>' +
+      '<p class="muted">' + (c.tests.length - shown) + ' more tests are hidden.</p><details><summary>💡 Hint</summary><p>' + esc(c.h) + '</p></details></section>' +
+      '<section class="card"><div id="edhost"></div><div class="btns"><button class="btn primary" id="runBtn" type="button">▶ Run tests<span class="kbd">' + RUNKEY + '</span></button><button class="btn" id="resetBtn" type="button">Reset</button><button class="btn" id="aiBtn" type="button">🤖 Ask AI</button></div><div id="aiHelp"></div><div id="chRes" aria-live="polite"></div></section></div></div>';
+    bindTheme(); $('#back').addEventListener('click', () => go({ name: 'chal' }));
+    $$('[data-cl]').forEach((b) => b.addEventListener('click', () => { l = b.dataset.cl; S.chalLang = l; save(); draw(); }));
+    let ed;
+    const run = async () => {
+      const box = $('#chRes'), rb = $('#runBtn'); rb.disabled = true; box.innerHTML = '<p class="muted">Running the tests…</p>';
+      let r; const src = chalHarness(c, l, ed.get());
+      try { if (l === 'py' && S.pyEngine === 'real') { const R = await realPyLoad(); r = await R.run(src, '', 10000); } else r = await runCodeAsync(l, src, ''); } catch (e) { r = { out: '', error: String(e && e.message || e) }; }
+      rb.disabled = false; bump('runs');
+      const res = chalParse(c, l, r.out); const pass = res.filter((x) => x.ok).length, all = pass === res.length;
+      box.innerHTML = '<div class="chsum ' + (all ? 'ok' : 'no') + '">' + (all ? '✅ All ' + res.length + ' tests passed' : '❌ ' + pass + ' of ' + res.length + ' tests passed') + '</div>' + (r.error && !all ? '<pre class="out err">' + esc(String(r.error).slice(0, 600)) + '</pre>' : '') +
+        '<ol class="chtests">' + res.map((x, i) => '<li class="' + (x.ok ? 'ok' : 'no') + '">' + (x.ok ? '✓' : '✗') + ' Test ' + (i + 1) + (i < shown ? ': expected <code>' + esc(x.exp) + '</code>' + (x.ok ? '' : ', got <code>' + esc(x.got === null ? '(nothing, the code stopped)' : x.got) + '</code>') : x.ok ? ' (hidden)' : ' (hidden test)') + '</li>').join('') + '</ol>';
+      if (all && !chalDone(c.id, l)) { S.chal = S.chal || {}; S.chal[c.id] = Object.assign({}, S.chal[c.id], { [l]: dayStr(new Date()) }); S.bonus = (S.bonus || 0) + 20; save(); toast('🧩 Solved in ' + (l === 'py' ? 'Python' : 'JavaScript') + '! +20 XP'); try { awardCheck(); } catch (e) {} $$('[data-cl="' + l + '"]').forEach((b) => { if (!/✓/.test(b.textContent)) b.textContent += ' ✓'; }); }
+    };
+    ed = mountEditor($('#edhost'), l, code, run, (v) => { S.chalCode[key] = v; save(); });
+    $('#runBtn').addEventListener('click', run);
+    $('#resetBtn').addEventListener('click', () => { ed.set(chalStarter(c, l)); S.chalCode[key] = chalStarter(c, l); save(); $('#chRes').innerHTML = ''; });
+    aiPanel($('#aiBtn'), $('#aiHelp'), { title: 'Ask the AI for a hint', placeholder: 'e.g. Why does test 3 fail?', fine: 'The AI gets the problem, your code and the test results. It gives hints, not the solution. AI answers can be wrong.',
+      system: 'You are a programming tutor. The student is solving the coding challenge "' + c.t + '" in ' + (l === 'py' ? 'Python' : 'JavaScript') + ': ' + c.d + ' Give one short hint that helps them find the problem themselves. Do NOT write the full solution. Answer in under 120 words.',
+      user: (q) => codeMsg(q, ed.get(), ($('#chRes') || {}).innerText || '', 'Give me a hint for this challenge.') });
+  };
+  draw();
+}
+
+/* ===== 5.2 Activity heatmap (26 weeks) and weekly lessons chart ===== */
+function activityByDay() {
+  const m = {}; const addD = (d, n) => { if (/^\d{4}-\d{2}-\d{2}$/.test(d || '')) m[d] = (m[d] || 0) + n; };
+  Object.values(S.doneAt || {}).forEach((d) => addD(d, 1));
+  Object.values(S.chal || {}).forEach((o) => Object.values(o || {}).forEach((d) => addD(d, 1)));
+  const ul = (S.uni && S.uni.lessons) || {}; Object.values(ul).forEach((v) => { if (typeof v === 'string') addD(v.slice(0, 10), 1); else if (typeof v === 'number' && v > 1e12) addD(dayStr(new Date(v)), 1); });
+  (S.days || []).forEach((d) => { if (!m[d]) m[d] = 0.5; });
+  return m;
+}
+function heatmapHtml() {
+  const m = activityByDay(), today = new Date(); today.setHours(0, 0, 0, 0);
+  const start = new Date(today); start.setDate(start.getDate() - 7 * 25 - ((start.getDay() + 6) % 7)); // Monday, 26 weeks ago
+  let cols = '', active = 0, total = 0;
+  for (let w = 0; w < 26; w++) { let col = '';
+    for (let d = 0; d < 7; d++) { const x = new Date(start); x.setDate(start.getDate() + w * 7 + d); const k = dayStr(x); const v = m[k] || 0; if (x > today) { col += '<i class="hm f"></i>'; continue; } if (v) active++; total += Math.floor(v);
+      const lvl = v === 0 ? 0 : v < 1 ? 1 : v < 3 ? 2 : v < 6 ? 3 : 4; col += '<i class="hm l' + lvl + '" title="' + k + ': ' + (v < 1 && v > 0 ? 'active' : Math.floor(v) + ' completed') + '"></i>'; }
+    cols += '<span class="hmcol">' + col + '</span>'; }
+  return '<div class="hmwrap" role="img" aria-label="Activity over the last 26 weeks: ' + active + ' active days, ' + total + ' lessons and challenges completed"><div class="hmdays" aria-hidden="true"><span>Mon</span><span></span><span>Wed</span><span></span><span>Fri</span><span></span><span></span></div><div class="hmgrid">' + cols + '</div></div>' +
+    '<p class="muted" style="margin:8px 0 0">' + active + ' active days and ' + total + ' lessons and challenges completed in the last 26 weeks. <span class="hmkey" aria-hidden="true">Less <i class="hm l0"></i><i class="hm l1"></i><i class="hm l2"></i><i class="hm l3"></i><i class="hm l4"></i> More</span></p>';
+}
+function weeklyBarsHtml() {
+  const m = activityByDay(), today = new Date(); const weeks = [];
+  for (let w = 11; w >= 0; w--) { let n = 0; for (let d = 0; d < 7; d++) { const x = new Date(today); x.setDate(today.getDate() - w * 7 - d); n += Math.floor(m[dayStr(x)] || 0); } weeks.push(n); }
+  const max = Math.max(1, ...weeks), W = 560, H = 140, bw = W / 12;
+  return '<svg class="wkbars" viewBox="0 -20 ' + W + ' ' + (H + 42) + '" role="img" aria-label="Lessons and challenges completed per week, last 12 weeks: ' + weeks.join(', ') + '">' + weeks.map((n, i) => { const h = Math.round(n / max * H); return '<g><rect x="' + (i * bw + 6) + '" y="' + (H - h) + '" width="' + (bw - 12) + '" height="' + Math.max(h, 2) + '" rx="5"></rect>' + (n ? '<text x="' + (i * bw + bw / 2) + '" y="' + (H - h - 5) + '" text-anchor="middle">' + n + '</text>' : '') + '</g>'; }).join('') +
+    '<text x="6" y="' + (H + 17) + '" class="ax">12 weeks ago</text><text x="' + (W - 6) + '" y="' + (H + 17) + '" text-anchor="end" class="ax">this week</text></svg>';
+}
+
+/* ===== 5.2 Save everything for offline use ===== */
+async function saveOffline(onStep) {
+  if (!('serviceWorker' in navigator) || !navigator.serviceWorker.controller) throw Object.assign(new Error('no sw'), { nosw: true });
+  const V = UNI_VER, A2 = APP_VERSION; let files = ['uni/config.js', 'uni/data/catalog.js', 'uni/data/departments.js', 'uni/university.js', 'uni/university.css', 'uni/uni-assess.js', 'uni/uni-campus.js', 'uni/uni-professor.js', 'uni/uni-studio.js', 'uni/uni-tools.js', 'uni/gitsim.js'].map((f) => f + '?v=' + V);
+  const cat = await (await fetch('uni/data/catalog.js?v=' + V)).text(); [...new Set((cat.match(/file: '([\w.-]+\.txt)'/g) || []).map((s) => s.slice(7, -1)))].forEach((f) => files.push('uni/data/' + f + '?v=' + V));
+  files = files.concat(['ranked_extra.json?v=' + A2, 'challenges.js?v=' + A2]);
+  let done = 0, failed = 0, bytes = 0;
+  for (let i = 0; i < files.length; i += 4) {
+    await Promise.all(files.slice(i, i + 4).map(async (f) => { try { const r = await fetch(f); if (!r.ok) throw new Error(r.status); bytes += (await r.blob()).size; } catch (e) { failed++; } done++; onStep(done, files.length); }));
+  }
+  S.offlineAt = { v: A2, at: dayStr(new Date()), n: files.length - failed, mb: Math.round(bytes / 1e5) / 10 }; save();
+  return { total: files.length, failed, mb: Math.round(bytes / 1e5) / 10 };
+}
+function offlineCardHtml() {
+  const o = S.offlineAt; const fresh = o && o.v === APP_VERSION;
+  return '<div class="card" style="margin-top:12px"><h3 style="margin-top:0">📥 Use Learn without internet</h3><p style="margin-top:0">Language lessons already work offline once opened. This also saves the University (all courses), the 5,600+ practice questions and the coding challenges on this device, about 4 MB. Real Python and the 8 online languages still need internet.</p>' +
+    '<button class="btn primary" id="offBtn" type="button">' + (fresh ? 'Saved ' + esc(o.at) + ' · save again' : 'Save everything for offline use') + '</button><p class="pill" id="offMsg" role="status" aria-live="polite"></p></div>';
+}
+function bindOffline() {
+  const b = $('#offBtn'), m = $('#offMsg'); if (!b) return;
+  b.addEventListener('click', async () => {
+    b.disabled = true; m.textContent = 'Saving…';
+    try { const r = await saveOffline((d, n) => { m.textContent = 'Saving… ' + d + ' of ' + n + ' files'; }); m.textContent = r.failed ? 'Saved ' + (r.total - r.failed) + ' of ' + r.total + ' files (' + r.mb + ' MB). Some could not be downloaded; try again on a better connection.' : '✓ Everything is saved on this device (' + r.mb + ' MB). Learn now works without internet.'; }
+    catch (e) { m.textContent = e.nosw ? 'Offline saving needs the page to be installed by the browser first: reload Learn once, then press this again.' : 'Could not save' + (navigator.onLine ? '. Try again.' : ': you are offline.'); }
+    b.disabled = false;
+  });
 }
 
 /* Quiz and match pages wait for the question bank (loaded on demand, see loadRanked). */
@@ -15005,7 +15128,7 @@ function snapshot() { return { done: S.done, code: S.code, cur: S.cur, pg: S.pg,
    A backup is a JSON file: { app: 'learn', v: 3, at, ver, d: { ...progress... } }. Restoring never trusts the file:
    only known keys are read, each must have the right shape, prototype keys are dropped, and the student chooses
    between merging (keeps the best of both, the default) and replacing. A preview is shown before anything changes. */
-const BK_KEYS = { done: 'o', code: 'o', cur: 'o', pg: 'o', quiz: 'o', days: 'a', badges: 'o', fs: 'n', spent: 'n', bonus: 'n', owned: 'o', equip: 'o', doneAt: 'o', daily: 'o', web: 'o', quizDay: 's', duel: 'o', uni: 'o', avatar: 'any', avatarOwned: 'o', redeemed: 'o', cnt: 'o', theme: 's', lastLang: 's', playLang: 's', wkGoal: 'n', wkTime: 's', certName: 's', certs: 'o', clsJ: 'o', clsT: 'o', miss: 'o' };
+const BK_KEYS = { done: 'o', code: 'o', cur: 'o', pg: 'o', quiz: 'o', days: 'a', badges: 'o', fs: 'n', spent: 'n', bonus: 'n', owned: 'o', equip: 'o', doneAt: 'o', daily: 'o', web: 'o', quizDay: 's', duel: 'o', uni: 'o', avatar: 'any', avatarOwned: 'o', redeemed: 'o', cnt: 'o', theme: 's', lastLang: 's', playLang: 's', wkGoal: 'n', wkTime: 's', certName: 's', certs: 'o', clsJ: 'o', clsT: 'o', miss: 'o', chal: 'o', chalCode: 'o' };
 function backupPayload() { const d = {}; Object.keys(BK_KEYS).forEach((k) => { if (S[k] !== undefined && S[k] !== null) d[k] = S[k]; }); if (d.duel) { d.duel = Object.assign({}, d.duel); delete d.duel.uid; delete d.duel.fc; } return { app: 'learn', v: 3, at: new Date().toISOString(), ver: APP_VERSION, d }; }
 function backupParse(text) {
   if (typeof text !== 'string' || text.length > 25e6) throw new Error('That file is too large to be a Learn backup.');
@@ -15063,7 +15186,7 @@ function mergeUni(r) {
 }
 function mergeIn(d) {
   mergeUni(d.uni);
-  ['done', 'quiz', 'badges', 'owned', 'doneAt', 'equip', 'code', 'pg', 'cur', 'web', 'avatarOwned', 'redeemed', 'certs', 'clsJ', 'clsT', 'miss'].forEach((k) => { S[k] = Object.assign({}, d[k] || {}, S[k]); });
+  ['done', 'quiz', 'badges', 'owned', 'doneAt', 'equip', 'code', 'pg', 'cur', 'web', 'avatarOwned', 'redeemed', 'certs', 'clsJ', 'clsT', 'miss', 'chal', 'chalCode'].forEach((k) => { S[k] = Object.assign({}, d[k] || {}, S[k]); });
   { const a = d.cnt || {}, b = S.cnt || {}, m = {}; Object.keys(Object.assign({}, a, b)).forEach((k) => { m[k] = Math.max(a[k] || 0, b[k] || 0); }); S.cnt = m; }
   if (!S.avatar && d.avatar) S.avatar = d.avatar;
   S.days = Array.from(new Set((S.days || []).concat(d.days || []))).sort();
@@ -17152,11 +17275,12 @@ function renderStats() {
   app.innerHTML = '<div class="wrap">' + topbar('<button class="btn small" id="back">← Home</button><div class="crumb">📊 Your stats</div>') +
     '<div class="shopgrid">' + stat(r.rank.name, 'Rank') + stat(r.x, 'XP earned') + stat(wallet(), 'XP to spend') + stat('🔥 ' + streak(), 'Current streak (days)') + stat(bestStreak(), 'Best streak (days)') + stat(new Set(S.days).size, 'Days active') +
     stat(doneTotal() + ' / ' + TOTAL, 'Lessons done') + stat(Object.keys(S.quiz).length, 'Quiz answers right') + stat(Object.keys(S.web).length + ' / ' + WEB.length, 'Web lab lessons') + stat(Object.keys(S.badges).length + ' / ' + BADGES.length, 'Badges') + '</div>' +
-    '<h2 class="sect" style="margin-top:22px">Last 14 days</h2><div class="row" style="gap:4px">' + cells.join('') + '</div>' +
+    '<h2 class="sect" style="margin-top:22px">Activity</h2><div class="card">' + heatmapHtml() + '</div>' +
+    '<h2 class="sect" style="margin-top:22px">Lessons and challenges per week</h2><div class="card">' + weeklyBarsHtml() + '</div>' + offlineCardHtml() +
     '<h2 class="sect" style="margin-top:22px">By language</h2><div class="card">' + LANG_ORDER.map((k) => { const d = countDone(k), n = lessonsOf(k).length; return '<div style="margin:8px 0"><div class="row" style="justify-content:space-between"><b>' + LANGS[k].name + '</b><span class="pill">' + d + ' / ' + n + '</span></div><div class="bar"><div style="width:' + Math.round(d / n * 100) + '%"></div></div></div>'; }).join('') + '</div>' +
     '<h2 class="sect" style="margin-top:22px">Completion cards</h2><div class="row">' + (full.length ? full.map((k) => '<button class="btn primary" data-card="' + k + '">🎓 ' + LANGS[k].name + ' card</button>').join('') : '<span class="pill">Finish every lesson in a language to unlock its shareable card.</span>') + '</div></div>';
   bindTheme(); $('#back').addEventListener('click', () => go({ name: 'home' }));
-  $$('[data-card]').forEach((b) => b.addEventListener('click', () => makeCard(b.dataset.card)));
+  $$('[data-card]').forEach((b) => b.addEventListener('click', () => makeCard(b.dataset.card))); bindOffline();
 }
 function makeCard(lang) {
   const L = LANGS[lang], r = rankInfo(), cv = document.createElement('canvas'); cv.width = 1200; cv.height = 630; const c = cv.getContext('2d');
@@ -17179,8 +17303,13 @@ function makeCard(lang) {
 document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeDrawer(); });
 
 /* ---------- patch notes (pop up once per update; brand-new players never see old notes) ---------- */
-const APP_VERSION = '5.1';
+const APP_VERSION = '5.2';
 const PATCH_NOTES = [
+  { v: '5.2', date: 'Nov 16, 2026', title: '🧩 Coding challenges, activity heatmap and full offline mode', items: [
+    '🧩 Challenges: 24 classic coding problems (FizzBuzz, two sum, balanced brackets and more) in three levels. Write the function in Python or JavaScript and press Run tests: it is checked against several inputs, some hidden. 20 XP for each first solve in a language, with a hint and Ask AI if you are stuck.',
+    '📊 Your stats now show a 26-week activity heatmap and a chart of lessons and challenges per week.',
+    '📥 Save everything for offline use (on the Stats and Account pages): stores the University, the practice questions and the challenges on your device, so Learn works without internet.',
+  ] },
   { v: '5.1', date: 'Nov 16, 2026', title: '⚡ Faster start, practice drills and AI everywhere', items: [
     'Faster: the first screen now appears almost at once while the rest loads, and the fonts no longer hold up the page.',
     '🔁 Practice: 10-question drills in any of 15 languages (over 5,600 questions, choose the level), and a review list of the questions you got wrong. A mistake leaves the list after you get it right twice.',

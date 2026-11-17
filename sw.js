@@ -1,9 +1,9 @@
 /* Offline support: app shell is cached on first visit; updates are fetched in the background. */
-const VER = 'learn-v5.1';
+const VER = 'learn-v5.2';
 // Real Python (Pyodide) is downloaded from the CDN only when a student switches it on, and kept in its own cache
 // so that app updates do not throw away a 7 MB download.
 const PYO = 'learn-pyodide-0.26.4', PYO_PREFIX = 'https://cdn.jsdelivr.net/pyodide/v0.26.4/full/';
-const SHELL = ['./', 'index.html', 'app.js', 'manifest.json', 'favicon.png', 'icon-192.png', 'icon-512.png', 'icon-maskable-512.png', 'apple-touch-icon.png',
+const SHELL = ['./', 'index.html', 'app.js', 'challenges.js', 'manifest.json', 'favicon.png', 'icon-192.png', 'icon-512.png', 'icon-maskable-512.png', 'apple-touch-icon.png',
   // University core (courses, videos and labs are cached the first time each one is opened)
   'uni/university.css', 'uni/config.js', 'uni/data/catalog.js', 'uni/data/departments.js', 'uni/university.js', 'uni/uni-campus.js', 'uni/uni-studio.js', 'uni/uni-tools.js', 'uni/gitsim.js', 'uni/realpy.js', 'uni/realpy-worker.js', 'uni/uni-assess.js', 'uni/uni-professor.js', 'uni/data/tutor-kb.js'];
 self.addEventListener('install', (e) => {

@@ -64,5 +64,17 @@ async function page(b) { const ctx = await b.newContext({ serviceWorkers: 'block
     ok('update bar: the page is not reloaded without asking', nav === 0, 'navigations ' + nav);
     await p.click('#updGo'); await p.waitForTimeout(1500); ok('update bar: Reload now reloads the page', nav === 1 && await p.locator('#updBar').count() === 0, 'navigations ' + nav);
     swNext = false; await ctx.close(); }
-  await b.close(); srv.close(); console.log((fail ? fail + ' FAILED, ' : '0 failed of ') + (pass + fail) + ' (local server; old files from tests/fixtures; service worker blocked except in parts 5 and 6)'); process.exit(fail ? 1 : 0);
+  /* 7. 5.2: "Save everything for offline use" really makes the University, practice questions and challenges work offline */
+  { const ctx = await b.newContext(); await ctx.route(/^https?:\/\/(?!localhost)/, (r) => r.abort()); const p = await ctx.newPage(); swap = {}; swNext = false;
+    await p.goto(BASE); await p.evaluate(() => navigator.serviceWorker.ready); await p.reload(); await p.waitForTimeout(800);
+    await p.goto(BASE + '#/stats'); await p.waitForSelector('#offBtn'); await p.click('#offBtn');
+    await p.waitForFunction(() => /Everything is saved|Saved \d+ of/.test((document.querySelector('#offMsg') || {}).textContent || ''), null, { timeout: 60000 });
+    const msg = await p.innerText('#offMsg'); ok('offline save: every file is saved', /Everything is saved/.test(msg), msg);
+    await ctx.setOffline(true);
+    await p.goto(BASE + '#/uni/course/c510'); await p.reload(); await p.waitForTimeout(3000);
+    ok('offline save: a University course never opened before opens offline', /Lesson|lesson/.test(await text(p)) && !/not available|could not/i.test(await text(p)), (await text(p)).slice(0, 200));
+    await p.goto(BASE + '#/challenges'); await p.waitForTimeout(1500); ok('offline save: the challenges open offline', await p.locator('.chcard').count() === 24);
+    await p.goto(BASE + '#/practice'); await p.waitForSelector('#prGo'); await p.click('#prGo'); await p.waitForTimeout(1500); ok('offline save: a practice drill starts offline', await p.locator('.quizcard').count() === 1);
+    await ctx.close(); }
+  await b.close(); srv.close(); console.log((fail ? fail + ' FAILED, ' : '0 failed of ') + (pass + fail) + ' (local server; old files from tests/fixtures; service worker blocked except in parts 5, 6 and 7)'); process.exit(fail ? 1 : 0);
 })();

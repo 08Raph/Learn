@@ -1,5 +1,20 @@
 # Changelog
 
+## 5.2 — 16 November 2026
+### Added
+- **Coding challenges** (`#/challenges`, `challenges.js` loaded on demand): 24 problems in three levels, solved in
+  Python or JavaScript. The page appends a test harness that prints a marker and the result for each test and compares
+  with the expected value (Python `str`/`repr` form, JavaScript JSON); 2 tests shown, the rest hidden. 20 XP for each
+  first solve per language; hint; Ask AI (hint only). Uses the real-Python engine when chosen in the Playground.
+  Reference solutions live only in `tests/challenges-ref.py` and `.js`: checked with real CPython and Node, and all 48
+  pass in the app's own engines (`e2e-community.js`).
+- **Stats**: 26-week activity heatmap (lessons, University lessons, challenges, active days) and a 12-week bar chart.
+- **Save everything for offline use** (Stats and Account pages): fetches the University files, all course files,
+  the question bank and the challenges through the service worker with the same versioned URLs the app uses.
+  Tested offline with the real service worker (`e2e-mixed.js` part 7): an unopened University course, the challenges
+  and a practice drill all open with the network off.
+- Tests: `e2e-community.js` 51 → 59; `e2e-mixed.js` 26 → 30.
+
 ## 5.1 — 16 November 2026
 ### Faster loading
 - The app code moved from an inline script in `index.html` (1.5 MB) to `app.js`, loaded with `defer` and a version

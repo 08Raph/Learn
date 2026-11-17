@@ -162,6 +162,32 @@ const savedFor = (email) => { const uid = Object.keys(accounts).find((k) => acco
       const examSrc = require('fs').readFileSync(require('path').join(ROOT, 'uni', 'uni-assess.js'), 'utf8');
       ok('University: AI is only added to try-its, assignments, studio and the open lab, never examinations or interviews', /opts\.compact \|\| \/\^\(lab\|free\|studio\):\//.test(examSrc) && /mountTask\(\$\('\[data-code="' \+ i \+ '"\]'\), it, \{ graded: false \}\)/.test(examSrc));
       await ctx.close(); }
+    /* 7. 5.2: coding challenges — every reference solution passes in the app's own engines; wrong code fails; XP once */
+    { const { ctx, p } = await mk(null); const refPy = fs.readFileSync(path.join(ROOT, 'tests', 'challenges-ref.py'), 'utf8').split(/\n(?=def )/), refJs = fs.readFileSync(path.join(ROOT, 'tests', 'challenges-ref.js'), 'utf8').split(/\n(?=function )/);
+      const list = JSON.parse(fs.readFileSync(path.join(ROOT, 'challenges.js'), 'utf8').replace(/^[\s\S]*?window\.LEARN_CHALLENGES = /, '').replace(/;\s*$/, ''));
+      ok('challenges: 24 problems, each with at least 3 tests, and no solutions shipped to the page', list.length === 24 && list.every((c) => c.tests.length >= 3) && !/return total|while i < j/.test(fs.readFileSync(path.join(ROOT, 'challenges.js'), 'utf8')));
+      await p.goto(BASE + '#/challenges'); await p.waitForSelector('.chcard', { timeout: 15000 }); ok('challenges: the list shows all 24 in three levels', await p.locator('.chcard').count() === 24 && /Warm-up/.test(await T(p)) && /Tough/.test(await T(p)));
+      const bad = [];
+      for (const lang of ['py', 'js']) {
+        for (const c of list) {
+          const src = (lang === 'py' ? refPy : refJs).find((s) => s.trim().startsWith((lang === 'py' ? 'def ' : 'function ') + c[lang] + '('));
+          await p.goto(BASE + '#/challenges/' + c.id); await p.waitForSelector('#runBtn', { timeout: 10000 });
+          if (!(await p.locator('[data-cl="' + lang + '"].on').count())) { await p.click('[data-cl="' + lang + '"]'); await p.waitForSelector('[data-cl="' + lang + '"].on'); }
+          await p.evaluate((s) => { const ta = document.querySelector('#edhost textarea'); ta.value = s; ta.dispatchEvent(new Event('input', { bubbles: true })); }, src);
+          await p.click('#runBtn'); await p.waitForSelector('.chsum', { timeout: 20000 }); const txt = await p.innerText('.chsum');
+          if (!/All \d+ tests passed/.test(txt)) bad.push(lang + ':' + c.id + ' ' + txt + ' ' + (await p.innerText('#chRes')).slice(0, 200));
+        }
+      }
+      ok('challenges: all 48 reference solutions (24 Python, 24 JavaScript) pass in the app\'s own engines', bad.length === 0, bad.join(' | '));
+      const st = await S(p); ok('challenges: solving gives 20 XP once per language (48 solves = 960 XP)', st.bonus === 960 && Object.keys(st.chal || {}).length === 24, st.bonus);
+      await p.goto(BASE + '#/challenges/fizzbuzz'); await p.waitForSelector('#runBtn'); await p.click('[data-cl="py"]'); await p.waitForSelector('[data-cl="py"].on');
+      await p.evaluate(() => { const ta = document.querySelector('#edhost textarea'); ta.value = 'def fizzbuzz(n):\n    return []\n'; ta.dispatchEvent(new Event('input', { bubbles: true })); });
+      await p.click('#runBtn'); await p.waitForSelector('.chsum');
+      ok('challenges: wrong code fails, shows expected vs got for visible tests and keeps hidden tests hidden', /❌ 1 of 4 tests passed/.test(await p.innerText('.chsum')) && /expected/.test(await p.innerText('.chtests')) && /hidden test/.test(await p.innerText('.chtests')));
+      await p.goto(BASE + '#/stats'); await p.waitForSelector('.hmgrid'); ok('stats: a 26-week activity heatmap and a 12-week chart are shown', await p.locator('.hmcol').count() === 26 && await p.locator('.wkbars rect').count() === 12 && await p.locator('.hm.l4, .hm.l3, .hm.l2').count() >= 1);
+      ok('stats: the offline save button is offered', await p.locator('#offBtn').count() === 1);
+      await p.click('#offBtn'); await p.waitForTimeout(800); ok('offline: without the service worker it explains what to do instead of pretending', /reload Learn once/.test(await p.innerText('#offMsg')));
+      await ctx.close(); }
     ok('the app never sent a request without a token that the rules refused', !denied.some((x) => / as null/.test(x) && !/certs/.test(x)), denied.join(' ; '));
     ok('no page errors', errs.length === 0, errs.join(' | '));
   } catch (e) { ok('test run crashed', false, e.stack); }
