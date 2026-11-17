@@ -1,4 +1,4 @@
-# Deploying Learn 5.2
+# Deploying Learn 5.3
 
 The site is static files. There is no build step and nothing to install.
 
@@ -18,9 +18,10 @@ from your repository.
 - **Local:** `python3 -m http.server 8000` in this folder, then open `http://localhost:8000/`.
 
 ## After uploading
-1. Open the site and reload once. The service worker (`learn-v5.2`) replaces the old cache; returning
+1. Open the site and reload once. The service worker (`learn-v5.3`) replaces the old cache; returning
    visitors get the new version on their second visit.
-2. Open the patch notes from the home page and confirm version 5.2.
+2. Open the patch notes from the home page and confirm version 5.3.
+   Search: add the site in Google Search Console (URL prefix https://08raph.github.io/Learn/) and submit sitemap.xml.
    Since 5.1 the app code is in app.js: index.html and app.js must be uploaded together.
    5.0 adds rules for certs, classes and duel/wk: publish firebase/database.rules.json again.
    Since 4.8 FB_API_KEY is set: the rules in firebase/database.rules.json must be published in the Firebase console.

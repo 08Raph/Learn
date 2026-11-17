@@ -12669,6 +12669,23 @@ function bindOffline() {
   });
 }
 
+/* 5.3: help people find and share Learn */
+const SITE_URL = 'https://08raph.github.io/Learn/';
+function bindShareLearn() {
+  const b = $('#shareLearn'); if (b) b.addEventListener('click', async () => {
+    const text = 'I am learning to code for free on Learn: ' + LANG_ORDER.length + ' languages, coding challenges and an AI tutor. No account needed.';
+    try { if (navigator.share) { await navigator.share({ title: 'Learn to Code', text, url: SITE_URL }); bump('shares'); save(); return; } } catch (e) { if (e && e.name === 'AbortError') return; }
+    try { await navigator.clipboard.writeText(text + ' ' + SITE_URL); toast('📋 Link copied. Paste it to a friend!'); } catch (e) { toast(SITE_URL); }
+  });
+  const x = $('#installX'); if (x) x.addEventListener('click', () => { S.installTipOff = true; save(); const t = $('#installTip'); if (t) t.remove(); });
+}
+function installTipHtml() { // iPad and iPhone Safari never show an install prompt, so explain the two taps once
+  const standalone = window.matchMedia && window.matchMedia('(display-mode: standalone)').matches || navigator.standalone;
+  const ios = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  if (standalone || !ios || S.installTipOff) return '';
+  return '<div class="installtip" id="installTip" role="note"><span>📲 <b>Install Learn on this device:</b> tap the Share button <span aria-hidden="true">⎙</span> in Safari, then <b>Add to Home Screen</b>. It opens full screen and works offline.</span><button class="btn small" id="installX" type="button" aria-label="Hide this tip">Got it</button></div>';
+}
+
 /* Quiz and match pages wait for the question bank (loaded on demand, see loadRanked). */
 function rankedGate() {
   const want = toHash(view);
@@ -12751,7 +12768,8 @@ function renderHome() {
     '<h2 class="sect">Command line</h2><div class="cards">' + termCardHtml('term') + '</div>' +
     '<h2 class="sect">Capstone</h2><div class="cards">' + termCardHtml('cloud') + '</div>' +
     achievementsHtml() +
-    '<div class="foot"><p>Progress, XP and your code are saved on this device only.</p><p><button class="btn small" id="pnOpen" type="button">📋 What\'s new</button></p>' + backupNudgeHtml() + '<details class="backup" id="bkDetails"><summary>Backup and restore your progress</summary><p>Your progress lives only in this browser. Safari can clear it if the site is not used for a while or storage runs low, so keep a backup file somewhere safe (Files, iCloud Drive, email to yourself).</p><div class="row" style="gap:8px;flex-wrap:wrap"><button class="btn small primary" id="bkFile" type="button">⬇ Download backup file</button><label class="btn small" for="bkPick" style="cursor:pointer">⬆ Restore from file</label><input type="file" id="bkPick" accept=".json,application/json" style="position:absolute;left:-9999px" aria-label="Choose a backup file to restore"></div><p class="pill" id="bkLast" style="margin:8px 0 0">' + backupLastText() + '</p><div id="bkPreview" aria-live="polite"></div><details style="margin-top:10px"><summary>Backup code (copy and paste instead of a file)</summary><div class="row"><button class="btn small" id="bkCopy" type="button">Copy backup code</button></div><textarea id="bkBox" class="stdinbox" placeholder="Paste a backup code here" spellcheck="false" aria-label="Backup code"></textarea><div class="row" style="margin-top:8px"><button class="btn small" id="bkRestore" type="button">Check this code</button></div></details><p class="pill" id="bkMsg" role="status" aria-live="polite" style="margin:8px 0 0"></p></details><p><button class="btn small" id="resetAll">Reset all progress</button></p></div></div>';
+    '<div class="foot"><p>' + (acctEmail() ? 'Progress, XP and your code are saved on this device and in your account.' : 'Progress, XP and your code are saved on this device only. <a href="#/account">Sign in</a> to keep them in an account.') + '</p><p><button class="btn small" id="pnOpen" type="button">📋 What\'s new</button> <button class="btn small" id="shareLearn" type="button">📣 Share Learn</button></p>' + installTipHtml() +
+    '<nav class="coursenav" aria-label="Course pages">' + LANG_ORDER.map((k) => '<a href="learn-' + ({ py: 'python', js: 'javascript', ts: 'typescript', cpp: 'cpp', cs: 'csharp' }[k] || k) + '.html">' + esc(LANGS[k].name) + '</a>').join('') + '<a href="software-engineering.html">Software engineering pathway</a></nav>' + backupNudgeHtml() + '<details class="backup" id="bkDetails"><summary>Backup and restore your progress</summary><p>Your progress lives only in this browser. Safari can clear it if the site is not used for a while or storage runs low, so keep a backup file somewhere safe (Files, iCloud Drive, email to yourself).</p><div class="row" style="gap:8px;flex-wrap:wrap"><button class="btn small primary" id="bkFile" type="button">⬇ Download backup file</button><label class="btn small" for="bkPick" style="cursor:pointer">⬆ Restore from file</label><input type="file" id="bkPick" accept=".json,application/json" style="position:absolute;left:-9999px" aria-label="Choose a backup file to restore"></div><p class="pill" id="bkLast" style="margin:8px 0 0">' + backupLastText() + '</p><div id="bkPreview" aria-live="polite"></div><details style="margin-top:10px"><summary>Backup code (copy and paste instead of a file)</summary><div class="row"><button class="btn small" id="bkCopy" type="button">Copy backup code</button></div><textarea id="bkBox" class="stdinbox" placeholder="Paste a backup code here" spellcheck="false" aria-label="Backup code"></textarea><div class="row" style="margin-top:8px"><button class="btn small" id="bkRestore" type="button">Check this code</button></div></details><p class="pill" id="bkMsg" role="status" aria-live="polite" style="margin:8px 0 0"></p></details><p><button class="btn small" id="resetAll">Reset all progress</button></p></div></div>';
   bindTheme();
   $$('.lcard').forEach((b) => b.addEventListener('click', () => { const k = b.dataset.lang; go({ name: 'lesson', lang: k, idx: nextLessonIdx(k) }); }));
   const cb = $('#contBtn'); if (cb) cb.addEventListener('click', () => go({ name: 'lesson', lang: lk, idx: ni }));
@@ -12761,7 +12779,7 @@ function renderHome() {
   $('#shopBtn').addEventListener('click', () => go({ name: 'shop' })); $('#lockerHomeBtn').addEventListener('click', () => go({ name: 'locker' })); $('#catHomeBtn').addEventListener('click', () => go({ name: 'catalog' }));
   $('#avatarBtn').addEventListener('click', () => go({ name: 'avatar' }));
   $$('.dcard[data-dk]').forEach((b) => b.addEventListener('click', () => go({ name: 'lesson', lang: b.dataset.dk, idx: +b.dataset.di })));
-  mountExtras(); bindHome(); bindWeekCard();
+  mountExtras(); bindHome(); bindWeekCard(); bindShareLearn();
   bindBackup();
   $('#resetAll').addEventListener('click', () => { if (confirm('Erase all saved progress, XP and code on this device?')) { S = { done: {}, code: {}, cur: {}, pg: {}, theme: S.theme, quiz: {}, days: [], badges: {}, fs: S.fs, lastLang: null, spent: 0, bonus: 0, owned: {}, equip: {}, doneAt: {}, daily: {}, gh: {}, web: {}, quizDay: '' }; save(); render(); } });
 }
@@ -17303,8 +17321,13 @@ function makeCard(lang) {
 document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeDrawer(); });
 
 /* ---------- patch notes (pop up once per update; brand-new players never see old notes) ---------- */
-const APP_VERSION = '5.2';
+const APP_VERSION = '5.3';
 const PATCH_NOTES = [
+  { v: '5.3', date: 'Nov 17, 2026', title: '📣 Easier to find and share', items: [
+    '📣 Share Learn button at the bottom of the home page sends an invitation with the link (or copies it).',
+    '📲 On iPad and iPhone, a one-time tip shows how to install Learn on the home screen (Safari has no install button of its own).',
+    'New course pages for each of the 15 languages and the software-engineering pathway, so people can find Learn on Google when they search "learn Python free" and similar.',
+  ] },
   { v: '5.2', date: 'Nov 16, 2026', title: '🧩 Coding challenges, activity heatmap and full offline mode', items: [
     '🧩 Challenges: 24 classic coding problems (FizzBuzz, two sum, balanced brackets and more) in three levels. Write the function in Python or JavaScript and press Run tests: it is checked against several inputs, some hidden. 20 XP for each first solve in a language, with a hint and Ask AI if you are stuck.',
     '📊 Your stats now show a 26-week activity heatmap and a chart of lessons and challenges per week.',
@@ -17488,6 +17511,7 @@ function maybeShowPatchNotes() {
 document.addEventListener('click', (e) => { const b = e.target.closest && e.target.closest('#pnOpen'); if (b) openPatchNotes(PATCH_NOTES.slice(0, 5), false); });
 view = fromHash();
 window.__acctTouch = () => { acctSchedule(15000); wkSchedule(); };
+window.__learnCatalog = () => LANG_ORDER.map((k) => ({ k, name: LANGS[k].name, lessons: lessonsOf(k).map((l) => ({ id: l.id, title: l.title, concept: l.concept })) })); // read-only, used by tests/build-landing.js
 window.__learnLessonIds = (k) => (LANGS[k] ? lessonsOf(k).map((l) => l.id) : []); // read-only, used by tests/e2e-community.js
 render();
 acctStart();

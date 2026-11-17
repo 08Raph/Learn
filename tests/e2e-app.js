@@ -1,4 +1,4 @@
-/* App-shell tests for 5.2: on-demand ranked bank, version, legacy-mode honesty, accessibility basics,
+/* App-shell tests for 5.3: on-demand ranked bank, version, legacy-mode honesty, accessibility basics,
    escaping, and that no secret is shipped.   node tests/e2e-app.js   (starts its own local server; Firebase blocked) */
 const { chromium } = require('playwright'); const http = require('http'); const fs = require('fs'), path = require('path');
 const ROOT = process.env.APP_DIR || path.join(__dirname, '..'); const PORT = 8773, BASE = 'http://localhost:' + PORT + '/Learn/index.html';
@@ -18,6 +18,12 @@ let pass = 0, fail = 0; const ok = (m, c, x) => { if (c) pass++; else { fail++; 
     const tagV = (/<script src="app\.js\?v=([^"]+)" defer/.exec(page) || [])[1], appV = (/const APP_VERSION = '([^']+)'/.exec(appJs) || [])[1];
     ok('5.1: index.html loads app.js deferred, with the same version as APP_VERSION (so old and new are never mixed)', tagV && tagV === appV, tagV + ' vs ' + appV);
     ok('5.1: the font stylesheet does not block the first paint', /fonts\.googleapis\.com\/css2[^>]*media="print" onload="this\.media='all'"/.test(page));
+    // 5.3: pages for search engines and sharing
+    { const pages = fs.readdirSync(ROOT).filter((f) => /^learn-[a-z]+\.html$/.test(f)); const sm = fs.readFileSync(path.join(ROOT, 'sitemap.xml'), 'utf8');
+      ok('5.3: a landing page for each of the 15 languages plus the pathway, all in the sitemap', pages.length === 15 && fs.existsSync(path.join(ROOT, 'software-engineering.html')) && (sm.match(/<loc>/g) || []).length === 17 && pages.every((f) => sm.includes(f)));
+      const ldOk = [page].concat(pages.map((f) => fs.readFileSync(path.join(ROOT, f), 'utf8'))).every((h) => { const m = /<script type="application\/ld\+json">([\s\S]*?)<\/script>/.exec(h); try { return m && JSON.parse(m[1]).isAccessibleForFree === true; } catch (e) { return false; } });
+      ok('5.3: every page has valid structured data marking it free', ldOk);
+      ok('5.3: the pathway page says it is not an accredited degree', /not an accredited degree/.test(fs.readFileSync(path.join(ROOT, 'software-engineering.html'), 'utf8'))); }
     ok('5.1: the service worker saves app.js for offline use', /'app\.js'/.test(fs.readFileSync(path.join(ROOT, 'sw.js'), 'utf8')));
     ok('ranked bank is not inlined', !/RANKED_EXTRA_QUESTIONS\s*=\s*\{/.test(html));
     ok('FB_API_KEY is the project\'s public web key (4.8: secure mode on); no service-account or private key ships', /const FB_API_KEY = 'AIza[0-9A-Za-z_-]{35}';/.test(html) && !/private_key|BEGIN PRIVATE KEY|service_account/.test(html));
@@ -45,7 +51,7 @@ let pass = 0, fail = 0; const ok = (m, c, x) => { if (c) pass++; else { fail++; 
     await p.keyboard.press('Tab'); ok('keyboard focus lands on a visible control with an accessible name', await p.evaluate(() => { const e = document.activeElement; return !!e && e !== document.body && ((e.textContent || '').trim().length > 0 || e.getAttribute('aria-label') || e.title); }));
     const noName = await p.evaluate(() => Array.from(document.querySelectorAll('#app button, #app a[href]')).filter((e) => e.offsetParent && !(e.textContent || '').trim() && !e.getAttribute('aria-label') && !e.title).length); ok('every visible button and link on the home page has a name', noName === 0, noName);
     const noLabel = await p.evaluate(() => Array.from(document.querySelectorAll('#app input, #app select, #app textarea')).filter((e) => e.offsetParent && e.type !== 'hidden' && !e.getAttribute('aria-label') && !e.placeholder && !e.title && !(e.id && document.querySelector('label[for="' + e.id + '"]')) && !e.closest('label')).length); ok('every visible form field on the home page is labelled', noLabel === 0, noLabel);
-    ok('version 5.2 is reported', await p.evaluate(() => /5\.2/.test(document.body.innerHTML)));
+    ok('version 5.3 is reported', await p.evaluate(() => /5\.3/.test(document.body.innerHTML)));
     // quiz loads the bank on demand
     const before = reqs.length; await p.evaluate(() => { location.hash = '#/quiz'; }); await p.waitForFunction(() => !/Loading the question bank/.test(document.querySelector('#app').innerText), null, { timeout: 30000 });
     ok('opening Quiz downloads the bank', reqs.slice(before).some((u) => u.includes('ranked_extra.json'))); ok('quiz page renders after loading', await p.locator('.quizcard .opt').count() >= 2 && !/could not be loaded/.test(await text()));

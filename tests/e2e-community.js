@@ -188,6 +188,15 @@ const savedFor = (email) => { const uid = Object.keys(accounts).find((k) => acco
       ok('stats: the offline save button is offered', await p.locator('#offBtn').count() === 1);
       await p.click('#offBtn'); await p.waitForTimeout(800); ok('offline: without the service worker it explains what to do instead of pretending', /reload Learn once/.test(await p.innerText('#offMsg')));
       await ctx.close(); }
+    /* 8. 5.3: landing pages list exactly the app's lessons and link into them; share button on home */
+    { const { ctx, p } = await mk(null); await p.goto(BASE + '#/'); await p.waitForFunction(() => !!window.__learnCatalog); const cat = await p.evaluate(() => window.__learnCatalog());
+      const slug = { py: 'python', js: 'javascript', ts: 'typescript', cpp: 'cpp', cs: 'csharp' }; const bad = [];
+      for (const c of cat) { const h = fs.readFileSync(path.join(ROOT, 'learn-' + (slug[c.k] || c.k) + '.html'), 'utf8'); const n = (h.match(/<li><a href="\.\/#\//g) || []).length; if (n !== c.lessons.length || !h.includes('./#/' + c.k + '/' + c.lessons[0].id)) bad.push(c.k + ' ' + n + '/' + c.lessons.length); }
+      ok('5.3: each landing page lists exactly the lessons in the app (361 language lessons; the 26 terminal lessons are separate) and links to lesson 1', bad.length === 0 && cat.reduce((a, c) => a + c.lessons.length, 0) === 361, bad.join(' '));
+      await p.goto(BASE.replace('index.html', 'learn-go.html')); await p.click('a.cta'); await p.waitForTimeout(1500); ok('5.3: the landing page button opens the first lesson in the app', /#\/go\//.test(await p.evaluate(() => location.hash)) && await p.locator('#runBtn').count() === 1);
+      await p.goto(BASE + '#/'); await p.waitForSelector('#shareLearn'); await ctx.grantPermissions(['clipboard-read', 'clipboard-write']); await p.click('#shareLearn'); await p.waitForTimeout(500);
+      ok('5.3: Share Learn copies an invitation with the site link (when the share sheet is not available)', /08raph\.github\.io\/Learn/.test(await p.evaluate(() => navigator.clipboard.readText().catch(() => ''))) || /copied/.test(await p.evaluate(() => document.body.innerText)));
+      await ctx.close(); }
     ok('the app never sent a request without a token that the rules refused', !denied.some((x) => / as null/.test(x) && !/certs/.test(x)), denied.join(' ; '));
     ok('no page errors', errs.length === 0, errs.join(' | '));
   } catch (e) { ok('test run crashed', false, e.stack); }
