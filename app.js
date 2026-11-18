@@ -12703,7 +12703,7 @@ function rankedGate() {
 /* ===== Software Engineering University (lazy-loaded from ./uni/) =====
    Nothing in ./uni/ is downloaded until the student opens #/uni. The module gets
    the page internals it needs through this API object instead of globals. */
-const UNI_VER = '2.0.0';
+const UNI_VER = '2.0.1';
 let uniLoad = null;
 function uniApi() {
   return {
@@ -17326,8 +17326,11 @@ function makeCard(lang) {
 document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeDrawer(); });
 
 /* ---------- patch notes (pop up once per update; brand-new players never see old notes) ---------- */
-const APP_VERSION = '5.4';
+const APP_VERSION = '5.5';
 const PATCH_NOTES = [
+  { v: '5.5', date: 'Nov 17, 2026', title: '🐍 Help for your first assignments', items: [
+    'SEU 101 and SEU 102 assignments now explain every piece of Python they need (functions, %, //, loops, if, strings), with small examples to try, before Python is taught in SEU 103.',
+    'SEU 101 also has a step-by-step plan for the binary converter and a table that follows the method for 13, one loop at a time. The answer itself is still yours to write.'] },
   { v: '5.4', date: 'Nov 17, 2026', title: '🔎 90 new pages people can find', items: [
     'Every coding challenge now has its own public page (problem, examples and a hint, never the answer) that links straight into the challenge, plus a page listing all 24.',
     'Every University course (all 65, including electives) has its own public page with its lessons, goals and prerequisites.',

@@ -4,7 +4,7 @@
    history, projects and portfolio, transcript, certificates.
    Grading reuses the engines already in index.html (gradeLesson, runCodeAsync).
    ============================================================ */
-(window.LEARN_MOD_BUILD = window.LEARN_MOD_BUILD || {})['uni-assess'] = '2.0.0'; // must equal BUILD in university.js
+(window.LEARN_MOD_BUILD = window.LEARN_MOD_BUILD || {})['uni-assess'] = '2.0.1'; // must equal BUILD in university.js
 (function () {
   'use strict';
   const U = window.LearnUniversity; const A = U.api; const { $, $$, E, md, inline, st, save, shell, link } = U;

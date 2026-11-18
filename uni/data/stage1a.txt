@@ -211,6 +211,66 @@ Write two functions.
 - `hex_digit(n)` takes a number from 0 to 15 and returns the matching hex digit as a string: `"0"` to `"9"`, then `"A"` to `"F"`.
 
 Use the divide-by-two method from the lesson. Do not use Python's built-in `bin` or `hex`: the point is to do it yourself.
+
+### New to Python? Everything you need for this assignment
+This is the first assignment, and Python itself is taught properly in SEU 103. These are the only pieces you need. Try each one in the **Run** box below before you start.
+
+**1. A function and `return`.** `def` creates a function; whatever comes after `return` is its answer. The lines inside must be indented by four spaces.
+
+```python
+def double(x):
+    return x * 2
+
+print(double(4))   # shows 8
+```
+
+**2. Remainder and whole-number division.** `%` gives the remainder, `//` divides and throws the remainder away. These are exactly the two numbers you wrote down in the lesson.
+
+```python
+print(13 % 2)    # 1   (13 = 6 × 2, remainder 1)
+print(13 // 2)   # 6
+```
+
+**3. A `while` loop** repeats its indented lines as long as its condition is true. Something inside must change, or it never stops.
+
+```python
+n = 3
+while n > 0:
+    print(n)
+    n = n - 1     # shows 3, then 2, then 1
+```
+
+**4. Building a string.** `str(1)` turns the number 1 into the text `"1"`, and `+` joins texts. The order matters: `"1" + "01"` is `"101"`, but `"01" + "1"` is `"011"`.
+
+```python
+text = ""
+text = "b" + text   # "b"
+text = "a" + text   # "ab": the new letter went on the left
+```
+
+**5. Picking one character from a string.** Positions start at 0, so `"cat"[0]` is `"c"` and `"cat"[2]` is `"t"`.
+
+### The plan for `to_binary`
+This is the lesson's method, written as steps. Turn each step into one or two lines of Python:
+
+1. If `n` is 0, the answer is `"0"` (the loop below would never run).
+2. Start with an empty text for the digits.
+3. While `n` is bigger than 0: work out `n % 2`, put it on the **left** of the digits so far, then make `n` equal to `n // 2`.
+4. Return the digits.
+
+Check your thinking with `to_binary(13)`. Each row is one trip round the loop:
+
+| n at the start | n % 2 | digits after | n // 2 |
+|---|---|---|---|
+| 13 | 1 | "1" | 6 |
+| 6 | 0 | "01" | 3 |
+| 3 | 1 | "101" | 1 |
+| 1 | 1 | "1101" | 0, so the loop stops |
+
+### The plan for `hex_digit`
+Write the sixteen hex digits in order in one string, then pick the character at position `n` (piece 5). For example position 10 of that string is `"A"`.
+
+> Stuck? Press **Hint** for one step at a time, or **Ask AI**: it explains, but it will not hand you the answer.
 @starter
 def to_binary(n):
     # repeat: take n % 2, then n = n // 2
@@ -571,6 +631,40 @@ Turn three plain-language algorithms into Python functions.
 - `count_multiples(limit, k)` returns how many whole numbers from 1 up to and including `limit` are divisible by `k`. For example `count_multiples(10, 3)` is 3 (3, 6 and 9).
 
 Trace each one by hand on a small example before you submit.
+
+### The Python you need (taught fully in SEU 103)
+If you did the SEU 101 assignment you already know `def`, `return`, `%` and `while`. This one adds three things.
+
+**1. `if`: do something only when a condition is true.** Comparisons give `True` or `False`: `5 > 3` is `True`, `4 == 5` is `False` (two `=` signs compare; one `=` stores a value).
+
+```python
+temperature = 30
+if temperature > 25:
+    print("hot")       # runs, because 30 > 25 is True
+```
+
+**2. A `for` loop goes through a list one item at a time.**
+
+```python
+for name in ["Ana", "Ben", "Cy"]:
+    print("Hello", name)     # three lines, one per name
+```
+
+**3. `range(a, b)` counts from `a` up to, but not including, `b`.** So `range(1, 5)` is 1, 2, 3, 4. To include a last number `limit`, end at `limit + 1`.
+
+```python
+for i in range(1, 4):
+    print(i)     # 1, then 2, then 3
+```
+
+You can also return a comparison directly: `return 7 > 2` returns `True`.
+
+### Plans in plain words
+- **`largest`**: remember the first number as the best so far. Go through every number; when one is bigger than the best so far, it becomes the new best. Return the best. (Try it by hand on `[4, 9, 2]`.)
+- **`is_even`**: a number is even when the remainder after dividing by 2 is 0. That is one line.
+- **`count_multiples`**: start a count at 0. Go through every number from 1 to `limit`; when the remainder after dividing it by `k` is 0, add 1 to the count. Return the count.
+
+> Stuck? Press **Hint**, or **Ask AI** to explain a line you do not understand.
 @starter
 def largest(numbers):
     return 0

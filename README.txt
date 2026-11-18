@@ -1,4 +1,4 @@
-08Raph Learn 5.4: 107 pages for search engines (every course and coding challenge), Share on challenges
+08Raph Learn 5.5: first University assignments explain the Python they need; 107 pages for search engines
 
 08Raph Learn 5.2: 24 coding challenges, activity heatmap, save everything for offline
 - NEW FILE challenges.js. Upload it together with index.html and app.js.

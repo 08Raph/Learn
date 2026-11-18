@@ -202,6 +202,13 @@ const savedFor = (email) => { const uid = Object.keys(accounts).find((k) => acco
       await p.goto(BASE.replace('index.html', 'challenge-two-sum.html')); await p.click('a.cta'); await p.waitForSelector('#chShare', { timeout: 15000 });
       ok('5.4: a challenge page button opens that challenge', /#\/challenges\/two-sum/.test(await p.evaluate(() => location.hash)) && await p.locator('#runBtn').count() === 1);
       await p.evaluate(() => navigator.clipboard.writeText('')); await p.click('#chShare'); await p.waitForTimeout(500);
+      // 5.5: the first two assignments explain the Python they need, without giving the solution
+      await p.goto(BASE + '#/uni/course/c101/lab'); await p.waitForSelector('.u-lab table', { timeout: 20000 });
+      const labTxt = await T(p);
+      ok('5.5: the SEU 101 assignment explains the Python it needs, with a step plan and a traced example', /New to Python\?/.test(labTxt) && /while/.test(labTxt) && /n \/\/ 2/.test(labTxt) && await p.locator('.u-lab pre').count() >= 4 && /1101/.test(labTxt) && !/digits = str\(n % 2\) \+ digits/.test(labTxt) && !/0123456789ABCDEF/.test(labTxt));
+      const s1 = fs.readFileSync(path.join(ROOT, 'uni/data/stage1a.txt'), 'utf8'); const lab2 = s1.slice(s1.indexOf('#LAB py | Three small algorithms'), s1.indexOf('@starter', s1.indexOf('#LAB py | Three small algorithms'))); // SEU 102 is locked for a new student, so read its text
+      ok('5.5: the SEU 102 assignment explains if, for and range, without the solution', /The Python you need/.test(lab2) && /range\(1, 4\)/.test(lab2) && !/best = numbers\[0\]/.test(lab2));
+      await p.goto(BASE.replace('index.html', 'challenge-two-sum.html')); await p.click('a.cta'); await p.waitForSelector('#chShare', { timeout: 15000 }); await p.evaluate(() => navigator.clipboard.writeText('')); await p.click('#chShare'); await p.waitForTimeout(500);
       ok('5.4: Share on a challenge copies the link to its public page', /08raph\.github\.io\/Learn\/challenge-two-sum\.html/.test(await p.evaluate(() => navigator.clipboard.readText().catch(() => ''))));
       await ctx.close(); }
     ok('the app never sent a request without a token that the rules refused', !denied.some((x) => / as null/.test(x) && !/certs/.test(x)), denied.join(' ; '));
