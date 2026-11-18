@@ -1,0 +1,666 @@
+0|Saltar al contenido
+1|Aprende a programar
+2|🎓 Universidad
+3|🧑 Avatar
+4|🎁 Tienda · {0} XP para gastar
+5|🗂 Proyecto
+6|⌨ Zona de pruebas
+7|Inicia sesión o crea una cuenta
+8|Puntos de experiencia
+9|⭐ {0} XP
+10|Cambiar entre tema claro y oscuro
+11|Cambiar tema
+12|{0} lecciones prácticas en {1} lenguajes de programación, de Python y JavaScript a Rust y Swift, más la terminal. Aprende un concepto, escribe código real y recibe una respuesta al instante. Todo funciona en tu navegador, en Windows, iPad o cualquier otro dispositivo.
+13|Empieza aquí
+14|¿Eres nuevo? Encuentra tu punto de partida
+15|{0} preguntas rápidas: qué quieres crear, qué sabes y cuánto tiempo tienes.
+16|TU RANGO
+17|Novato
+18|Días seguidos en los que completaste una lección
+19|días
+20|{0} XP
+21|{0} XP para Aprendiz
+22|de {0} lecciones
+23|respuestas de cuestionario
+24|de {0} insignias
+25|📸 Compartir mi progreso
+26|Ruta de aprendizaje
+27|Principiante
+28|Las ideas básicas, paso a paso.
+29|Intermedio
+30|Herramientas reales: estructuras de datos, errores, diseño limpio.
+31|Pro
+32|Algoritmos, memoria y proyectos como un ingeniero.
+33|Caza de errores
+34|Arregla código roto, la habilidad que más importa.
+35|Proyectos
+36|Crea algo real en pasos pequeños.
+37|ESTA SEMANA
+38|{0} / {1} XP
+39|quedan {0} días · clasificación semanal
+40|CLASES
+41|Enseña o únete
+42|Comparte tu progreso con un profesor
+43|PRÁCTICA
+44|Ejercicios de {0} preguntas
+45|Más de {0} preguntas, {1} lenguajes
+46|RETOS
+47|{0} problemas de programación
+48|Python o JavaScript, con pruebas automáticas
+49|CERTIFICADOS
+50|Enlaces para compartir
+51|Cualquiera puede comprobarlos
+52|NUEVO · UNIVERSIDAD DE INGENIERÍA DE SOFTWARE
+53|De cero a ingeniero profesional: seis etapas, cursos, laboratorios, exámenes y proyectos finales
+54|🎯 RETO DEL DÍA · +{0} XP
+55|Supéralo hoy para ganar XP extra
+56|🔎 Buscar lecciones (p. ej. recursión, JOIN, bucles)
+57|Buscar lecciones
+58|🎮 MULTIJUGADOR
+59|Juega con otros
+60|Clasificatorias, salas y amigos
+61|🌐 NUEVO
+62|Laboratorio de HTML y CSS
+63|Vista previa mientras escribes
+64|⚡ RONDA RÁPIDA
+65|{0} preguntas rápidas
+66|XP extra una vez al día
+67|📊 ESTADÍSTICAS
+68|Tu progreso
+69|Rachas, lenguajes, tarjetas
+70|🤝 RETA A UN AMIGO
+71|Comparte tu rango
+72|Copia un enlace que compara tus XP con los suyos
+73|Elige un lenguaje
+74|Amigable, legible y usado en todas partes, de sitios web a IA. El mejor primer lenguaje.
+75|{0} de {1} hechas
+76|Empezar →
+77|El lenguaje de la web. Apréndelo y podrás crear cosas que funcionan en cualquier navegador.
+78|JavaScript con tipos. El compilador detecta errores antes de que tu código se ejecute. Muy usado en equipos grandes.
+79|Cerca de la máquina. Te enseña cómo funcionan de verdad la memoria, los punteros y los compiladores.
+80|C con clases, cadenas y contenedores. Impulsa juegos, navegadores y software de alta velocidad.
+81|El lenguaje moderno de Microsoft para aplicaciones, sitios web y juegos en Unity. Claro, seguro y potente.
+82|El lenguaje de los datos. Haz preguntas a tablas reales: filtra, agrupa, une y modifica datos.
+83|Popular para Android, servicios de backend y aplicaciones grandes.
+84|Sencillo y rápido; popular para servicios en la nube, redes y herramientas de línea de comandos.
+85|Programación de sistemas con rendimiento y seguridad de memoria en tiempo de compilación.
+86|Un lenguaje de servidor muy usado para crear sitios web y API.
+87|Un lenguaje legible, popular para scripts y para Ruby on Rails.
+88|Desarrollo para plataformas de Apple: iOS, macOS y más.
+89|Un lenguaje moderno usado para Android y para el desarrollo de servidores.
+90|Scripts de shell para tareas de línea de comandos y automatización del sistema.
+91|Línea de comandos
+92|Conceptos básicos de la terminal
+93|Aprende la línea de comandos: pwd, ls, cd, mkdir, touch y rm en una terminal de práctica segura.
+94|Proyecto final
+95|Despliegue en la nube
+96|Proyecto final: revisa, compila y publica un proyecto real con una canalización CI/CD al estilo de Vercel (una simulación de práctica) y luego abre la vista previa.
+97|Logros
+98|desbloqueados · {0} de {1} XP extra ganados. Los logros más difíciles dan más XP.
+99|Todos los logros, por dificultad (toca para abrir):
+100|Fácil
+101|{0} / {1} · +{2} XP cada uno
+102|Juega un duelo multijugador
+103|Retador
+104|Fácil · +{0} XP
+105|Ten un cosmético de avatar de pago
+106|Icono de estilo
+107|Compra algo en la tienda
+108|Primera compra
+109|Abre el espacio de trabajo Proyecto
+110|Primer proyecto
+111|Termina una lección de Despliegue en la nube
+112|Primer despliegue
+113|Termina una lección de Conceptos básicos de la terminal
+114|Primer comando
+115|Termina una lección del laboratorio web
+116|Constructor web
+117|Canjea un código
+118|Descifrador de códigos
+119|Crea una cuenta para guardar tu progreso en línea
+120|Respaldado
+121|Cambia el tema de color
+122|Claro y oscuro
+123|Termina una lección un sábado o un domingo
+124|Guerrero de fin de semana
+125|Usa el botón de pista {0} veces
+126|Buscando ayuda
+127|Pulsa Ejecutar {0} veces
+128|Experimentador
+129|Alcanza el rango Programador ({0} XP)
+130|Rango: Programador
+131|Alcanza el rango Aprendiz ({0} XP)
+132|Rango: Aprendiz
+133|Gana {0} XP
+134|Quinientos
+135|Aprende en {0} días distintos
+136|Habitual
+137|Aprende {0} días seguidos
+138|Racha de {0} días
+139|Termina el reto del día
+140|Dosis diaria
+141|Termina una ronda rápida
+142|Demonio de la velocidad
+143|Responde bien {0} preguntas de cuestionario
+144|Ojo agudo
+145|Genio de los cuestionarios
+146|Completa {0} lecciones
+147|En racha
+148|Calentando
+149|Completa tu primera lección
+150|Primeros pasos
+151|Media
+152|Alcanza una puntuación de duelo de {0}
+153|Escalando
+154|Media · +{0} XP
+155|Gana un duelo
+156|Primera victoria
+157|Ten {0} estandartes
+158|Coleccionista de estandartes
+159|Ten {0} emojis o frases de chat
+160|Parlanchín
+161|Ten {0} artículos de la tienda
+162|Mirón de escaparates
+163|Termina {0} lecciones de Despliegue en la nube
+164|Piloto de canalizaciones
+165|Termina {0} lecciones de Conceptos básicos de la terminal
+166|Explorador de la shell
+167|Termina {0} lecciones del laboratorio web
+168|Artesano de páginas
+169|Termina una lección entre las {0} y las {1} de la mañana
+170|Madrugador
+171|Termina una lección entre la medianoche y las {0} de la mañana
+172|Ave nocturna
+173|Mente curiosa
+174|Rata de laboratorio
+175|Alcanza el rango Ingeniero ({0} XP)
+176|Rango: Ingeniero
+177|Alcanza el rango Desarrollador ({0} XP)
+178|Rango: Desarrollador
+179|Mil
+180|Dedicado
+181|Guerrero semanal
+182|Termina {0} retos del día
+183|Hábito diario
+184|Termina {0} rondas rápidas
+185|Dedos rápidos
+186|Lector de código
+187|Termina todas las lecciones de Principiante en un lenguaje
+188|Graduado principiante
+189|Completa una lección en {0} lenguajes
+190|Viajero del mundo
+191|Completa lecciones en {0} lenguajes
+192|Políglota
+193|Buscador de conocimiento
+194|Ahora en serio
+195|Difícil
+196|Contendiente
+197|Difícil · +{0} XP
+198|Gana {0} duelos
+199|Duelista
+200|Ten {0} cosméticos de avatar de pago
+201|Fashionista
+202|Gasta {0} XP en la tienda
+203|Gran comprador
+204|Cliente habitual
+205|Termina todas las lecciones de Despliegue en la nube
+206|Ingeniero principal de la nube
+207|Termina todas las lecciones de Conceptos básicos de la terminal
+208|Maestro de la shell
+209|Termina todas las lecciones del laboratorio web
+210|Surfista full-stack
+211|Científico loco
+212|Alcanza el rango Arquitecto ({0} XP)
+213|Rango: Arquitecto
+214|Estrella en ascenso
+215|Comprometido
+216|Fuego de dos semanas
+217|Como un reloj
+218|Acierta todas las preguntas de una ronda rápida
+219|Impecable
+220|Maestro de los acertijos
+221|Termina todos los pasos de Proyecto en un lenguaje
+222|Constructor
+223|Arregla todos los retos de Caza de errores en un lenguaje
+224|Aplastabichos
+225|Termina todas las lecciones Pro en un lenguaje
+226|Termina todas las lecciones de Intermedio en un lenguaje
+227|Forjador de herramientas
+228|Termina el nivel Principiante en {0} lenguajes
+229|Cuadro de honor
+230|Completa todas las lecciones de Bash
+231|Maestro de Bash
+232|Completa todas las lecciones de Kotlin
+233|Maestro de Kotlin
+234|Completa todas las lecciones de Swift
+235|Maestro de Swift
+236|Completa todas las lecciones de Ruby
+237|Maestro de Ruby
+238|Completa todas las lecciones de PHP
+239|Maestro de PHP
+240|Completa todas las lecciones de Rust
+241|Maestro de Rust
+242|Completa todas las lecciones de Go
+243|Maestro de Go
+244|Completa todas las lecciones de Java
+245|Maestro de Java
+246|Completa todas las lecciones de SQL
+247|Maestro de SQL
+248|Completa todas las lecciones de C#
+249|Maestro de C#
+250|Completa todas las lecciones de TypeScript
+251|Maestro de TypeScript
+252|Trotamundos
+253|La cima a la vista
+254|Programador centenario
+255|Ladrillo a ladrillo
+256|Épico
+257|Élite
+258|Épico · +{0} XP
+259|Campeón
+260|Marcador de tendencias
+261|Coleccionista
+262|Alcanza el rango Leyenda ({0} XP)
+263|Rango: Leyenda
+264|Alcanza el rango Mago ({0} XP)
+265|Rango: Mago
+266|Supernova
+267|Máquina mensual
+268|Imparable
+269|Consigue {0} rondas rápidas perfectas
+270|Intocable
+271|Oráculo
+272|Termina todos los pasos de Proyecto en {0} lenguajes
+273|Urbanista
+274|Arregla todos los retos de Caza de errores en {0} lenguajes
+275|Exterminador
+276|Termina el nivel Pro en {0} lenguajes
+277|Circuito Pro
+278|Termina el nivel Intermedio en {0} lenguajes
+279|Maestro forjador
+280|Termina el nivel Principiante en todos los lenguajes
+281|Bases en todas partes
+282|Completa todas las lecciones de C++
+283|Maestro de C++
+284|Completa todas las lecciones de C
+285|Maestro de C
+286|Completa todas las lecciones de JavaScript
+287|Maestro de JavaScript
+288|Completa todas las lecciones de Python
+289|Maestro de Python
+290|Termina todas las lecciones en {0} lenguajes
+291|Triple amenaza
+292|Completa una lección en los {0} lenguajes
+293|Explorador de lenguajes
+294|Matadragones
+295|Veterano
+296|Legendario
+297|Cumbre
+298|Legendario · +{0} XP
+299|Indiscutible
+300|Acaparador
+301|Alcanza el rango Inmortal ({0} XP)
+302|Rango: Inmortal
+303|Alcanza el rango Mítico ({0} XP)
+304|Rango: Mítico
+305|Alcanza el rango Gran maestro ({0} XP)
+306|Rango: Gran maestro
+307|Galáctico
+308|Un año de código
+309|Centurión
+310|Responde bien todos los cuestionarios de las lecciones
+311|Omnisciente
+312|Completa todas las lecciones de todos los lenguajes
+313|Maestro
+314|📋 Novedades
+315|📣 Compartir Learn
+316|🧭 ¿Por dónde empiezo?
+317|Ocultar este consejo
+318|Entendido
+319|Páginas de los cursos
+320|Ruta de ingeniería de software
+321|Retos de programación
+322|Copia de seguridad y restauración del progreso
+323|Tu progreso solo está en este navegador. Safari puede borrarlo si no usas el sitio durante un tiempo o si falta espacio, así que guarda una copia de seguridad en un lugar seguro (Archivos, iCloud Drive, un correo a ti mismo).
+324|⬇ Descargar copia de seguridad
+325|⬆ Restaurar desde un archivo
+326|Elige un archivo de copia de seguridad para restaurar
+327|Todavía no se ha hecho ninguna copia de seguridad en este dispositivo.
+328|Código de copia de seguridad (copiar y pegar en lugar de un archivo)
+329|Copiar el código de copia de seguridad
+330|Comprobar este código
+331|Borrar todo el progreso
+332|💬 Informar de un problema o sugerir una lección
+333|🔒 Privacidad
+334|Detalles completos de privacidad
+335|📴 Modo sin conexión · el multijugador necesita internet
+336|Comparte tu progreso
+337|¡Estoy aprendiendo a programar!
+338|La imagen se crea en este dispositivo. No se sube nada hasta que la compartes.
+339|📤 Compartir
+340|⬇ Guardar imagen
+341|Cerrar
+342|← Inicio
+343|🧭 ¿Por dónde empiezo?
+344|Pregunta {0} de {1}
+345|¿Qué te gustaría crear?
+346|Sitios web
+347|Páginas y aplicaciones web que funcionan en cualquier navegador
+348|Juegos
+349|Juegos en {0}D y {1}D
+350|Aplicaciones móviles
+351|Aplicaciones para iPhone, iPad y Android
+352|Datos e IA
+353|Analizar datos, automatizar tareas, crear herramientas de IA
+354|Aún no lo sé
+355|Solo quiero aprender a programar
+356|¿Has escrito código antes?
+357|Nunca
+358|Nunca he escrito código
+359|Un poco
+360|Probé algunas lecciones o tutoriales
+361|Sí
+362|Sé escribir programas pequeños
+363|← Atrás
+364|¿Cuánto tiempo puedes dedicar cada semana?
+365|Alrededor de {0} hora
+366|Unas pocas sesiones cortas
+367|De {0} a {1} horas
+368|Unos {0} minutos al día
+369|{0} horas o más
+370|Casi todos los días, sesiones más largas
+371|Tu punto de partida
+372|Tu primera lección
+373|Tu plan
+374|Universidad
+375|Responder de nuevo
+376|Ir a la página de inicio
+377|☰ Todas las lecciones
+378|Lecciones de este nivel
+379|lección {0} de {1} · +{2} XP
+380|Ejemplo
+381|▶ Ejecutar ejemplo
+382|Copiar al editor
+383|Tu turno
+384|▶ Ejecutar y comprobar
+385|Pista
+386|Reiniciar
+387|🤖 Preguntar a la IA
+388|Entrada del programa (para input())
+389|Siguiente lección →
+390|Comprobación de la lección
+391|Práctica extra · {0} preguntas más
+392|Practica las ideas clave de Python. Estas preguntas no cambian tu progreso en las lecciones.
+393|Todavía no
+394|La salida aún no es lo que pide la tarea.
+395|Pista:
+396|Ver la solución
+397|No del todo.
+398|Vuelve a mirar el código y prueba otra respuesta.
+399|Temario
+400|Resultados de las pruebas
+401|¡Correcto!
+402|Practica las ideas clave de JavaScript. Estas preguntas no cambian tu progreso en las lecciones.
+403|👤 Cuenta
+404|Cuenta
+405|Crear cuenta
+406|Crea tu cuenta
+407|Mantén tu progreso a salvo y continúa en cualquier dispositivo. Todo lo que ya hiciste en este dispositivo se guarda en la nueva cuenta.
+408|Correo electrónico
+409|Contraseña
+410|(al menos {0} caracteres)
+411|Mostrar
+412|Tu correo solo se usa para iniciar sesión y restablecer la contraseña. Lo guarda Google Firebase Authentication y nunca se muestra a otros jugadores. Las cuentas son opcionales: puedes seguir aprendiendo sin una.
+413|📥 Usar Learn sin internet
+414|Las lecciones de lenguajes ya funcionan sin conexión una vez abiertas. Esto también guarda en este dispositivo la Universidad (todos los cursos), las más de {0} preguntas de práctica y los retos de programación, unos {1} MB. Python real y los {2} lenguajes en línea siguen necesitando internet.
+415|Guardar todo para usarlo sin conexión
+416|🔁 Práctica
+417|Repasa tus errores
+418|No hay errores que repasar. Las respuestas incorrectas de las rondas rápidas y los ejercicios aparecen aquí.
+419|Ejercicio de {0} preguntas
+420|Preguntas del banco común: predice la salida, encuentra el error, elige el concepto correcto. Las respuestas incorrectas van a tu lista de repaso.
+421|Lenguaje
+422|Nivel
+423|Cualquiera
+424|Avanzado y profesional
+425|Empezar ejercicio
+426|La práctica da {0} XP por respuesta correcta, hasta {1} XP al día.
+427|🧩 Retos
+428|Ejecutar pruebas
+429|Calentamiento
+430|Suma de una lista
+431|{0} pruebas
+432|Número más grande
+433|Contar las vocales
+434|Invertir una cadena
+435|Comprobar palíndromos
+436|Lista FizzBuzz
+437|Factorial
+438|Contar las palabras
+439|Mayúscula en cada palabra
+440|Total acumulado
+441|Básico
+442|Número de Fibonacci
+443|Comprobar números primos
+444|Quitar duplicados
+445|Segundo más grande
+446|Suma de dos
+447|Comprobar anagramas
+448|Aplanar un nivel
+449|Máximo común divisor
+450|De binario a número
+451|Dividir en trozos
+452|Rotar una lista
+453|Difícil
+454|Paréntesis equilibrados
+455|Unir dos listas ordenadas
+456|Letra más frecuente
+457|← Retos
+458|🧩 Suma de dos
+459|Compartir este reto
+460|🔗 Compartir
+461|Ejemplos
+462|{0} pruebas más están ocultas.
+463|💡 Pista
+464|▶ Ejecutar pruebas
+465|🏫 Clases
+466|Los profesores crean una clase y obtienen un código. Los alumnos se unen con el código y comparten su progreso con el profesor.
+467|👤 Inicia sesión o crea una cuenta
+468|📅 Esta semana
+469|Objetivo semanal
+470|{0} de {1} XP
+471|Faltan {0} XP, quedan {1} días. Una lección vale de {2} a {3} XP.
+472|🏆 Clasificación semanal
+473|Todos empiezan en {0} el lunes. Solo muestra tu nombre en línea y tus XP de esta semana.
+474|Unirme a la clasificación de esta semana
+475|⏰ Recordatorio diario
+476|Añade a tu propio calendario (iPad, iPhone, Google o Outlook) un evento diario «Practica programación en Learn» con una alarma. No se envía nada a ningún sitio y puedes borrar el evento cuando quieras.
+477|Hora
+478|Añadir a mi calendario
+479|🎓 Certificados
+480|Enlaces de certificados para compartir
+481|Crea un enlace a un certificado que hayas obtenido. Quien lo abra verá tu nombre, el curso y la fecha, y que el registro no se ha modificado desde que se creó.
+482|Learn es autoaprendizaje y no está acreditado. El progreso se guarda en tu propio dispositivo, así que un enlace demuestra que una cuenta de Learn creó el certificado en esa fecha, no que el trabajo se haya comprobado de forma independiente. El enlace también lo indica.
+483|Inicia sesión para crear enlaces.
+484|📊 Tus estadísticas
+485|Rango
+486|XP ganados
+487|XP para gastar
+488|Racha actual (días)
+489|Mejor racha (días)
+490|Días activos
+491|Lecciones hechas
+492|Respuestas correctas
+493|Lecciones del laboratorio web
+494|Insignias
+495|Actividad
+496|Actividad de las últimas {0} semanas: {1} días activos, {2} lecciones y retos completados
+497|Lun
+498|Mié
+499|Vie
+500|{0} días activos y {1} lecciones y retos completados en las últimas {2} semanas.
+501|Menos
+502|Más
+503|Lecciones y retos por semana
+504|hace {0} semanas
+505|esta semana
+506|Por lenguaje
+507|Tarjetas de finalización
+508|Termina todas las lecciones de un lenguaje para desbloquear su tarjeta para compartir.
+509|Programación libre: escribe lo que quieras y ejecútalo.
+510|▶ Ejecutar
+511|Motor
+512|Motor didáctico de Learn (sin conexión)
+513|Python real {0} (Pyodide)
+514|El motor didáctico ejecuta el Python de las lecciones, al instante y sin conexión.
+515|🌐 Laboratorio de HTML y CSS
+516|Todo funciona en tu navegador. La vista previa se actualiza mientras escribes. {0}/{1} hechas, +{2} XP cada una.
+517|HTML / CSS
+518|Tu turno:
+519|✓ Comprobar
+520|Siguiente →
+521|Vista previa
+522|❌ {0} de {1} pruebas superadas
+523|✗ Prueba {0} (prueba oculta)
+524|Tu cuenta
+525|👤 Tu cuenta
+526|Sesión iniciada como
+527|En este dispositivo: {0} lecciones de los cursos de lenguajes · {1} lecciones de la Universidad · {2} registros de exámenes de la Universidad.
+528|Guardar ahora
+529|Cerrar sesión
+530|Cerrar sesión y borrar este dispositivo
+531|Cómo se guarda
+532|Tu progreso se guarda en tu cuenta unos segundos después de cambiar, y se vuelve a comprobar cuando regresas a Learn.
+533|Inicia sesión en otro dispositivo para continuar allí. El progreso de ambos dispositivos se combina: las lecciones terminadas, los XP, las insignias y los resultados de la Universidad nunca se pierden.
+534|Si cambias el código de la misma lección en dos dispositivos, cada dispositivo conserva su propia versión de ese código.
+535|Borrar el progreso en un dispositivo no borra la copia de la cuenta.
+536|🗑 Eliminar cuenta
+537|Elimina tu cuenta de acceso, el progreso guardado en ella y tu nombre en línea, amigos y entradas en las clasificaciones. El progreso en este dispositivo se mantiene salvo que lo borres.
+538|Eliminar mi cuenta
+539|🎉 Cuenta creada. Tu progreso está guardado.
+540|🧑‍🎓 Unirse a una clase
+541|Código de la clase
+542|Tu nombre en esta clase
+543|Unirme y compartir mi progreso
+544|🧑‍🏫 Dar una clase
+545|Nombre de la clase
+546|Crear clase
+547|Ponle un nombre a la clase.
+548|Compartir código
+549|Eliminar clase
+550|📚 Tareas
+551|Todavía no hay tareas.
+552|Tipo
+553|Lección
+554|Reto de programación
+555|Lección o reto
+556|Fecha límite
+557|Poner tarea
+558|para el {0}-{1}-{2} · {3} de {4} la hicieron
+559|Quitar
+560|🏆 Logro desbloqueado:
+561|☁️ Respaldado
+562|· +{0} XP
+563|📚 Tarea puesta
+564|Un código de clase tiene {0} letras y dígitos.
+565|Escribe el nombre que verá tu profesor.
+566|Tus clases
+567|Salir
+568|para el {0}-{1}-{2}
+569|Abrir
+570|para el {0}-{1}-{2} · {3} más
+571|A punto de desbloquear
+572|Fácil · +{0} XP ganados
+573|El progreso, los XP y tu código se guardan en este dispositivo y en tu cuenta.
+574|Nombre en los certificados
+575|Tu nombre
+576|Cursos de lenguajes
+577|Termina todas las lecciones de un curso de lenguaje para obtener su certificado.
+578|🔗 Enlace de verificación
+579|Guardado.
+580|Terminar
+581|✓ ¡Buen trabajo, está superado!
+582|Ya completada.
+583|Pulsa Siguiente lección cuando estés listo.
+584|📸 Compartirlo
+585|Esta lección está en inglés por ahora.
+586|Escribe aquí la entrada, una línea por pregunta
+587|SALIDA
+588|Pulsa Ejecutar para ver lo que imprime tu programa.
+589|(el programa no imprimió nada)
+590|Esperado:
+591|Tú imprimiste:
+592|JavaScript hace funcionar todos los sitios web. Combínalo con el Laboratorio de HTML y CSS para crear páginas que puedas ver.
+593|C# es el lenguaje de Unity, el motor de juegos más usado. C++ impulsa los grandes motores de juegos.
+594|Python es la forma más fácil de aprender las ideas que necesita todo juego: variables, bucles, decisiones. Después, C# para Unity.
+595|Empieza con Python para aprender lo básico sin pelearte con el lenguaje, y después Swift (Apple) o Kotlin (Android).
+596|Swift crea aplicaciones para iPhone y iPad; Kotlin crea aplicaciones para Android.
+597|Python es el lenguaje principal de los datos y la IA. SQL es la forma de hacer preguntas a los datos.
+598|Python es el primer lenguaje más amigable y se usa en todas partes, de sitios web a IA.
+599|Empieza en Intermedio (puedes volver a Principiante cuando quieras)
+600|Unas {0} lecciones por semana.
+601|Tu objetivo semanal ahora es de {0} XP. Puedes cambiarlo en la tarjeta Esta semana.
+602|A este ritmo terminas el nivel Principiante ({0} lecciones) en aproximadamente {1} semana.
+603|A este ritmo terminas el nivel Principiante ({0} lecciones) en aproximadamente {1} semanas.
+604|Después:
+605|🧩 Retos de programación, después del nivel Principiante
+606|🎓 La Universidad: todo el camino hacia un trabajo de software
+607|para hoy
+608|era para el {0}-{1}-{2}
+609|hecha
+610|Cargando tareas…
+611|No hay tareas.
+612|Una lección que ya no existe
+613|Elige una fecha límite.
+614|Elige una lección o un reto.
+615|Guardando…
+616|No se pudo guardar. Inténtalo de nuevo.
+617|No se pudo guardar: no tienes conexión.
+618|No se pudo quitar ahora mismo.
+619|No se pudo cargar la lista de retos.
+620|Cargando alumnos…
+621|lecciones
+622|días de racha
+623|rango
+624|Clases de programación gratis:
+625|Texto y enlace copiados. Usa Guardar imagen para conservar la imagen.
+626|Usa Guardar imagen y luego comparte la imagen.
+627|¡Terminé todas las lecciones de {0}!
+628|¡Terminé {0} {1}!
+629|¡Terminaste el nivel Principiante! 🎉
+630|¡Terminaste el nivel Intermedio! 🎉
+631|¡Terminaste el nivel Pro! 🎉
+632|Aprendiz
+633|Programador
+634|Desarrollador
+635|Ingeniero
+636|Arquitecto
+637|Mago
+638|Leyenda
+639|Mítico
+640|Inmortal
+641|Gran maestro
+642|+{0} XP. ¡Terminaste el nivel Principiante! 🎉
+643|Ya completada. ¡Terminaste el nivel Principiante! 🎉
+644|+{0} XP. ¡Terminaste el nivel Intermedio! 🎉
+645|Ya completada. ¡Terminaste el nivel Intermedio! 🎉
+646|+{0} XP. ¡Terminaste el nivel Pro! 🎉
+647|Ya completada. ¡Terminaste el nivel Pro! 🎉
+648|+{0} XP. ¡Terminaste el nivel Caza de errores! 🎉
+649|Ya completada. ¡Terminaste el nivel Caza de errores! 🎉
+650|+{0} XP. ¡Terminaste el nivel Proyectos! 🎉
+651|Ya completada. ¡Terminaste el nivel Proyectos! 🎉
+652|+{0} XP. Pulsa Siguiente lección cuando estés listo.
+653|Ya completada. Pulsa Siguiente lección cuando estés listo.
+654|+{0} XP.
+655|{0} XP para Programador
+656|{0} XP para Desarrollador
+657|{0} XP para Ingeniero
+658|{0} XP para Arquitecto
+659|{0} XP para Mago
+660|{0} XP para Leyenda
+661|{0} XP para Gran maestro
+662|{0} XP para Mítico
+663|{0} XP para Inmortal
+664|¡Rango máximo alcanzado!
+665|Iniciar sesión

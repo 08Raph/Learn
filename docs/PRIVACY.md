@@ -27,7 +27,7 @@ are saved wherever the user chooses and are never sent anywhere by the site.
 | Ask AI in a lesson (5.0) | The lesson's title and task, the code in the editor, the last output, and the question typed | The site's AI Worker on Cloudflare (as for the AI Professor). Nothing is stored there. |
 | Weekly leaderboard (5.0), only after pressing Join | Online name and this week's XP | `duel/wk/<week>/<player>`, readable by signed-in players. Leaving deletes it. |
 | Certificate link (5.0), only when the student creates one | The name they type, the certificate title and detail, the date, and the account ID | `certs/<id>`, **readable by anyone who has the link**. Deletable by the owner (account deletion deletes them). |
-| Classes (5.0), only after joining | The display name typed for the class, and counts: lessons, University lessons, XP, weekly XP, days studied, last active. Never email, code or answers | `classes/<code>/m/<account id>`, readable by the class's teacher only. Leaving or the teacher removing the student deletes it. |
+| Classes (5.0), only after joining | The display name typed for the class, and counts: lessons, University lessons, XP, weekly XP, days studied, last active; since 5.7 also which of the class's homework items are finished (an item id and a time). Never email, code or answers | `classes/<code>/m/<account id>`, readable by the class's teacher only. Leaving or the teacher removing the student deletes it. |
 | Daily reminder (5.0) | Nothing. A calendar file is created on the device | — |
 | Administrator actions and code redemptions (secure mode) | Account ID, action, a short detail, time | `duel/audit` in your database, readable by administrators |
 | Cloud sync, if the user sets it up | Their whole save, as a private Gist | GitHub, in the user's own account |
@@ -42,6 +42,12 @@ The University's departments, career centre, CV builder, study tools and challen
 `CF_TOKEN` in `app.js`). It counts page views, referring sites, countries and device types, sets **no cookies** and
 does not see code, answers, names or emails. The privacy note on the home page says so. To switch it off, set
 `CF_TOKEN = ''` in `app.js`. There is no advertising and no other tracking script.
+
+| Homework (5.7), set by a teacher | The lesson or challenge chosen and a due date | `classes/<code>/hw`, readable by signed-in accounts that know the class code. No student data. |
+
+**Interface language (5.7):** the chosen language is stored on the device (and in backups). Language files are
+downloaded from this site only when a language other than English is chosen. When a language other than English is
+in use, the AI tutor is told that language so it can answer in it; nothing else about the student is added.
 
 ## Why each item is collected
 - Names, scores and presence: so that players can find and play each other and see a leaderboard.

@@ -220,6 +220,34 @@ const savedFor = (email) => { const uid = Object.keys(accounts).find((k) => acco
       await p.goto(BASE.replace('index.html', 'challenge-two-sum.html')); await p.click('a.cta'); await p.waitForSelector('#chShare', { timeout: 15000 }); await p.evaluate(() => navigator.clipboard.writeText('')); await p.click('#chShare'); await p.waitForTimeout(500);
       ok('5.4: Share on a challenge copies the link to its public page', /08raph\.github\.io\/Learn\/challenge-two-sum\.html/.test(await p.evaluate(() => navigator.clipboard.readText().catch(() => ''))));
       await ctx.close(); }
+    /* 9. 5.7 homework: the teacher sets a lesson and a challenge with due dates; the student sees them, finishes one, the teacher sees it */
+    { const Tc = await mk(null); await signUp(Tc.p, 'hwteach@example.test'); await Tc.p.goto(BASE + '#/classes'); await Tc.p.waitForSelector('#ctGo');
+      await Tc.p.fill('#ctName', 'Homework class'); await Tc.p.click('#ctGo'); await Tc.p.waitForSelector('.hwadd', { timeout: 15000 });
+      const code = Object.keys(db.classes).find((c) => db.classes[c].n === 'Homework class');
+      ok('homework: an empty class shows the homework form', /No homework yet/.test(await T(Tc.p)) && await Tc.p.locator('.hwr option').count() > 300);
+      await Tc.p.selectOption('.hwr', 'py:hello'); await Tc.p.fill('.hwd', '2099-01-15'); await Tc.p.click('.hwadd'); await Tc.p.waitForSelector('[data-hwdel]', { timeout: 10000 });
+      await Tc.p.selectOption('.hwk', 'c'); await Tc.p.waitForFunction(() => document.querySelector('.hwr option') && document.querySelector('.hwr option').value === 'sum-list'); await Tc.p.selectOption('.hwr', 'two-sum'); await Tc.p.click('.hwadd'); await Tc.p.waitForFunction(() => document.querySelectorAll('[data-hwdel]').length === 2, null, { timeout: 10000 });
+      const hw = Object.values(db.classes[code].hw || {}).sort((a, b) => a.k.localeCompare(b.k));
+      ok('homework: both are stored with type, reference and due date only', hw.length === 2 && hw[0].k === 'c' && hw[0].r === 'two-sum' && hw[1].k === 'l' && hw[1].r === 'py:hello' && hw[1].due === '2099-01-15' && Object.keys(hw[1]).sort().join() === 'at,due,k,r', JSON.stringify(hw));
+      ok('homework: the teacher sees them listed with how many finished', /Python · Say hello/.test(await T(Tc.p)) && /Two sum/.test(await T(Tc.p)) && /0 of 0 done/.test(await T(Tc.p)));
+      const St = await mk({ seenPatch: APPV, code: { 'py:hello': 'print("Hello, world!")\n' } }); await signUp(St.p, 'hwstudent@example.test'); await St.p.goto(BASE + '#/classes'); await St.p.waitForSelector('#cjGo');
+      await St.p.fill('#cjCode', code); await St.p.fill('#cjName', 'Kim'); await St.p.click('#cjGo'); await St.p.waitForSelector('[data-hwo]', { timeout: 15000 });
+      ok('homework: after joining, the student sees both with their due dates', /Python · Say hello/.test(await T(St.p)) && /Two sum/.test(await T(St.p)) && /due 2099-01-15/.test(await T(St.p)) && await St.p.locator('[data-hwo]').count() === 2);
+      await St.p.goto(BASE + '#/'); await St.p.waitForSelector('#hwCard', { timeout: 10000 });
+      ok('homework: the home page shows the next homework', /HOMEWORK · Homework class/.test(await St.p.innerText('#hwCard')) && /1 more/.test(await St.p.innerText('#hwCard')));
+      const snoop = await St.p.evaluate(async (c) => { const st = JSON.parse(localStorage.getItem('learn-fb-auth')); return (await fetch('https://mock-project-default-rtdb.firebaseio.com/classes/' + c + '/hw/abcdefgh.json?auth=tok.' + st.uid, { method: 'PUT', body: JSON.stringify({ k: 'l', r: 'py:hello', due: '2099-01-01' }) })).status; }, code);
+      ok('homework: a student cannot add homework', snoop === 401);
+      await St.p.goto(BASE + '#/classes'); await St.p.waitForSelector('[data-hwo]'); await St.p.click('[data-hwo] >> nth=1').catch(() => {}); await St.p.waitForTimeout(300);
+      await St.p.goto(BASE + '#/py/hello'); await St.p.waitForSelector('#runBtn'); await St.p.click('#runBtn'); await St.p.waitForSelector('.verdict.ok', { timeout: 15000 });
+      await St.p.goto(BASE + '#/classes'); await St.p.waitForTimeout(3500);
+      ok('homework: the finished lesson is ticked for the student', /✅ Python · Say hello/.test(await T(St.p)));
+      const mem = Object.values(db.classes[code].m || {})[0] || {}; const lessonHw = Object.entries(db.classes[code].hw).find(([, h]) => h.k === 'l')[0];
+      ok('homework: only the finished homework id and a time are sent to the class', mem.h && Object.keys(mem.h).join() === lessonHw && typeof mem.h[lessonHw] === 'number', JSON.stringify(mem));
+      await Tc.p.reload(); await Tc.p.waitForSelector('.clstable', { timeout: 10000 });
+      ok('homework: the teacher sees who finished (1 of 1 for the lesson, 1/2 in the table)', /1 of 1 done/.test(await T(Tc.p)) && /\b1\/2\b/.test(await Tc.p.innerText('.clstable')));
+      await Tc.p.click('[data-hwdel] >> nth=0'); await Tc.p.waitForFunction(() => document.querySelectorAll('[data-hwdel]').length === 1, null, { timeout: 10000 });
+      ok('homework: the teacher can remove homework', Object.keys(db.classes[code].hw).length === 1);
+      await St.ctx.close(); await Tc.ctx.close(); }
     ok('the app never sent a request without a token that the rules refused', !denied.some((x) => / as null/.test(x) && !/certs/.test(x)), denied.join(' ; '));
     ok('no page errors', errs.length === 0, errs.join(' | '));
   } catch (e) { ok('test run crashed', false, e.stack); }

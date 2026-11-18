@@ -1,0 +1,82 @@
+{
+ "lessonNote": "Cette leçon est en anglais pour l’instant. Le tuteur IA peut te l’expliquer en français.",
+ "uniNote": "L’Université est en anglais pour l’instant. Le professeur IA peut te répondre en français.",
+ "html": {
+  "hero": "De la <em>première ligne</em> au <em>pro</em>.",
+  "footLocal": "Les progrès, les XP et ton code sont enregistrés uniquement sur cet appareil. <a href=\"#/account\">Connecte-toi</a> pour les garder dans un compte.",
+  "footAcct": "Les progrès, les XP et ton code sont enregistrés sur cet appareil et dans ton compte.",
+  "install": "📲 <b>Installe Learn sur cet appareil :</b> touche le bouton Partager <span aria-hidden=\"true\">⎙</span> dans Safari, puis <b>Sur l’écran d’accueil</b>. Learn s’ouvre en plein écran et fonctionne hors ligne."
+ },
+ "lessons": {
+  "py:hello": {
+   "title": "Dire bonjour",
+   "body": "<p>Un programme est une liste d’instructions que l’ordinateur suit de haut en bas. <code>print()</code> affiche du texte à l’écran. Le texte se met entre guillemets.</p><p>Une ligne qui commence par <code>#</code> est un <b>commentaire</b> : une note pour les humains, que Python ignore.</p>",
+   "task": "Affiche exactement <code>Hello, world!</code>",
+   "hint": "Mets le texte entre guillemets dans print(...). Un H majuscule, une virgule et un point d’exclamation.",
+   "why": "Chaque appel à print() se termine par un retour à la ligne, donc les deux mots arrivent sur des lignes différentes."
+  },
+  "py:variables": {
+   "title": "Variables et nombres",
+   "body": "<p>Une <b>variable</b> est un nom donné à une valeur. On la crée avec <code>=</code>. Python trouve le type tout seul : les nombres entiers sont des <code>int</code>, les nombres décimaux des <code>float</code> et le texte des <code>str</code>.</p><p>La division existe sous deux formes : <code>/</code> donne toujours un nombre décimal, <code>//</code> donne la partie entière et <code>%</code> donne le reste.</p>",
+   "task": "Une vidéo dure 135 minutes. Range le nombre d’heures entières dans <code>hours</code> et les minutes restantes dans <code>rest</code>, puis affiche <code>2 h 15 min</code>. (<code>print</code> met un espace entre les éléments séparés par des virgules.)",
+   "hint": "hours = minutes // 60 et rest = minutes % 60. Ensuite print(hours, \"h\", rest, \"min\").",
+   "why": "/ garde la partie décimale (2.5). // la jette et ne garde que le nombre entier (2)."
+  },
+  "py:strings": {
+   "title": "Texte et f-strings",
+   "body": "<p>Le texte s’appelle une <b>chaîne</b> (string). On assemble des chaînes avec <code>+</code>, on les répète avec <code>*</code> et on mesure leur longueur avec <code>len()</code>.</p><p>Une <b>f-string</b> commence par <code>f</code> et permet de mettre des variables entre accolades : <code>f\"Hi {name}\"</code>. Les chaînes ont aussi des méthodes comme <code>.upper()</code> et <code>.lower()</code>.</p>",
+   "task": "Utilise une f-string pour afficher exactement <code>Ada loves Python!</code> avec les deux variables.",
+   "hint": "print(f\"{name} loves {lang}!\")",
+   "why": "\"!\" * 2 est calculé en premier et donne \"!!\". Ensuite, c’est collé à \"CODE\"."
+  },
+  "py:functions": {
+   "title": "Fonctions",
+   "body": "<p>Une <b>fonction</b> est une recette réutilisable qui porte un nom. On la définit avec <code>def</code>, on lui donne des entrées (les paramètres) et elle renvoie une réponse avec <code>return</code>.</p><p>Les lignes en retrait (4 espaces) forment le corps. Un paramètre peut avoir une valeur par défaut, utilisée quand l’appel ne la précise pas.</p>",
+   "task": "Termine <code>greet(name, greeting=\"Hello\")</code>. Elle doit <b>renvoyer</b> un texte comme <code>Hello, Ada!</code> (avec la salutation et le nom).",
+   "hint": "return f\"{greeting}, {name}!\"",
+   "why": "Le f(1) intérieur donne 2, puis f(2) donne 3."
+  },
+  "py:decisions": {
+   "title": "Prendre des décisions",
+   "body": "<p><code>if</code> exécute du code seulement quand une condition est vraie. Ajoute <code>elif</code> pour d’autres conditions et <code>else</code> pour tout le reste. Python les vérifie depuis le haut et s’arrête à la première qui est vraie.</p><p>Compare avec <code>==</code> <code>!=</code> <code>&lt;</code> <code>&gt;</code> <code>&lt;=</code> <code>&gt;=</code>, et combine avec <code>and</code>, <code>or</code>, <code>not</code>.</p>",
+   "task": "Écris <code>grade(score)</code> : renvoie <code>\"A\"</code> pour 90 ou plus, <code>\"B\"</code> pour 80 ou plus, sinon <code>\"C\"</code>.",
+   "hint": "Vérifie d’abord la note la plus haute : if score >= 90: return \"A\", puis elif score >= 80: ...",
+   "why": "Ce sont deux instructions if séparées. Les deux conditions sont vraies, donc les deux messages s’affichent. Le else appartient seulement au second if."
+  },
+  "py:loops": {
+   "title": "Boucles",
+   "body": "<p>Une <b>boucle</b> répète du code. <code>for n in range(5)</code> compte 0, 1, 2, 3, 4 (elle s’arrête <em>avant</em> 5). <code>range(1, 6)</code> compte de 1 à 5. On peut aussi parcourir une liste : <code>for item in items</code>.</p><p>Une méthode courante consiste à démarrer un compteur à 0 et à le mettre à jour dans la boucle. <code>while</code> continue tant que sa condition est vraie.</p>",
+   "task": "Écris <code>count_evens(numbers)</code>, qui renvoie combien de nombres de la liste sont pairs. (Un nombre est pair quand <code>n % 2 == 0</code>.)",
+   "hint": "for n in numbers: puis if n % 2 == 0: count += 1",
+   "why": "i prend les valeurs 0, 1 et 2. En les doublant, on obtient 0, 2 et 4."
+  },
+  "py:lists": {
+   "title": "Listes",
+   "body": "<p>Une <b>liste</b> contient plusieurs valeurs dans l’ordre : <code>[10, 20, 30]</code>. Les positions commencent à <b>0</b>, donc <code>items[0]</code> est le premier élément. Les positions négatives comptent depuis la fin : <code>items[-1]</code> est le dernier.</p><p>Outils utiles : <code>append</code>, <code>len</code>, <code>sum</code>, <code>sorted</code>, <code>in</code>, et les tranches comme <code>items[1:3]</code>.</p>",
+   "task": "Écris <code>first_and_last(items)</code>, qui renvoie une nouvelle liste contenant le premier et le dernier élément, comme <code>[1, 3]</code> pour <code>[1, 2, 3]</code>.",
+   "hint": "return [items[0], items[-1]]",
+   "why": "Après append, la liste vaut [4, 8, 15, 16]. L’indice -2 est l’avant-dernier (15) et la longueur est 4."
+  },
+  "py:dicts": {
+   "title": "Dictionnaires",
+   "body": "<p>Un <b>dictionnaire</b> stocke des paires : chaque <b>clé</b> pointe vers une <b>valeur</b>. On cherche une valeur avec sa clé : <code>ages[\"Ada\"]</code>. On en ajoute ou on en modifie une par une affectation.</p><p>Utilise <code>in</code> pour vérifier qu’une clé existe, <code>.get(key, default)</code> pour une recherche sans erreur et <code>.items()</code> pour parcourir clés et valeurs ensemble. Compter des choses est l’usage classique.</p>",
+   "task": "Écris <code>count_letters(word)</code>, qui renvoie un dictionnaire associant chaque lettre à son nombre d’apparitions, comme <code>{\"a\": 2, \"b\": 1}</code> pour <code>\"aab\"</code>.",
+   "hint": "for ch in word: counts[ch] = counts.get(ch, 0) + 1",
+   "why": "d[\"a\"] += 5 ajoute 5 au 1 déjà présent, ce qui donne 6. La nouvelle clé \"b\" est ajoutée après \"a\"."
+  },
+  "py:classes": {
+   "title": "Classes",
+   "body": "<p>Une <b>classe</b> regroupe des données et les fonctions qui les utilisent. Appeler la classe crée un <b>objet</b>. <code>__init__</code> s’exécute à la création de l’objet et prépare ses données. <code>self</code> veut dire « cet objet », donc <code>self.name</code> est une donnée qui lui appartient.</p>",
+   "task": "Termine la classe <code>Counter</code>. Un nouveau compteur commence avec <code>self.count = 0</code>, et <code>increment()</code> lui ajoute 1.",
+   "hint": "Dans __init__ : self.count = 0. Dans increment : self.count += 1.",
+   "why": "La boîte commence à 3. Chaque grow() la double : 3 devient 6, puis 12."
+  },
+  "py:challenge": {
+   "title": "Défi final",
+   "body": "<p>Il est temps de combiner fonctions, décisions et l’opérateur de reste dans un grand classique. <code>n % 3 == 0</code> veut dire que n est divisible par 3. Vérifie d’abord le cas combiné, sinon il ne sera jamais atteint.</p>",
+   "task": "Écris <code>fizzbuzz(n)</code>. Renvoie <code>\"FizzBuzz\"</code> si n est divisible par 3 et par 5, <code>\"Fizz\"</code> seulement par 3, <code>\"Buzz\"</code> seulement par 5, sinon n sous forme de texte (comme <code>\"7\"</code>).",
+   "hint": "L’ordre compte : if n % 15 == 0 ... elif n % 3 == 0 ... elif n % 5 == 0 ... else return str(n)",
+   "why": "15 est divisible par 5 (reste 0). En divisant par 4, il reste 3."
+  }
+ }
+}

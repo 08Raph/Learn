@@ -1,5 +1,33 @@
 # Changelog
 
+## 5.7 — 17 November 2026
+### Added
+- **Interface languages:** Español, Français, 中文 (simplified), हिन्दी and العربية, besides English (🌐 in the top bar; the
+  browser's language is used on a first visit). `i18n/<code>.js` is loaded only when chosen. After each screen is drawn,
+  text and labels that exactly match an English interface string are replaced; numbers inside sentences are handled
+  (`"{0} of {1} done"`). Code, editors, program output and error text are never changed. Whole sentences with markup
+  (home headline, saved-progress note, install tip) use `data-i18n`. Arabic sets `dir="rtl"`; code stays left to right.
+  Translated: 666 interface strings (menus, home page, achievements, lesson screen, practice, challenges list and
+  titles, classes, homework, account, week, certificates, stats, playground, start guide, progress card) and the first
+  10 Python lessons (title, explanation, task, hint, quiz explanation). Other lessons and the University show a note that
+  they are in English for now. The AI tutor is told the student's language. Translations live in `i18n-src/<code>.txt`
+  (one numbered line per string in `tests/i18n-keys.json`) and `i18n-src/<code>.json`; `tests/build-i18n.js` builds
+  `i18n/` and refuses a translation that changes the numbers or leading symbols.
+- **🧭 Where do I start?** (`#/start`): three questions (goal, experience, weekly time) → a language, a first lesson
+  (Intermediate for experienced coders), lessons per week, weeks to finish Beginner, what next. Sets the weekly goal.
+  Shown as a banner to new visitors; linked from the footer.
+- **📚 Homework** for classes: teachers set a lesson or challenge with a due date (`classes/<code>/hw/<id>`), see how
+  many finished, and remove it. Students see homework in Classes and on the home page; finishing it records the item id
+  and time in their class entry (`m/<uid>/h`). **Database rules changed: publish `firebase/database.rules.json` again.**
+- **📸 Share my progress:** a 1200 × 630 picture drawn on the device (rank, XP, lessons, streak, top languages), shared
+  with the share sheet or saved. Finishing a level or a language offers it.
+### Fixed
+- 5.4 added a second function named `shareLink`, which replaced the one used by certificate links and class codes, so
+  those shared the wrong text since 5.4. Renamed the new one `shareText`; a scan found no other duplicate names.
+### Tests
+- New `tests/e2e-i18n.js` (66 checks; suite 14). `e2e-community.js` 73 → 83 (homework), `firebase-rules.test.js`
+  135 → 143. `audit-screens.js` accepts `LOCALE=` to audit another language.
+
 ## 5.6 — 17 November 2026 (fixes from a full review)
 ### Fixed
 - Achievements: "Closest to unlocking" read the progress pair wrongly and showed "0 / undefined"; duel-rating

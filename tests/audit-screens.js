@@ -10,7 +10,7 @@ const ROUTES = MAIN.map((r) => '#/' + r).concat(UNI.map((r) => '#/uni' + (r ? '/
 (async () => {
   const b = await chromium.launch(); const out = [];
   for (const [dev, opt] of [['ipad', devices['iPad (gen 7)']], ['phone', devices['iPhone 13']]]) for (const theme of ['light', 'dark']) {
-    const ctx = await b.newContext(Object.assign({}, opt, { serviceWorkers: 'block', colorScheme: theme })); await ctx.route(/googleapis|gstatic|firebase|judge0|emkc|wandbox|jsdelivr|youtube/, (r) => r.abort());
+    const ctx = await b.newContext(Object.assign({}, opt, { serviceWorkers: 'block', colorScheme: theme }, process.env.LOCALE ? { locale: process.env.LOCALE } : {})); await ctx.route(/googleapis|gstatic|firebase|judge0|emkc|wandbox|jsdelivr|youtube/, (r) => r.abort());
     const p = await ctx.newPage(); let errs = []; p.on('pageerror', (e) => errs.push('PAGEERR ' + e.message.slice(0, 160))); p.on('console', (m) => { if (m.type() === 'error' && !/Failed to load resource|net::ERR/.test(m.text())) errs.push('CONSOLE ' + m.text().slice(0, 160)); });
     await p.goto('http://localhost:8765/index.html#/'); await p.waitForTimeout(1200);
     await p.evaluate((t) => { const S = JSON.parse(localStorage.getItem('learn-code-v2') || '{}'); S.theme = t; localStorage.setItem('learn-code-v2', JSON.stringify(S)); }, theme);

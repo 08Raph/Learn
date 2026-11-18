@@ -1,4 +1,4 @@
-08Raph Learn 5.6: fixes from a full review (privacy, electives, achievements, honest simulation, clearer home page)
+08Raph Learn 5.7: six interface languages, a start guide, homework for classes, shareable progress pictures
 
 08Raph Learn 5.2: 24 coding challenges, activity heatmap, save everything for offline
 - NEW FILE challenges.js. Upload it together with index.html and app.js.

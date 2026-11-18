@@ -167,6 +167,17 @@ t('an administrator cannot edit another player\'s leaderboard entry', wr('lb/1/u
   t('classes: the teacher can read the class and its students', cr('classes/ABC234', tea), true);
   t('classes: another account cannot read the class', cr('classes/ABC234', oth), false);
   t('classes: nobody can list all classes', cr('classes', tea), false);
+  // 5.7: homework
+  const hw = { k: 'l', r: 'py:hello', due: '2026-12-01', at: 1 };
+  t('homework: the teacher can set homework', cw('classes/ABC234/hw/ab12cd34', hw, tea), true);
+  t('homework: a student cannot set or change homework', cw('classes/ABC234/hw/ab12cd34', hw, stu), false);
+  t('homework: bad ids, kinds, references or dates are refused', cw('classes/ABC234/hw/AB12CD34', hw, tea) || cw('classes/ABC234/hw/ab12cd34', Object.assign({}, hw, { k: 'x' }), tea) || cw('classes/ABC234/hw/ab12cd34', Object.assign({}, hw, { r: '<script>' }), tea) || cw('classes/ABC234/hw/ab12cd34', Object.assign({}, hw, { due: 'tomorrow' }), tea) || cw('classes/ABC234/hw/ab12cd34', Object.assign({}, hw, { note: 'x' }), tea), false);
+  db.classes.ABC234.hw = { ab12cd34: hw };
+  t('homework: a signed-in student can read the homework list', cr('classes/ABC234/hw', stu), true);
+  t('homework: someone who is not signed in cannot read it', cr('classes/ABC234/hw', null), false);
+  t('homework: a student can record which homework they finished', cw('classes/ABC234/m/authStu', Object.assign({}, mem, { h: { ab12cd34: 5 } }), stu), true);
+  t('homework: a finished-homework record must be a time with a valid id', cw('classes/ABC234/m/authStu', Object.assign({}, mem, { h: { ab12cd34: 'yes' } }), stu) || cw('classes/ABC234/m/authStu', Object.assign({}, mem, { h: { 'BAD!': 5 } }), stu), false);
+  t('homework: the teacher can remove homework', cw('classes/ABC234/hw/ab12cd34', null, tea), true);
   t('classes: a student can leave (delete their entry)', cw('classes/ABC234/m/authStu', null, stu), true);
   t('classes: the teacher can remove a student', cw('classes/ABC234/m/authStu', null, tea), true);
   t('classes: the teacher cannot hand the class to another teacher', cw('classes/ABC234/t', 'authOth', tea), false);

@@ -7,10 +7,18 @@
         ".read": "auth != null && auth.uid === $uid && auth.token.email != null",
         ".write": "auth != null && auth.uid === $uid && auth.token.email != null",
         ".validate": "newData.hasChildren(['d', 'at', 'v'])",
-        "d": { ".validate": "newData.isString() && newData.val().length <= 3000000" },
-        "at": { ".validate": "newData.isNumber() && newData.val() <= now" },
-        "v": { ".validate": "newData.isString() && newData.val().length <= 12" },
-        "$other": { ".validate": false }
+        "d": {
+          ".validate": "newData.isString() && newData.val().length <= 3000000"
+        },
+        "at": {
+          ".validate": "newData.isNumber() && newData.val() <= now"
+        },
+        "v": {
+          ".validate": "newData.isString() && newData.val().length <= 12"
+        },
+        "$other": {
+          ".validate": false
+        }
       }
     },
     "certs": {
@@ -18,13 +26,27 @@
         ".read": true,
         ".write": "auth != null && auth.token.email != null && ((!data.exists() && newData.child('o').val() === auth.uid) || (data.child('o').val() === auth.uid && !newData.exists()))",
         ".validate": "$id.matches(/^[a-z2-9]{12}$/) && newData.hasChildren(['n', 't', 'at', 'o'])",
-        "n": { ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 60" },
-        "t": { ".validate": "newData.isString() && newData.val().length <= 120" },
-        "s": { ".validate": "newData.isString() && newData.val().length <= 200" },
-        "at": { ".validate": "newData.isNumber() && newData.val() <= now && newData.val() > now - 600000" },
-        "o": { ".validate": "newData.isString()" },
-        "v": { ".validate": "newData.isString() && newData.val().length <= 12" },
-        "$other": { ".validate": false }
+        "n": {
+          ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 60"
+        },
+        "t": {
+          ".validate": "newData.isString() && newData.val().length <= 120"
+        },
+        "s": {
+          ".validate": "newData.isString() && newData.val().length <= 200"
+        },
+        "at": {
+          ".validate": "newData.isNumber() && newData.val() <= now && newData.val() > now - 600000"
+        },
+        "o": {
+          ".validate": "newData.isString()"
+        },
+        "v": {
+          ".validate": "newData.isString() && newData.val().length <= 12"
+        },
+        "$other": {
+          ".validate": false
+        }
       }
     },
     "classes": {
@@ -32,34 +54,90 @@
         ".read": "auth != null && data.child('t').val() === auth.uid",
         ".write": "auth != null && auth.token.email != null && ((!data.exists() && newData.child('t').val() === auth.uid) || data.child('t').val() === auth.uid)",
         ".validate": "$code.matches(/^[A-HJ-NP-Z2-9]{6}$/) && newData.hasChildren(['t', 'n'])",
-        "t": { ".validate": "newData.isString() && (!data.exists() || newData.val() === data.val())" },
-        "n": { ".read": "auth != null", ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 60" },
-        "at": { ".validate": "newData.isNumber() && newData.val() <= now" },
+        "t": {
+          ".validate": "newData.isString() && (!data.exists() || newData.val() === data.val())"
+        },
+        "n": {
+          ".read": "auth != null",
+          ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 60"
+        },
+        "at": {
+          ".validate": "newData.isNumber() && newData.val() <= now"
+        },
         "m": {
           "$uid": {
             ".write": "auth != null && auth.token.email != null && auth.uid === $uid && root.child('classes').child($code).child('t').exists()",
             ".validate": "newData.hasChildren(['n', 'p'])",
-            "n": { ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 40" },
-            "p": {
-              "l": { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100000" },
-              "u": { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100000" },
-              "x": { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 10000000" },
-              "w": { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 10000000" },
-              "d": { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100000" },
-              "at": { ".validate": "newData.isNumber() && newData.val() <= now" },
-              "$other": { ".validate": false }
+            "n": {
+              ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 40"
             },
-            "$other": { ".validate": false }
+            "p": {
+              "l": {
+                ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100000"
+              },
+              "u": {
+                ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100000"
+              },
+              "x": {
+                ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 10000000"
+              },
+              "w": {
+                ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 10000000"
+              },
+              "d": {
+                ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100000"
+              },
+              "at": {
+                ".validate": "newData.isNumber() && newData.val() <= now"
+              },
+              "$other": {
+                ".validate": false
+              }
+            },
+            "h": {
+              "$hid": {
+                ".validate": "$hid.matches(/^[a-z0-9]{8}$/) && newData.isNumber() && newData.val() <= now"
+              }
+            },
+            "$other": {
+              ".validate": false
+            }
           }
         },
-        "$other": { ".validate": false }
+        "hw": {
+          ".read": "auth != null",
+          "$hid": {
+            ".validate": "$hid.matches(/^[a-z0-9]{8}$/) && newData.hasChildren(['k', 'r', 'due'])",
+            "k": {
+              ".validate": "newData.isString() && (newData.val() === 'l' || newData.val() === 'c')"
+            },
+            "r": {
+              ".validate": "newData.isString() && newData.val().matches(/^[a-z0-9:_-]{1,80}$/)"
+            },
+            "due": {
+              ".validate": "newData.isString() && newData.val().matches(/^20[0-9][0-9]-[01][0-9]-[0-3][0-9]$/)"
+            },
+            "at": {
+              ".validate": "newData.isNumber() && newData.val() <= now"
+            },
+            "$other": {
+              ".validate": false
+            }
+          }
+        },
+        "$other": {
+          ".validate": false
+        }
       }
     },
     "duel": {
-      "ping": { ".read": true },
-
+      "ping": {
+        ".read": true
+      },
       "admins": {
-        "$uid": { ".read": "auth != null && auth.uid === $uid" }
+        "$uid": {
+          ".read": "auth != null && auth.uid === $uid"
+        }
       },
       "owners": {
         "$pid": {
@@ -74,7 +152,6 @@
           ".write": "auth != null && auth.uid === $uid && ((!data.exists() && newData.isString() && root.child('duel/owners').child(newData.val()).val() === auth.uid) || !newData.exists())"
         }
       },
-
       "names": {
         "$key": {
           ".read": "auth != null",
@@ -98,7 +175,6 @@
           }
         }
       },
-
       "fl": {
         "$pid": {
           ".read": "auth != null && root.child('duel/uids').child(auth.uid).val() === $pid",
@@ -129,7 +205,6 @@
           ".write": "auth != null && (root.child('duel/uids').child(auth.uid).val() === $pid || (newData.exists() && newData.hasChildren(['mid', 'at']) && root.child('duel/uids').child(auth.uid).exists()))"
         }
       },
-
       "codes": {
         ".read": "auth != null && root.child('duel/admins').child(auth.uid).val() === true",
         "$code": {
@@ -143,7 +218,6 @@
           }
         }
       },
-
       "queue": {
         "$key": {
           ".read": "auth != null",
@@ -181,10 +255,26 @@
         "$mid": {
           ".read": "auth != null",
           ".write": "auth != null && ((!data.exists() && newData.child('pl').child(root.child('duel/uids').child(auth.uid).val()).exists()) || (data.child('pl').child(root.child('duel/uids').child(auth.uid).val()).exists() && !newData.exists()))",
-          "ff": { "$pid": { ".write": "auth != null && root.child('duel/uids').child(auth.uid).val() === $pid && data.parent().parent().child('pl').child($pid).exists()" } },
-          "hb": { "$pid": { ".write": "auth != null && root.child('duel/uids').child(auth.uid).val() === $pid && data.parent().parent().child('pl').child($pid).exists()" } },
-          "done": { "$pid": { ".write": "auth != null && root.child('duel/uids').child(auth.uid).val() === $pid && data.parent().parent().child('pl').child($pid).exists()" } },
-          "a": { "$pid": { ".write": "auth != null && root.child('duel/uids').child(auth.uid).val() === $pid && data.parent().parent().child('pl').child($pid).exists()" } }
+          "ff": {
+            "$pid": {
+              ".write": "auth != null && root.child('duel/uids').child(auth.uid).val() === $pid && data.parent().parent().child('pl').child($pid).exists()"
+            }
+          },
+          "hb": {
+            "$pid": {
+              ".write": "auth != null && root.child('duel/uids').child(auth.uid).val() === $pid && data.parent().parent().child('pl').child($pid).exists()"
+            }
+          },
+          "done": {
+            "$pid": {
+              ".write": "auth != null && root.child('duel/uids').child(auth.uid).val() === $pid && data.parent().parent().child('pl').child($pid).exists()"
+            }
+          },
+          "a": {
+            "$pid": {
+              ".write": "auth != null && root.child('duel/uids').child(auth.uid).val() === $pid && data.parent().parent().child('pl').child($pid).exists()"
+            }
+          }
         }
       },
       "shopPick": {
@@ -193,7 +283,6 @@
           ".write": "auth != null && (root.child('duel/admins').child(auth.uid).val() === true || (!data.exists() && root.child('duel/uids').child(auth.uid).exists()))"
         }
       },
-
       "wk": {
         "$week": {
           ".read": "auth != null",
@@ -204,7 +293,6 @@
           }
         }
       },
-
       "audit": {
         ".read": "auth != null && root.child('duel/admins').child(auth.uid).val() === true",
         "$id": {
@@ -212,8 +300,10 @@
           ".validate": "newData.child('a').isString() && newData.child('a').val().length <= 40"
         }
       },
-
-      "$other": { ".read": false, ".write": false }
+      "$other": {
+        ".read": false,
+        ".write": false
+      }
     }
   }
 }

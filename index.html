@@ -383,6 +383,16 @@ a.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;text
 .cd-brand b{font-size:15px;word-break:break-all}
 .cd-brand code{color:#9db4ff;background:rgba(106,168,255,.12)!important;padding:1px 6px!important;border-radius:5px!important}
 .cd-logo{display:grid;place-items:center;width:34px;height:34px;border-radius:10px;background:linear-gradient(135deg,#fff,#aab8ff);color:#0a1020;font-size:16px;flex:none;box-shadow:0 0 22px rgba(150,170,255,.45)}
+.gdbanner,.hwcard{display:flex;align-items:center;gap:12px;text-align:left;width:100%;max-width:520px;margin-top:10px;background:var(--surface);color:var(--text);border:1px solid var(--border);border-radius:16px;padding:12px 16px;min-height:64px;cursor:pointer;font:inherit;touch-action:manipulation}
+.hwcard{max-width:none;margin:12px 0 0;border-color:var(--accent)}.gdbanner b,.hwcard b{display:block}.gdbanner small,.hwcard small{display:block;color:var(--muted)}.hwcard span>span{display:block;color:var(--muted);font-size:14px}.gdbanner .go,.hwcard .go{margin-left:auto;font-size:20px}.gdic{font-size:28px;line-height:1}
+.gdcard{max-width:760px;margin:0 auto}.gdstep{margin:0;color:var(--muted);font-weight:700;font-size:14px}.gddots{display:flex;gap:6px;margin:8px 0 4px}.gddots i{width:32px;height:6px;border-radius:9px;background:var(--border)}.gddots i.on{background:var(--accent)}.gddots i.done{background:var(--good)}
+.gdopts{display:grid;gap:10px;margin:14px 0}.gdopt{display:flex;align-items:center;gap:14px;text-align:left;background:var(--surface);color:var(--text);border:2px solid var(--border);border-radius:16px;padding:14px 16px;min-height:64px;cursor:pointer;font:inherit;touch-action:manipulation}.gdopt:hover,.gdopt.on{border-color:var(--accent)}.gdopt b{display:block;font-size:18px}.gdopt small{color:var(--muted)}
+.gdpick{display:flex;gap:16px;align-items:flex-start;margin:10px 0}.gdpick h2{margin:0 0 4px}.gdplan li{margin:6px 0}
+.hwlist{list-style:none;padding:0;margin:8px 0;display:grid;gap:8px}.hwlist li{display:flex;justify-content:space-between;align-items:center;gap:10px;border:1px solid var(--border);border-radius:12px;padding:8px 12px}.hwlist li small{display:block;color:var(--muted)}.hwlist li.late small{color:var(--bad)}.hwlist li.done{opacity:.75}.hwbox{margin-top:14px;border-top:1px solid var(--border);padding-top:10px}.hwbox h4{margin:0 0 6px}.clsj{display:block}.hwstu{margin-top:6px}
+.pcbtn{margin-top:12px;width:100%}.pcmodal{position:fixed;inset:0;background:rgba(5,8,25,.72);display:flex;align-items:center;justify-content:center;z-index:200;padding:16px}.pcbox{background:var(--surface);color:var(--text);border-radius:18px;padding:16px;max-width:720px;width:100%;text-align:center}.pcbox img{width:100%;height:auto;border-radius:12px;display:block}
+.langbtn{font-variant-numeric:tabular-nums}.langmenu{position:absolute;z-index:210;background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:6px;display:grid;min-width:180px;box-shadow:0 12px 32px rgba(0,0,0,.3)}.langmenu button{background:none;border:0;color:var(--text);font:inherit;text-align:start;padding:10px 12px;min-height:44px;border-radius:10px;cursor:pointer}.langmenu button:hover,.langmenu button[aria-checked="true"]{background:var(--surface2)}
+.i18nnote{background:var(--surface2);border:1px dashed var(--border);border-radius:10px;padding:8px 12px;font-size:14px;margin:8px 0}
+[dir=rtl] code,[dir=rtl] .kbd,[dir=rtl] kbd{unicode-bidi:isolate;direction:ltr}[dir=rtl] pre,[dir=rtl] code,[dir=rtl] textarea,[dir=rtl] .cm-editor,[dir=rtl] #edhost,[dir=rtl] .out,[dir=rtl] .codeblock{direction:ltr;text-align:left}[dir=rtl] .continue,[dir=rtl] .gdopt,[dir=rtl] .gdbanner,[dir=rtl] .hwcard,[dir=rtl] .wkcard,[dir=rtl] .lcard{text-align:right}[dir=rtl] .go,[dir=rtl] .gdbanner .go,[dir=rtl] .hwcard .go{transform:scaleX(-1)}[dir=rtl] .gdbanner .go,[dir=rtl] .hwcard .go{margin-left:0;margin-right:auto}
 .cd-sim{margin:10px 0 0;padding:8px 12px;border-radius:10px;border:1px dashed var(--border, #3a4580);font-size:13px;line-height:1.45;opacity:.95}.cd-sim code{font-size:12px}
 .cd-pill{display:inline-flex;align-items:center;gap:8px;padding:6px 12px;border-radius:999px;border:1px solid var(--cd-line);background:rgba(255,255,255,.03);font-size:13px}
 .cd-pill i{width:9px;height:9px;border-radius:50%;background:var(--cd-dim)}
@@ -528,6 +538,6 @@ a.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;text
   window.__learnLoadFail=function(){show(navigator.onLine?'the main app file (app.js) could not be loaded':'you are offline and the app has not been saved for offline use yet')};
 })();
 </script>
-<script src="app.js?v=5.6" defer onerror="window.__learnLoadFail && window.__learnLoadFail()"></script>
+<script src="app.js?v=5.7" defer onerror="window.__learnLoadFail && window.__learnLoadFail()"></script>
 </body>
 </html>
