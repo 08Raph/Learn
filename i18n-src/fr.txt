@@ -664,3 +664,456 @@
 663|{0} XP avant Immortel
 664|Rang le plus élevé atteint !
 665|Se connecter
+666|Traduire cette page automatiquement
+667|Traduction…
+668|La traduction automatique n’est pas disponible pour le moment : une partie du texte est en anglais.
+669|Une partie du texte a été traduite automatiquement et peut contenir des erreurs.
+670|Voir l’original
+671|🎁 Boutique de cosmétiques
+672|📖 Catalogue
+673|🎒 Casier
+674|🧑 Studio d’avatar
+675|{0} XP à dépenser
+676|🎟 Codes et XP gratuits
+677|Saisis un code
+678|Utiliser
+679|Abonne-toi et gagne {0} XP par réseau
+680|Ouvrir TikTok
+681|Je me suis abonné · récupérer {0} XP
+682|Ouvrir YouTube
+683|🔑 Admin : créer des codes
+684|{0} / {1} possédés
+685|Acheter · {0} XP
+686|Ton rang compte toujours tous les XP que tu as gagnés.
+687|🎁 Boutique
+688|Tout ce que tu achètes est rangé ici. Pendant une partie, tu peux utiliser jusqu’à
+689|😀 Emotes équipées
+690|Retirer
+691|💬 Messages équipés
+692|GG
+693|Bonne chance !
+694|Bien joué !
+695|Oups !
+696|Revanche ?
+697|Waouh !
+698|Merci !
+699|Pas encore de bannières. Trouves-en dans la 🎁 Boutique.
+700|🎨 Couleurs et titres
+701|Rien ici pour l’instant.
+702|🧑 Articles d’avatar
+703|{0} achetés. Équipe-les dans le Studio d’avatar.
+704|Ouvrir le Studio d’avatar
+705|JavaScript · npm
+706|Python · pip
+707|Barre latérale
+708|Fichiers
+709|Paquets
+710|PROJET
+711|Nouveau fichier
+712|Nouveau dossier
+713|Replier tous les dossiers
+714|Replier les dossiers
+715|Déplacer vers le dossier
+716|Renommer (F{0})
+717|Supprimer
+718|Fichier principal (exécuté quand tu appuies sur Exécuter)
+719|Définir comme fichier principal
+720|Afficher ou masquer la barre latérale
+721|Afficher ou masquer la barre latérale
+722|Texte plus petit
+723|Texte plus grand
+724|Touches rapides
+725|Insérer une tabulation
+726|Tab
+727|TERMINAL
+728|Effacer le terminal
+729|Commande du terminal
+730|🎮 Multijoueur
+731|⚔️ Classé
+732|👥 Salons
+733|🤝 Amis
+734|🏆 Classement
+735|✨ Plus
+736|RANG {0}V{1}
+737|🥉 Bronze
+738|{0} pts avant Argent
+739|🟢 {0} en ligne
+740|Mode
+741|🏅 Classé
+742|Non classé
+743|Ton nom et ton langage
+744|✏️ Changer de nom · Gratuit
+745|Nouveau nom de joueur
+746|Enregistrer
+747|Annuler
+748|De {0} à {1} lettres, chiffres, espaces, - ou _. Uniquement des noms corrects, et chaque nom ne peut être utilisé que par un seul joueur. Le premier changement est gratuit, ensuite il coûte {2} XP.
+749|🎲 Mixte
+750|Les parties classées font évoluer ton rang {0}v{1}. Les parties non classées sont juste pour s’amuser. Tu as des coéquipiers au hasard, ou tu peux jouer avec des amis en groupe.
+751|Choisis {0}v{1}, {2}v{3} ou {4}v{5} pour jouer en groupe.
+752|Comment ça marche
+753|⚡ Partie éclair
+754|{0} / {1} · {2} bonnes réponses
+755|← Learn
+756|Université de génie logiciel
+757|Sections de l’Université
+758|Accueil
+759|Rechercher
+760|Tableau de bord
+761|Mes études
+762|Révision
+763|Départements
+764|Cours
+765|Vidéos
+766|Labos
+767|Examens
+768|Carrière
+769|Professeur IA
+770|Relevé de notes
+771|Un parcours d’autoformation gratuit, du niveau débutant jusqu’à des sujets de niveau master
+772|Apprends le génie logiciel comme on l’enseigne à l’université.
+773|Six étapes te mènent de « qu’est-ce qu’un ordinateur ? » à l’ingénierie de niveau principal : {0} cours, {1} leçons, des labos pratiques en Python, JavaScript, SQL et quatre autres langages, des examens notés et des projets finaux. Gratuit, dans ton navigateur, à ton rythme.
+774|Commencer : SEU {0} · Leçon {1} →
+775|Parcourir le catalogue
+776|Ce n’est pas un diplôme reconnu. Lis la note en bas de chaque page.
+777|Progression totale : {0} pour cent
+778|Étape actuelle
+779|{0} sur {1}
+780|Leçons
+781|Ton parcours académique
+782|Grand débutant
+783|Bases de l’informatique et de la programmation
+784|Pars de zéro. Découvre ce que font les ordinateurs, comment penser étape par étape, et écris tes premiers programmes en Python, JavaScript, HTML et CSS.
+785|{0}/{1} cours
+786|Examen final ouvert
+787|Ingénieur logiciel junior
+788|Bases du génie logiciel
+789|Programmation orientée objet, structures de données, algorithmes, bases de données, tests et travail d’équipe avec Git : la boîte à outils d’un ingénieur junior.
+790|🔒 Verrouillé
+791|Ingénieur logiciel intermédiaire
+792|Construire de vrais systèmes
+793|Architecture, sécurité, réseaux, systèmes d’exploitation, concurrence et livraison. Tu apprends comment s’assemblent les pièces d’une application en production.
+794|Ingénieur logiciel avancé
+795|Systèmes à grande échelle
+796|Systèmes distribués, conception de systèmes, performance, compilateurs, Rust, sécurité et fiabilité dans le cloud.
+797|Informatique et études de niveau master
+798|Théorie, mathématiques et recherche
+799|Les mathématiques et la théorie sous tout le reste : démonstrations, complexité, calculabilité, apprentissage automatique, méthodes formelles et recherche.
+800|Ingénieur logiciel professionnel
+801|Maîtrise professionnelle
+802|Explorer les départements →
+803|Centre carrière →
+804|Mon plan d’études →
+805|Étudier
+806|Les leçons expliquent chaque idée d’abord avec des mots simples, puis avec les bons termes techniques, avec des exemples et des schémas.
+807|S’entraîner
+808|Chaque cours de programmation a un devoir vérifié par des cas de test. Appuyer sur Exécuter ne suffit jamais pour réussir.
+809|Le prouver
+810|Des examens pour chaque cours et un examen final par étape. Tu peux les repasser ; chaque tentative est enregistrée.
+811|Les projets de chaque étape et les trois projets finaux deviennent ton portfolio.
+812|Obtenir de l’aide
+813|L’onglet Professeur IA contient un tuteur intégré qui fonctionne hors ligne et peut être relié à un vrai modèle d’IA.
+814|Regarder
+815|Ce n’est pas un diplôme reconnu.
+816|Fil d’Ariane
+817|🔎 Rechercher dans l’Université
+818|Trouve des cours, des leçons, des labos et des projets
+819|Tape un mot ou une phrase. Tous les mots doivent apparaître.
+820|Bon retour
+821|Cours actuel
+822|Suivant : Leçon {0}
+823|Continuer →
+824|Progression totale
+825|Étape {0}
+826|{0} min
+827|Progression façon diplôme
+828|En cours
+829|Aucun cours en cours. Choisis-en un dans le catalogue.
+830|Prochaines évaluations
+831|Examen final de l’étape {0}
+832|{0}/{1} cours terminés · note de réussite {2} %
+833|Notes des cours
+834|Les notes apparaissent ici quand tu termines un cours.
+835|Compétences maîtrisées
+836|Termine des cours pour ajouter des compétences à ton dossier.
+837|Conditions pour obtenir le diplôme
+838|Termine les {0} cours
+839|{0} sur {1} terminés
+840|Réussis les six examens finaux d’étape
+841|{0} sur {1} réussis
+842|Rends les {0} projets finaux
+843|{0} sur {1} rendus
+844|Relevé de notes et certificats →
+845|Ton plan, ton dossier
+846|Fixe-toi un objectif hebdomadaire, vois quoi faire ensuite et trouve les sujets à revoir. Tout ici vient de ton propre dossier sur cet appareil.
+847|🎯 Objectif de la semaine
+848|Leçons par semaine
+849|Un peu presque tous les jours vaut mieux que beaucoup une fois par semaine. Série : {0} jours.
+850|➡ À faire ensuite
+851|Fais le défi de la semaine
+852|{0} questions des cours que tu as commencés
+853|Sujets à revoir
+854|Aucune erreur enregistrée pour l’instant. Quand tu te trompes à une question, le cours apparaît ici.
+855|Favoris ({0})
+856|📝 Mes notes ({0})
+857|Ajoute une leçon aux favoris avec le bouton ☆ en bas de chaque page de leçon.
+858|Défi de la semaine
+859|Huit questions tirées des cours que tu as commencés, les mêmes toute la semaine. Pas encore tenté cette semaine. Semaines précédentes : aucune pour l’instant.
+860|Commencer le défi →
+861|Succès ({0} sur {1})
+862|○ Premier pas
+863|Termine une leçon
+864|○ C’est parti
+865|○ Engagé
+866|○ Studieux
+867|○ Examiné
+868|Réussis un examen
+869|○ Cours terminé
+870|Termine un cours entier
+871|○ Cinq cours
+872|Termine cinq cours
+873|○ Étape un
+874|Réussis l’examen final de l’étape {0}
+875|○ À mi-chemin
+876|○ Bâtisseur
+877|Rends un projet
+878|○ Régulier
+879|Étudie {0} jours d’affilée
+880|○ Explorateur
+881|Termine un cours optionnel d’un département
+882|○ Challenger
+883|Termine un défi de la semaine
+884|○ Prêt pour l’entretien
+885|Résous {0} exercices d’entretien
+886|Historique d’apprentissage
+887|Ton historique commence avec ta première leçon terminée.
+888|Révision espacée
+889|Les questions ratées reviennent jusqu’à ce que tu les saches
+890|Rien à revoir pour l’instant. Quand tu réponds mal à une question n’importe où dans l’Université, elle apparaît ici le lendemain.
+891|À venir
+892|Rien de prévu.
+893|Par cours
+894|Aucune question en révision.
+895|Les réponses de révision ne changent ni les notes, ni les résultats d’examen, ni les certificats. Elles décident seulement quand une question revient.
+896|Université technologique
+897|Huit départements, un seul catalogue
+898|{0} cours sur le parcours
+899|{0} cours sur le parcours · {1} cours optionnels propres
+900|Où en est chaque département ?
+901|Catalogue des cours
+902|Filtrer par étape
+903|Toutes les étapes
+904|Étape {0} · Grand débutant
+905|Aperçu de l’étape →
+906|Pas commencé
+907|{0} leçons
+908|Étape {0} · Ingénieur logiciel junior
+909|Étape {0} · Ingénieur logiciel intermédiaire
+910|Étape {0} · Ingénieur logiciel avancé
+911|Étape {0} · Informatique et études de niveau master
+912|Étape {0} · Ingénieur logiciel professionnel
+913|Vidéothèque
+914|Des cours en vidéo à côté des leçons écrites
+915|Filtrer les vidéos
+916|Filtrer les vidéos par département
+917|Cours magistral complet (environ {0} heures)
+918|Pas vue
+919|Cours complet (plusieurs heures)
+920|Environ une heure
+921|Cours complet (de nombreuses heures)
+922|Cours (moins d’une heure)
+923|Cours (plus d’une heure)
+924|Cours court (moins de {0} minutes)
+925|Cours complet (environ deux heures)
+926|Long cours (environ deux heures)
+927|Laboratoires
+928|Laboratoires de programmation
+929|Seize labos, un par langage
+930|Visualiseur d’algorithmes
+931|Avance pas à pas dans le tri, la recherche, les structures de données et la récursivité
+932|Studio d’entraînement
+933|Débogage, revue de code, SQL, normalisation, écriture de tests et conception de systèmes
+934|Vérification de l’environnement
+935|Vérifie quels environnements de langage fonctionnent en ce moment
+936|Simulateur de Git et du terminal
+937|{0} tâches notées : fichiers, recherche, commits, branches, fusions et conflits
+938|Fonctionne dans ton navigateur, hors ligne
+939|{0} devoirs notés
+940|Fonctionne en ligne
+941|{0} devoir noté
+942|HTML et CSS
+943|Aperçu en direct
+944|Ce qui fonctionne où
+945|Examens
+946|Dossier d’évaluations
+947|Étape {0} · Bases de l’informatique et de la programmation
+948|Examen
+949|Statut
+950|Tentatives
+951|Première
+952|Meilleure
+953|{0}/{1} leçons
+954|Verrouillé
+955|Passer
+956|Étape {0} · Bases du génie logiciel
+957|Étape {0} · Construire de vrais systèmes
+958|Étape {0} · Systèmes à grande échelle
+959|Étape {0} · Théorie, mathématiques et recherche
+960|Étape {0} · Maîtrise professionnelle
+961|Projets et portfolio
+962|Obtiens ton diplôme en ayant construit de vrais logiciels
+963|Ton portfolio ({0} projets sur {1})
+964|Projets de l’étape {0}
+965|SEU {0} · Ouvert
+966|SEU {0} · 🔒 Verrouillé
+967|Portfolio de l’étape {0} : cinq petites applications
+968|Centre carrière
+969|Transforme ce que tu as appris en preuves
+970|Choisis un métier pour voir quels cours il demande et où tu en es. Crée un CV à partir de ton vrai dossier, entraîne-toi aux entretiens et prépare la présentation d’un projet.
+971|Sections du centre carrière
+972|Métiers et compétences manquantes
+973|Créateur de CV
+974|Entraînement aux entretiens
+975|Présenter un projet
+976|Entretien d’essai
+977|Guide de l’emploi et des stages
+978|Métier
+979|Prêt à {0} %
+980|Développeur front-end
+981|Construit ce que les utilisateurs voient et touchent dans le navigateur : mise en page, interactions, accessibilité et performance.
+982|{0} cours principaux terminés sur {1}
+983|Développeur back-end
+984|Construit les services et les données derrière une application : API, bases de données, sécurité et fiabilité.
+985|Développeur full-stack
+986|Travaille sur le navigateur, le serveur et la base de données, et livre des fonctionnalités complètes.
+987|Ingénieur DevOps / fiabilité (SRE)
+988|Automatise la livraison et garde les systèmes en marche : pipelines, conteneurs, supervision, incidents et capacité.
+989|Ingénieur sécurité
+990|Trouve et corrige les failles, conçoit des systèmes sûrs, se prépare aux attaques et y répond.
+991|Ingénieur en apprentissage automatique
+992|Construit, évalue, déploie et surveille des modèles et les pipelines de données qui les entourent.
+993|Développeur mobile
+994|Crée des applications pour téléphones et tablettes qui restent rapides et utilisables avec une mauvaise connexion.
+995|Programmeur de jeux vidéo
+996|Écrit le code en temps réel des jeux : simulation, collisions, outils et systèmes où la performance compte.
+997|Programmeur embarqué / système
+998|Écrit du logiciel proche du matériel : micrologiciels, pilotes, systèmes d’exploitation et code sensible à la performance.
+999|🤖 Professeur IA
+1000|Un tuteur qui t’apprend au lieu de répondre à ta place
+1001|Mode d’enseignement
+1002|Enseignant pour débutants
+1003|Des mots simples, de petites étapes, des comparaisons de tous les jours.
+1004|Tuteur de programmation
+1005|Explique le code, le suit pas à pas et t’aide à trouver les bugs toi-même.
+1006|Professeur de mathématiques
+1007|Définitions, démonstrations détaillées et exercices.
+1008|Expert en algorithmes
+1009|Traces pas à pas et analyse de complexité.
+1010|Architecte logiciel
+1011|Examine les conceptions en posant les questions d’un ingénieur expérimenté.
+1012|Relecteur de code
+1013|Lit ton code comme un collègue attentif.
+1014|Examinateur
+1015|Te pose des questions et les note. Sans indices.
+1016|Directeur de recherche
+1017|T’aide à formuler des questions, lire des articles et concevoir des expériences.
+1018|Conversation
+1019|Enseignant pour débutants.
+1020|Sur quoi travailles-tu ?
+1021|Ton message (Entrée pour envoyer, Maj+Entrée pour une nouvelle ligne)
+1022|Envoyer
+1023|Effacer la conversation
+1024|Essaie une de ces questions
+1025|Que devrais-je étudier ensuite ?
+1026|Qu’est-ce que la récursivité ?
+1027|Explique la notation Big O
+1028|Démontre pourquoi le tri fusion est en n log n
+1029|Mode socratique
+1030|Le hachage, c’est une sorte de chiffrement, non ?
+1031|Déroule la recherche binaire sur {0} {1} {2} {3} {4} pour trouver {5}
+1032|Déroule le tri fusion sur {0} {1} {2} {3} {4}
+1033|Interroge-moi
+1034|Révision à partir de mes questions ratées
+1035|La conversation n’est gardée que jusqu’à ce que tu quittes cette page. Ce site ne l’enregistre ni ne l’envoie au-delà de la requête elle-même.
+1036|Relevé de notes et certificats
+1037|Dossier scolaire
+1038|Nom à imprimer sur ton relevé de notes et tes certificats
+1039|🖨 Imprimer ou enregistrer en PDF
+1040|Relevé de notes
+1041|Université de génie logiciel · Relevé de notes
+1042|Étudiant
+1043|· émis le {0}-{1}-{2} · {3} cours terminés sur {4}
+1044|Code
+1045|Cours
+1046|Devoir
+1047|Examen (meilleur / tentatives)
+1048|Projet
+1049|Note
+1050|† contient des notes auto-évaluées. Temps d’étude enregistré : {0} min.
+1051|Certificats
+1052|Les certificats attestent la réussite du parcours de ce site. Chacun indique qu’il ne s’agit pas d’un diplôme reconnu.
+1053|{0} cours sur {1} · examen final non réussi
+1054|Pas encore obtenu
+1055|Parcours complet
+1056|Parcours de génie logiciel, jusqu’à des sujets de niveau master
+1057|~{0} heures
+1058|Progression du cours
+1059|Commencer : Leçon {0} →
+1060|Objectifs d’apprentissage
+1061|Prérequis
+1062|Aucun. Ce cours ne suppose aucune connaissance préalable.
+1063|Évaluation
+1064|🧪 Devoir de programmation
+1065|Vérifié par des cas de test
+1066|Ouvrir le devoir
+1067|📝 Examen du cours
+1068|{0} questions · environ {1} minutes · note de réussite {2} %
+1069|S’ouvre quand toutes les leçons sont terminées
+1070|🗂 Projet du cours
+1071|Construis-le, puis rends tes preuves
+1072|Ouvrir le sujet du projet
+1073|Pour aller plus loin
+1074|Aide et vidéo
+1075|🤖 Pose une question au Professeur IA sur ce cours
+1076|Explications, indices et questions de révision
+1077|🎬 Cours vidéo associés
+1078|{0} disponibles
+1079|Leçon {0}
+1080|Environ {0} minutes
+1081|🎬 Tu préfères regarder ?
+1082|Vérification des connaissances
+1083|Vérification {0}
+1084|Mes notes
+1085|SEU {0} · Projet du cours
+1086|Construis-le en dehors du navigateur ou dans l’espace de travail de Learn, puis note tes preuves ici.
+1087|Objectifs
+1088|Étapes
+1089|Un ordre de travail conseillé. Coche chaque étape quand tu l’atteins ; elles sont enregistrées avec ton brouillon et servent à ta propre organisation.
+1090|Étape {0} : Planifier.
+1091|Étape {0} : Une première partie qui marche.
+1092|Étape {0} : Remplir les exigences.
+1093|Étape {0} : Tester et réunir des preuves.
+1094|Étape {0} : Relire et rendre.
+1095|Relis le travail ligne par ligne avec la grille, comme un correcteur exigeant, corrige ce qui manque, écris ta réflexion et rends-le.
+1096|Exigences
+1097|Coche chacune seulement quand ton projet le fait vraiment.
+1098|Livrables
+1099|Preuves
+1100|Lien vers ton dépôt ou une démo en ligne (facultatif, doit commencer par https://)
+1101|Réflexion : ce que tu as construit et ce que tu as appris (au moins {0} mots)
+1102|{0} mots
+1103|Grille d’auto-évaluation
+1104|Il n’y a pas de correcteur humain ici. Note-toi comme le ferait un correcteur exigeant ; le relevé indique que les notes de projet sont auto-évaluées.
+1105|Pas encore
+1106|En partie
+1107|Entièrement
+1108|Conseils pour le rendu
+1109|Critères de réussite
+1110|Le projet est enregistré comme terminé quand tout ceci est vrai :
+1111|Toutes les exigences sont cochées ({0}).
+1112|Tous les livrables sont cochés ({0}).
+1113|Ton explication fait au moins {0} mots.
+1114|Tu as choisi un niveau pour chacune des {0} lignes de la grille.
+1115|La note est ta propre évaluation. Elle apparaît sur le relevé marquée comme auto-évaluée, car personne d’autre n’a examiné le travail.
+1116|Rendre le projet
+1117|Enregistrer le brouillon
+1118|← Cours

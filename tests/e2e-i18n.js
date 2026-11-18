@@ -12,9 +12,12 @@ const loadL = (c) => { const w = {}; try { require('vm').runInNewContext(fs.read
 const LANGS = { es: 'es-ES', fr: 'fr-FR', zh: 'zh-CN', hi: 'hi-IN', ar: 'ar-SA' };
 (async () => {
   const srv = spawn('python3', ['-m', 'http.server', String(PORT), '--directory', ROOT], { stdio: 'ignore' }); await new Promise((r) => setTimeout(r, 1200));
-  const b = await chromium.launch(); const errs = []; const aiBodies = [];
+  const b = await chromium.launch(); const errs = []; const aiBodies = []; const trSent = [];
+  const J = (r, st, o) => r.fulfill({ status: st, contentType: 'application/json', headers: { 'access-control-allow-origin': '*' }, body: JSON.stringify(o) });
+  let TR = (r, bd) => J(r, 200, { items: [] }); // MOCKED /translate: by default it translates nothing
   const mk = async (locale, seed) => { const ctx = await b.newContext(Object.assign({}, devices['iPad (gen 7) landscape'], { serviceWorkers: 'block', locale }));
-    await ctx.route(/^https?:\/\/(?!localhost)/, (r) => { if (EP && r.request().url().startsWith(EP)) { aiBodies.push(r.request().postData() || ''); return r.fulfill({ status: 200, contentType: 'application/json', headers: { 'access-control-allow-origin': '*' }, body: JSON.stringify({ reply: 'Respuesta de prueba' }) }); } return r.abort(); });
+    await ctx.route(/^https?:\/\/(?!localhost)/, (r) => { if (EP && r.request().url() === EP + 'translate') { const bd = JSON.parse(r.request().postData() || '{}'); trSent.push(bd); return TR(r, bd); }
+      if (EP && r.request().url().startsWith(EP)) { aiBodies.push(r.request().postData() || ''); return r.fulfill({ status: 200, contentType: 'application/json', headers: { 'access-control-allow-origin': '*' }, body: JSON.stringify({ reply: 'Respuesta de prueba' }) }); } return r.abort(); });
     if (seed) await ctx.addInitScript((s) => { if (!sessionStorage.getItem('seeded')) { sessionStorage.setItem('seeded', '1'); localStorage.setItem('learn-code-v2', JSON.stringify(s)); } }, seed);
     const p = await ctx.newPage(); p.on('pageerror', (e) => errs.push(locale + ': ' + e.message.slice(0, 160))); return { ctx, p }; };
   try {
@@ -41,7 +44,7 @@ const LANGS = { es: 'es-ES', fr: 'fr-FR', zh: 'zh-CN', hi: 'hi-IN', ar: 'ar-SA' 
       if (c === 'ar') ok('ar: code inside Arabic sentences stays left to right', await p.evaluate(() => getComputedStyle(document.querySelector('.task code')).direction === 'ltr' && getComputedStyle(document.querySelector('.task code')).unicodeBidi === 'isolate'));
       ok(c + ': a translated lesson shows no "English only" note', await p.locator('.i18nnote').count() === 0);
       await p.goto(BASE + '#/js/hello'); await p.waitForSelector('#runBtn'); await p.waitForTimeout(400);
-      ok(c + ': a lesson that is not translated yet says so in that language', (await p.innerText('.i18nnote')).includes(L.lessonNote.slice(0, 12)));
+      ok(c + ': with automatic translation on, a lesson with no hand translation shows no "English for now" note', await p.locator('.i18nnote').count() === 0);
       if (c === 'es') { aiBodies.length = 0; await p.goto(BASE + '#/py/hello'); await p.waitForSelector('#aiBtn'); await p.click('#aiBtn'); await p.waitForSelector('#aiHelp .aiq'); await p.fill('#aiHelp .aiq', '¿por qué?'); await p.click('#aiHelp .aigo'); await p.waitForSelector('.aians', { timeout: 10000 });
         ok('es: the AI is asked to answer in Spanish (MOCKED AI service)', aiBodies.some((x) => /Español: answer in that language/.test(x))); }
       await p.goto(BASE + '#/start'); await p.waitForSelector('.gdopt'); ok(c + ': the start guide is translated', (await p.evaluate(() => window.__learnI18n.harvest(document.querySelector('#app')))).filter(still).length === 0);
@@ -81,9 +84,58 @@ const LANGS = { es: 'es-ES', fr: 'fr-FR', zh: 'zh-CN', hi: 'hi-IN', ar: 'ar-SA' 
       ok('progress card: finishing a level says so and offers 📸 Share it', /You finished the Beginner level/.test(await p.innerText('.verdict')) && await p.locator('#vShare').count() === 1, await p.innerText('.verdict'));
       await p.click('#vShare'); await p.waitForSelector('.pcmodal img'); ok('progress card: its picture is titled for that level', /I finished Python Beginner!/.test(await p.getAttribute('.pcmodal img', 'alt')));
       await ctx.close(); }
+
+    /* 6. 5.8 automatic translation of text without a hand translation (MOCKED /translate service) */
+    { const L = loadL('es'); TR = (r, bd) => J(r, 200, { items: bd.items.map((x) => '«ES» ' + x) }); trSent.length = 0;
+      const { ctx, p } = await mk('es-ES', { seenPatch: '99' });
+      await p.goto(BASE + '#/js/hello'); await p.waitForSelector('#runBtn'); await p.waitForFunction(() => document.querySelector('.learn .body [data-autotr]'), null, { timeout: 15000 }); await p.waitForTimeout(600);
+      const body = await p.innerHTML('.learn .body'); const sent = trSent.flatMap((x) => x.items);
+      ok('auto: English text with no hand translation is sent in Spanish mode and the answer is shown', trSent.length >= 1 && trSent.every((x) => x.lang === 'es') && /«ES» Every program talks to you/.test(await p.innerText('.learn .body')));
+      ok('auto: code is never sent or changed (example block, editor)', !/«ES»/.test(await p.innerText('.codeblock')) && !/«ES»/.test(await p.evaluate(() => document.querySelector('#edhost').innerText)) && !sent.some((x) => /console\.log\("Hi there/.test(x)));
+      ok('auto: inline code goes as a placeholder and comes back as the original code', sent.some((x) => /<x i="0"\/>/.test(x)) && /<code[^>]*>console\.log\(\)<\/code>/.test(body) && !sent.some((x) => /<code/.test(x)));
+      ok('auto: hand translations win, so text that has one is never sent', !sent.some((x) => L.ui[x.replace(/<[^>]+>/g, '')] !== undefined));
+      ok('auto: brand and language names alone are not sent; ordinary single words are', !sent.some((x) => /^(JavaScript|Python|TikTok|YouTube|Learn)$/.test(x)));
+      ok('auto: the small note says it was translated automatically, with Show original and ✕', (await p.innerText('#autoTrNote')).includes(L.ui['Some text was translated automatically and may contain mistakes.']) && await p.locator('#autoTrBtn').count() === 1 && await p.locator('#autoTrX').count() === 1);
+      const n1 = trSent.length; await p.goto(BASE + '#/'); await p.waitForTimeout(800); await p.goto(BASE + '#/js/hello'); await p.waitForSelector('.learn .body [data-autotr]', { timeout: 10000 }); await p.waitForTimeout(800);
+      ok('auto: coming back uses the saved translation without asking again', trSent.filter((x) => x.items.some((i) => /Every program talks/.test(i))).length === 1, trSent.length - n1);
+      await p.reload(); await p.waitForSelector('#runBtn'); await p.waitForSelector('.learn .body [data-autotr]', { timeout: 10000 }); await p.waitForTimeout(600);
+      ok('auto: after a reload the translation comes from this device (Cache Storage), not the service', trSent.filter((x) => x.items.some((i) => /Every program talks/.test(i))).length === 1);
+      await p.click('#autoTrBtn'); await p.waitForTimeout(900);
+      ok('auto: Show original puts the English back and offers to translate again', /^Every program talks/.test((await p.innerText('.learn .body')).trim()) && (await p.innerText('#autoTrNote')).includes(L.ui['Translate this page automatically']) && JSON.parse(await p.evaluate(() => localStorage.getItem('learn-code-v2'))).autoTr === false);
+      ok('auto: with it switched off, a lesson with no hand translation says it is in English for now', (await p.innerText('.i18nnote')).includes(L.lessonNote.slice(0, 12)));
+      ok('auto: hand-translated interface text stays translated with Show original', (await p.innerText('#runBtn')).includes(L.ui['▶ Run and check']));
+      await p.click('#autoTrBtn'); await p.waitForSelector('.learn .body [data-autotr]', { timeout: 10000 });
+      ok('auto: switching it back on translates again', /«ES» Every program/.test(await p.innerText('.learn .body')));
+      await p.click('#autoTrX'); await p.waitForTimeout(300); ok('auto: ✕ hides the note for this screen', await p.locator('#autoTrNote').count() === 0);
+      await p.goto(BASE + '#/js/variables'); await p.waitForSelector('#autoTrNote', { timeout: 10000 }); ok('auto: the note comes back on the next screen', true);
+      await ctx.close(); }
+    { TR = (r, bd) => J(r, 200, { items: bd.items.map((x) => '«ES» ' + x + ' <img src=x onerror="window.__pwn=1"><script>window.__pwn=2</script><a href="javascript:window.__pwn=3">x</a> <b onclick="window.__pwn=4">b</b>') });
+      const { ctx, p } = await mk('es-ES', { seenPatch: '99' }); await p.goto(BASE + '#/js/hello'); await p.waitForSelector('.learn .body [data-autotr]', { timeout: 15000 }); await p.waitForTimeout(800);
+      const bad = await p.evaluate(() => ({ pwn: window.__pwn, tags: document.querySelectorAll('#app [data-autotr] img, #app [data-autotr] script, #app [data-autotr] [onclick], #app [data-autotr] a[href^="javascript"]').length }));
+      ok('auto: unsafe HTML in an answer is removed before it is shown (no script, image, handler or javascript: link)', bad.pwn === undefined && bad.tags === 0, JSON.stringify(bad));
+      await ctx.close(); }
+    { TR = (r, bd) => J(r, 200, { items: bd.items.map(() => '') }); trSent.length = 0; // a service that refuses every piece
+      const { ctx, p } = await mk('fr-FR', { seenPatch: '99' }); await p.goto(BASE + '#/js/loops'); await p.waitForSelector('#runBtn'); await p.waitForTimeout(2500); const n = trSent.length;
+      await p.evaluate(() => { const d = document.createElement('p'); d.textContent = 'A new sentence appears on the page.'; document.querySelector('.learn .body').appendChild(d); }); await p.waitForTimeout(2500);
+      ok('auto: each request is one small batch (at most 20 pieces, 3,500 characters)', n >= 1 && trSent.every((x) => x.items.length <= 20 && x.items.join('').length <= 3500));
+      ok('auto: a piece the service refuses is not asked for again and again', trSent.length === n + 1 && trSent[n].items.length === 1, trSent.length + ' vs ' + n);
+      await ctx.close(); }
+    { TR = (r) => J(r, 429, { error: 'daily limit reached' }); const L = loadL('es');
+      const { ctx, p } = await mk('es-ES', { seenPatch: '99' }); await p.goto(BASE + '#/js/hello'); await p.waitForSelector('#autoTrNote', { timeout: 15000 }); await p.waitForTimeout(800);
+      ok('auto: when the daily limit is reached it says so, keeps the hand translations and shows the rest in English', (await p.innerText('#autoTrNote')).includes(L.ui['Automatic translation is not available right now, so some text is in English.']) && /^Every program talks/.test((await p.innerText('.learn .body')).trim()) && (await p.innerText('#runBtn')).length > 0);
+      const n = trSent.length; await p.goto(BASE + '#/js/variables'); await p.waitForTimeout(1500); ok('auto: after a limit it waits instead of asking again on every screen', trSent.length === n);
+      await ctx.close(); }
+    { TR = (r, bd) => J(r, 200, { items: bd.items.map((x) => '«AR» ' + x) }); trSent.length = 0;
+      const { ctx, p } = await mk('ar-SA', { seenPatch: '99' }); await p.goto(BASE + '#/js/hello'); await p.waitForSelector('.learn .body [data-autotr]', { timeout: 15000 });
+      ok('auto: Arabic asks for Arabic, the page stays right to left and code stays left to right', trSent.every((x) => x.lang === 'ar') && await p.evaluate(() => document.documentElement.dir) === 'rtl' && await p.evaluate(() => getComputedStyle(document.querySelector('.learn .body code')).direction) === 'ltr');
+      await ctx.close(); }
+    { TR = (r, bd) => J(r, 200, { items: bd.items.map((x) => '«EN?» ' + x) }); trSent.length = 0;
+      const { ctx, p } = await mk('en-US', { seenPatch: '99' }); await p.goto(BASE + '#/js/hello'); await p.waitForSelector('#runBtn'); await p.waitForTimeout(1500);
+      ok('auto: in English nothing is sent and no note is shown', trSent.length === 0 && await p.locator('#autoTrNote').count() === 0);
+      await ctx.close(); }
     ok('no page errors', errs.length === 0, errs.slice(0, 4).join(' | '));
   } catch (e) { ok('test run crashed', false, e.stack); }
   await b.close(); srv.kill();
-  console.log(fail + ' failed of ' + (pass + fail) + ' (local server; external hosts blocked; MOCKED AI service; translation quality is not tested)');
+  console.log(fail + ' failed of ' + (pass + fail) + ' (local server; external hosts blocked; MOCKED AI and /translate services; translation quality is not tested)');
   process.exit(fail ? 1 : 0);
 })();

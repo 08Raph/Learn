@@ -12712,7 +12712,7 @@ function tr(s) {
   const { k, nums } = i18nKey(s); const v = nums.length ? u[k] : null; return v ? v.replace(/\{(\d+)\}/g, (m, n) => (nums[+n] !== undefined ? nums[+n] : m)) : s;
 }
 const I18N_SKIP = 'pre, code, textarea, script, style, .cm-editor, #edhost, #termhost, #deployhost, .codeblock, .err, [data-noi18n], .kbd'; // the output box's labels are translated; program output (pre) and error text (.err) never are
-function i18nText(node) { const raw = node.nodeValue; const s = raw.trim(); if (!s || !/[A-Za-z]/.test(s)) return; const t = tr(s); if (t !== s) node.nodeValue = raw.replace(s, t); }
+function i18nText(node) { const raw = node.nodeValue; const s = raw.trim(); if (!s || !/[A-Za-z]/.test(s)) return; const t = tr(s); if (t !== s) node.nodeValue = raw.replace(s, t); if (t !== s || trHas(s)) TRN.add(node); }
 function i18nApply(root) {
   if (!I18N || !root) return; I18N_BUSY = true;
   try {
@@ -12723,8 +12723,8 @@ function i18nApply(root) {
     let n = root; do { if (n.nodeType === 3) i18nText(n); else for (const a of ['placeholder', 'aria-label', 'title', 'alt']) { const v = n.getAttribute(a); if (v && /[A-Za-z]/.test(v)) { const t = tr(v.trim()); if (t !== v.trim()) n.setAttribute(a, t); } } } while ((n = w.nextNode()));
   } finally { I18N_BUSY = false; }
 }
-const i18nObs = new MutationObserver((recs) => { if (!I18N || I18N_BUSY) return; for (const r of recs) { if (r.type === 'characterData') i18nApply(r.target); else r.addedNodes.forEach((n) => i18nApply(n)); } i18nObs.takeRecords(); i18nUniNote(); });
-function i18nUniNote() { if (!I18N || view.name !== 'uni' || $('#i18nUni')) return; const w = $('#app > *'); if (!w) return; I18N_BUSY = true; w.insertAdjacentHTML('afterbegin', '<p class="i18nnote" id="i18nUni" role="note">🌐 ' + esc(I18N.uniNote || 'The University is in English for now.') + '</p>'); I18N_BUSY = false; }
+const i18nObs = new MutationObserver((recs) => { if (!I18N || I18N_BUSY) return; recs = recs.filter((r) => !(r.target.closest ? r.target : r.target.parentElement || document.body).closest('#autoTrNote, #langMenu')); if (!recs.length) return; for (const r of recs) { if (r.type === 'characterData') i18nApply(r.target); else r.addedNodes.forEach((n) => i18nApply(n)); } i18nObs.takeRecords(); i18nUniNote(); autoScanSoon(); });
+function i18nUniNote() { if (!I18N || S.autoTr !== false || view.name !== 'uni' || $('#i18nUni')) return; const w = $('#app > *'); if (!w) return; I18N_BUSY = true; w.insertAdjacentHTML('afterbegin', '<p class="i18nnote" id="i18nUni" role="note">🌐 ' + esc(I18N.uniNote || 'The University is in English for now.') + '</p>'); I18N_BUSY = false; }
 function i18nLoad(code) {
   return new Promise((ok, no) => { if (window.LEARN_I18N && window.LEARN_I18N.code === code) return ok(window.LEARN_I18N);
     const s = document.createElement('script'); s.src = 'i18n/' + code + '.js?v=' + APP_VERSION; s.onload = () => (window.LEARN_I18N && window.LEARN_I18N.code === code ? ok(window.LEARN_I18N) : no(new Error('bad file'))); s.onerror = () => no(new Error('load')); document.head.appendChild(s); });
@@ -12733,7 +12733,7 @@ async function i18nSet(code, rerender) {
   if (code === 'en') { I18N = null; i18nObs.disconnect(); }
   else { try { I18N = await i18nLoad(code); } catch (e) { toast('🌐 That language could not be loaded' + (navigator.onLine ? '. Try again.' : ': you are offline.')); return false; } i18nObs.observe(document.body, { childList: true, subtree: true, characterData: true }); }
   const de = document.documentElement; de.lang = code === 'zh' ? 'zh-Hans' : code; de.dir = I18N && I18N.dir === 'rtl' ? 'rtl' : 'ltr';
-  if (rerender) render(); else i18nApply(document.body); return true;
+  if (rerender) render(); else i18nApply(document.body); autoScanSoon(); return true;
 }
 function LT(lang, les, f) { const t = I18N && I18N.lessons && I18N.lessons[lang + ':' + les.id]; return t && t[f] ? t[f] : les[f]; }
 const lessonTranslated = (lang, les) => !!(I18N && I18N.lessons && I18N.lessons[lang + ':' + les.id]);
@@ -12756,6 +12756,122 @@ window.__learnI18n = { // read-only hooks for tests and for building the transla
     let n; while ((n = w.nextNode())) { if (n.nodeType === 3) { const s = n.nodeValue.trim(); if (s && /[A-Za-z]{2}/.test(s)) out.add(i18nKey(s).k); } else for (const a of ['placeholder', 'aria-label', 'title', 'alt']) { const v = (n.getAttribute(a) || '').trim(); if (v && /[A-Za-z]{2}/.test(v)) out.add(i18nKey(v).k); } } return [...out]; },
   key: (s) => i18nKey(s).k, lang: () => uiLang(), set: (c) => { S.uiLang = c; save(); return i18nSet(c, true); }, tr: (s) => tr(s),
 };
+
+/* ===== 5.8 Automatic translation of everything without a hand translation =====
+   After the hand translations are applied, any English text still on screen is sent (in small pieces, code replaced by
+   placeholders) to the site's own AI service (POST /translate on the Worker), and the answer is checked, cleaned and put in place.
+   Translations are kept on this device (memory + Cache Storage) and on Cloudflare, so a piece is translated once.
+   It can be switched off with "Show original". Hand translations always win: only text they do not cover is sent. */
+const TRN = new WeakSet(); // text nodes already in the chosen language (hand-translated, or translated automatically)
+const trEp = () => new URL('translate', AI_ENDPOINT).href;
+const AUTO_BLOCKS = 'p,li,h1,h2,h3,h4,h5,h6,td,th,dd,dt,summary,figcaption,blockquote,label,button,legend,caption,option,small,div';
+const AUTO_INLINE = new Set(['B', 'STRONG', 'EM', 'I', 'U', 'S', 'SUB', 'SUP', 'BR', 'MARK', 'SMALL', 'A', 'CODE', 'KBD']);
+const AUTO_OPTS = '.opt, .u-opt, .ux-opt, .uv-opts button, .ux-revopts *'; // answer choices are often program output: only sentences are translated
+const STOPW = /\b(the|a|an|is|are|was|it|its|of|to|in|and|or|for|with|that|this|these|not|no|be|by|on|as|from|can|will|all|each|only|when|if|you|your|what|which|how|does|do)\b/i;
+const AUTO = { mem: new Map(), busy: 0, applied: 0, off: 0, err: '', timer: 0, hid: '', tried: new Set() };
+const AUTO_KEEP = new Set(['TikTok', 'YouTube', 'GitHub', 'Google', 'Firebase', 'Cloudflare', 'Learn', 'SEU', 'HTML', 'CSS', 'SQL', 'API', 'XP', 'GG', 'Git', 'npm', 'pip', 'iPad', 'iPhone', 'Android', 'Unity', 'Linux', 'macOS', 'Windows', 'Node.js', 'Pyodide', 'Rust', 'Go']);
+function autoSkip(s) { // single words that stay as they are: names, brands and identifiers. Ordinary words (Search, Dashboard) are translated.
+  if (s.length < 3) return true; if (/\s/.test(s)) return false;
+  const w = s.replace(/^[^A-Za-z]+|[^A-Za-z+#]+$/g, '');
+  if (!w || AUTO_KEEP.has(w) || Object.values(LANGS).some((l) => l.name === w || l.short === w)) return true;
+  if (/[0-9_$@\\/<>=(){}[\];]/.test(s) || /\.[a-z]/.test(s) || /[a-z][A-Z]/.test(w) || /^[A-Z0-9]+$/.test(w)) return true; // code, files, camelCase, acronyms
+  return false;
+}
+const autoOn = () => !!I18N && S.autoTr !== false && !!AI_ENDPOINT && Date.now() > AUTO.off;
+function trHas(s) { if (!I18N) return false; if (I18N.ui[s] !== undefined) return true; const { k, nums } = i18nKey(s); return nums.length > 0 && I18N.ui[k] !== undefined; }
+const escT = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+function autoItem(owner) { // html mode when the block holds only simple inline markup; code becomes <x i="N"/>
+  const keep = []; let okHtml = true;
+  owner.querySelectorAll('*').forEach((el) => { if (!okHtml) return; if (!AUTO_INLINE.has(el.tagName)) { okHtml = false; return; }
+    if (el.tagName === 'CODE' || el.tagName === 'KBD') return; for (const a of el.attributes) if (!(el.tagName === 'A' && a.name === 'href' && /^(#|https?:)/.test(a.value)) && a.name !== 'class') { okHtml = false; return; } });
+  if (!okHtml) return null;
+  const c = owner.cloneNode(true); c.querySelectorAll('code, kbd').forEach((el) => { keep.push(el.outerHTML); el.replaceWith(document.createRange().createContextualFragment('<x i="' + (keep.length - 1) + '"></x>')); });
+  c.querySelectorAll('[class]').forEach((el) => { if (el.tagName !== 'X') el.removeAttribute('class'); });
+  const html = c.innerHTML.replace(/<x i="(\d+)"><\/x>/g, '<x i="$1"/>').trim();
+  return html && html.length <= 2500 ? { html, keep } : null;
+}
+function autoClean(out, keep) { // only simple inline tags survive; placeholders go back to the original code
+  const tpl = document.createElement('template'); tpl.innerHTML = String(out).replace(/<x i="(\d+)"\s*\/>/g, '<x-ph data-i="$1"></x-ph>');
+  const walk = (node) => { [...node.childNodes].forEach((ch) => { if (ch.nodeType !== 1) return; const tag = ch.tagName;
+    if (tag === 'X-PH') { const k = keep[+ch.getAttribute('data-i')]; if (k === undefined) { ch.remove(); return; } ch.replaceWith(document.createRange().createContextualFragment(k)); return; }
+    if (!AUTO_INLINE.has(tag) || tag === 'CODE' || tag === 'KBD') { ch.replaceWith(document.createTextNode(ch.textContent)); return; }
+    for (const a of [...ch.attributes]) if (!(tag === 'A' && a.name === 'href' && /^(#|https?:)/.test(a.value))) ch.removeAttribute(a.name); walk(ch); }); };
+  walk(tpl.content); return tpl;
+}
+function autoScanSoon() { if (!autoOn()) { autoNote(); return; } clearTimeout(AUTO.timer); AUTO.timer = setTimeout(autoScan, 350); }
+async function trHash(s) { try { const d = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(s)); return [...new Uint8Array(d)].map((x) => x.toString(16).padStart(2, '0')).join(''); } catch (e) { return null; } }
+async function trCacheGet(lang, item) { const mk = lang + '\n' + item; if (AUTO.mem.has(mk)) return AUTO.mem.get(mk);
+  try { const h = await trHash(mk); if (!h || !window.caches) return null; const c = await caches.open('learn-tr'); const r = await c.match(location.origin + '/__tr/' + lang + '/' + h); if (!r) return null; const v = await r.text(); AUTO.mem.set(mk, v); return v; } catch (e) { return null; } }
+async function trCachePut(lang, item, v) { const mk = lang + '\n' + item; AUTO.mem.set(mk, v);
+  try { const h = await trHash(mk); if (!h || !window.caches) return; const c = await caches.open('learn-tr'); await c.put(location.origin + '/__tr/' + lang + '/' + h, new Response(v)); } catch (e) {} }
+function autoCollect() {
+  const jobs = []; const seen = new Set(); const app = $('#app'); if (!app) return jobs;
+  const w = document.createTreeWalker(app, NodeFilter.SHOW_TEXT, { acceptNode: (n) => (n.parentElement && !n.parentElement.closest(I18N_SKIP + ', [data-autotr], .aians, .aiq, .i18nnote, #autoTrNote') ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT) });
+  let n; while ((n = w.nextNode()) && jobs.length < 80) {
+    if (TRN.has(n)) continue; const s = n.nodeValue.trim(); if (s.length < 3 || !/[A-Za-z]{2}/.test(s) || trHas(s)) continue;
+    if (autoSkip(s)) continue;
+    const owner = n.parentElement.closest(AUTO_BLOCKS) || n.parentElement; if (seen.has(owner)) continue;
+    if (owner.closest(AUTO_OPTS) && !STOPW.test(owner.textContent)) { TRN.add(n); continue; }
+    seen.add(owner);
+    const it = autoItem(owner);
+    if (it) jobs.push({ owner, item: it.html, keep: it.keep, mode: 'html', snap: owner.innerHTML });
+    else { // mixed content (buttons, icons, inputs): translate its loose text pieces one by one
+      const tw = document.createTreeWalker(owner, NodeFilter.SHOW_TEXT, { acceptNode: (m) => (m.parentElement.closest(I18N_SKIP + ', [data-autotr]') || m.parentElement.closest(AUTO_BLOCKS) !== owner ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT) });
+      let m; while ((m = tw.nextNode())) { const t = m.nodeValue.trim(); if (TRN.has(m) || t.length < 3 || !/[A-Za-z]{2}/.test(t) || trHas(t) || autoSkip(t)) continue; jobs.push({ node: m, owner, item: escT(t), keep: [], mode: 'text', snap: m.nodeValue }); }
+    }
+  }
+  return jobs;
+}
+function autoApply(j, out) {
+  I18N_BUSY = true;
+  try {
+    if (j.mode === 'html') { if (!j.owner.isConnected || j.owner.innerHTML !== j.snap) return; const tpl = autoClean(out, j.keep); j.owner.replaceChildren(tpl.content); j.owner.dataset.autotr = I18N.code;
+      const tw = document.createTreeWalker(j.owner, NodeFilter.SHOW_TEXT); let t; while ((t = tw.nextNode())) TRN.add(t); }
+    else { if (!j.node.isConnected || j.node.nodeValue !== j.snap) return; const txt = autoClean(out, []).content.textContent; const raw = j.node.nodeValue; j.node.nodeValue = raw.replace(raw.trim(), txt); TRN.add(j.node); }
+    AUTO.applied++;
+  } finally { I18N_BUSY = false; }
+}
+async function autoScan() {
+  if (!autoOn()) { autoNote(); return; } const lang = I18N.code; const jobs = autoCollect(); if (!jobs.length) { autoNote(); return; }
+  const todo = [];
+  for (const j of jobs) { const v = await trCacheGet(lang, j.item); if (v != null) autoApply(j, v); else if (!AUTO.tried.has(lang + '\n' + j.item)) todo.push(j); }
+  if (!todo.length || !navigator.onLine) { autoNote(); return; }
+  const uniq = [...new Set(todo.map((j) => j.item))]; uniq.forEach((x) => AUTO.tried.add(lang + '\n' + x)); AUTO.busy++; autoNote(); // each piece is asked for once per visit, even if the answer is refused
+  try {
+    const chunks = []; let cur = [], len = 0; // one model call per request (the Worker translates a request's batches one after another)
+    for (const x of uniq) { if (x.length > 3000) continue; if (cur.length && (len + x.length > 3500 || cur.length >= 20)) { chunks.push(cur); cur = []; len = 0; } cur.push(x); len += x.length; } if (cur.length) chunks.push(cur);
+    const one = async (chunk) => {
+      const ctl = new AbortController(); const tm = setTimeout(() => ctl.abort(), 90000);
+      const r = await fetch(trEp(), { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ lang, items: chunk }), signal: ctl.signal }).finally(() => clearTimeout(tm));
+      if (!r.ok) { chunk.forEach((x) => AUTO.tried.delete(lang + '\n' + x)); } // asked again later
+      if (r.status === 429) { AUTO.off = Date.now() + 10 * 60000; AUTO.err = 'busy'; return; }
+      if (!r.ok) { AUTO.err = 'error'; return; }
+      const d = await r.json(); if (!I18N || I18N.code !== lang) return;
+      chunk.forEach((x, k) => { const v = d.items && d.items[k]; if (typeof v !== 'string' || !v) return; trCachePut(lang, x, v); todo.filter((j) => j.item === x).forEach((j) => autoApply(j, v)); });
+    };
+    for (let i = 0; i < chunks.length && !AUTO.err; i += 3) await Promise.all(chunks.slice(i, i + 3).map((c) => one(c).catch((e) => { c.forEach((x) => AUTO.tried.delete(lang + '\n' + x)); AUTO.err = navigator.onLine ? 'error' : 'offline'; })));
+  } catch (e) { AUTO.err = navigator.onLine ? 'error' : 'offline'; }
+  finally { AUTO.busy--; autoNote(); }
+  if (autoOn() && !AUTO.err && autoCollect().some((j) => !AUTO.tried.has(lang + '\n' + j.item))) autoScanSoon(); // the page changed or had more than one batch
+}
+function autoNote() { // the small label at the bottom of the screen
+  let el = $('#autoTrNote'); if (!I18N) { if (el) el.remove(); return; }
+  const anyAuto = !!document.querySelector('#app [data-autotr]'); const off = S.autoTr === false;
+  let html = '';
+  if (off) html = '🌐 <button type="button" id="autoTrBtn">' + esc(tr('Translate this page automatically')) + '</button>';
+  else if (AUTO.busy) html = '🌐 ' + esc(tr('Translating…'));
+  else if (AUTO.err && !anyAuto) html = '🌐 ' + esc(tr('Automatic translation is not available right now, so some text is in English.'));
+  else if (anyAuto) html = '🌐 ' + esc(tr('Some text was translated automatically and may contain mistakes.')) + ' <button type="button" id="autoTrBtn">' + esc(tr('Show original')) + '</button>';
+  if (!html || (AUTO.hid && AUTO.hid === location.hash + '|' + (off ? 1 : 0))) { if (el) el.remove(); return; }
+  html = '<span>' + html + '</span><button type="button" class="autotrx" id="autoTrX" aria-label="' + esc(tr('Close')) + '">✕</button>';
+  I18N_BUSY = true;
+  if (!el) { el = document.createElement('div'); el.id = 'autoTrNote'; el.className = 'autotrnote'; el.setAttribute('role', 'status'); el.setAttribute('data-noi18n', ''); document.body.appendChild(el); }
+  if (el.dataset.h !== html) { el.innerHTML = html; el.dataset.h = html; } I18N_BUSY = false;
+  const x = $('#autoTrX'); if (x && !x.dataset.b) { x.dataset.b = 1; x.addEventListener('click', () => { AUTO.hid = location.hash + '|' + (S.autoTr === false ? 1 : 0); el.remove(); }); }
+  const b = $('#autoTrBtn'); if (b && !b.dataset.b) { b.dataset.b = 1; b.addEventListener('click', () => { S.autoTr = S.autoTr === false; save(); AUTO.err = ''; AUTO.off = 0; render(); autoScanSoon(); }); }
+}
+window.addEventListener('hashchange', () => { AUTO.err = ''; setTimeout(autoNote, 0); });
+window.__learnAuto = { state: () => ({ applied: AUTO.applied, busy: AUTO.busy, err: AUTO.err, mem: AUTO.mem.size }), collect: () => autoCollect().map((j) => j.item) };
 
 /* ===== 5.7 Where do I start? Three questions -> a language, a first lesson and a weekly goal ===== */
 const GUIDE_Q = [
@@ -13005,7 +13121,7 @@ function renderLesson() {
     '<div class="ttabs" role="tablist">' + tabs + '</div>' +
     '<nav class="lchips" aria-label="Lessons in this level">' + L.lessons.map((l, i) => (l.tier === les.tier ? '<button class="lchip' + (isDone(lang, l) ? ' done' : '') + (i === view.idx ? ' current' : '') + '" data-i="' + i + '"><span class="n">' + (isDone(lang, l) ? '✓' : i + 1) + '</span><span class="t">' + esc(LT(lang, l, 'title')) + '</span></button>' : '')).join('') + '</nav>' +
     (lang === 'js' && !JsEngine.canEval ? '<div class="warn">This browser blocks running JavaScript from the editor, so JavaScript lessons cannot run here. Python, C and C++ still work.</div>' : '') +
-    '<div class="grid"><section class="card learn"><div class="lhead">' + tierTag(les.tier) + '<span class="concept">' + esc(les.concept) + '</span><span class="pill">lesson ' + inTier + ' of ' + tl.length + ' · +' + TIER_BY_KEY[les.tier].xp + ' XP</span></div><h2>' + (view.idx + 1) + '. ' + esc(LT(lang, les, 'title')) + '</h2>' + (uiLang() !== 'en' && !lessonTranslated(lang, les) ? '<p class="i18nnote" role="note">🌐 ' + esc((I18N && I18N.lessonNote) || 'This lesson is in English for now.') + '</p>' : '') + '<div class="body">' + LT(lang, les, 'body') + '</div>' +
+    '<div class="grid"><section class="card learn"><div class="lhead">' + tierTag(les.tier) + '<span class="concept">' + esc(les.concept) + '</span><span class="pill">lesson ' + inTier + ' of ' + tl.length + ' · +' + TIER_BY_KEY[les.tier].xp + ' XP</span></div><h2>' + (view.idx + 1) + '. ' + esc(LT(lang, les, 'title')) + '</h2>' + (uiLang() !== 'en' && S.autoTr === false && !lessonTranslated(lang, les) ? '<p class="i18nnote" role="note">🌐 ' + esc((I18N && I18N.lessonNote) || 'This lesson is in English for now.') + '</p>' : '') + '<div class="body">' + LT(lang, les, 'body') + '</div>' +
     '<div class="exwrap"><div class="exlabel">Example</div><pre class="codeblock">' + hl(les.example, lang) + '</pre><div class="btns"><button class="btn small" id="runEx">▶ Run example</button><button class="btn small" id="useEx">Copy to editor</button></div><div class="exout"></div></div>' +
     '</section>' +
     '<section class="card work"><h3>Your turn</h3><p class="task">' + LT(lang, les, 'task') + '</p>' + (les.type === 'terminal' ? '<div id="termhost"></div>' : les.type === 'deploy' ? '<div id="deployhost"></div>' : '<div id="edhost"></div>') +
@@ -17497,8 +17613,13 @@ function makeCard(lang) {
 document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeDrawer(); });
 
 /* ---------- patch notes (pop up once per update; brand-new players never see old notes) ---------- */
-const APP_VERSION = '5.7';
+const APP_VERSION = '5.8';
 const PATCH_NOTES = [
+  { v: '5.8', date: 'Nov 18, 2026', title: '🌐 Everything translated', items: [
+    'In Español, Français, 中文, हिन्दी and العربية, the whole site is now translated: the University, the Shop, Multiplayer, the Workspace, the AI Professor, transcripts and project pages are translated by hand (about 450 more menus and labels in each language).',
+    'Anything that has no hand translation yet, such as most lessons, is translated automatically the first time you open it, then kept on your device. Code is never translated.',
+    'A small note says when text was translated automatically and may contain mistakes. Tap Show original to see the English, or ✕ to hide the note.',
+    'If the free daily translation limit is reached, the site says so and shows the rest in English until it is available again.'] },
   { v: '5.7', date: 'Nov 17, 2026', title: '🌐 Six languages, a start guide and homework', items: [
     'Learn now speaks Español, Français, 中文, हिन्दी and العربية as well as English: tap 🌐 at the top. Menus, buttons, the home page, practice, challenges, classes and the first ten Python lessons are translated; Arabic reads right to left. Other lessons and the University are in English for now, and the AI tutor answers in your language.',
     'New 🧭 Where do I start? Three questions (what you want to build, what you know, how much time you have) give you a language, a first lesson and a weekly plan.',

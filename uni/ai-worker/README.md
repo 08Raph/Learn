@@ -23,6 +23,13 @@ Cloudflare account at:
   about 900 tokens, with the model's "thinking" switched off.
 - Returns `{ reply, via }` (`via` names the service that answered). Stores nothing: no logs of questions are kept by this code.
 - `GET /health` returns `{ ok, model, services }`: which services are switched on and which are resting. Never a key.
+- **Translation (18 November 2026):** `POST /translate` with `{ lang, items }` (lang es, fr, zh, hi or ar; at most 40
+  items, 12,000 characters in all, 3,000 each) returns `{ items }` in the same order. Same origin check, its own
+  limit of 30 requests a minute per address (rate-limit binding `TR_IP`, namespace 4602), same fallback chain,
+  temperature 0.2. Code arrives as `<x i="N"/>` placeholders; an answer is used only if it keeps every placeholder and
+  the same number of tags and has no script, image, svg, event handler or `javascript:` (otherwise that item comes back
+  empty and stays in English). Answers are kept in Cloudflare's cache for 30 days, keyed by a hash of language + text,
+  so the same text is translated once for everyone. Returns 429 "daily limit reached" only if nothing could be translated.
 
 ## Adding the backup services (free; each needs its own free account and key)
 | Secret name | Where to get the key | Free allowance (as published, changes often) |
@@ -40,6 +47,10 @@ Optional plain variables to change a model without editing code: `GROQ_MODEL`, `
 Worker simply moves on to the next service; set the variable to a current model name.
 
 ## Cost
+Translation: four lesson paragraphs measured on 18 November 2026 used about 6 to 11 Neurons, so a first visit to
+a long lesson costs a few Neurons; after that it comes from the cache. A very busy day of first visits can use up the
+free allowance, and then the backup services (if keys are added) or English are used.
+
 Workers AI gives **10,000 Neurons a day free**. A short answer measured on 15 November 2026 used about
 1.5 Neurons; long answers use more, so expect thousands of questions a day for free. On the **Workers Free**
 plan, when the daily allowance is used up the model refuses until 00:00 UTC; the page then shows "The AI is busy"
@@ -52,9 +63,15 @@ Neurons. Check usage at Cloudflare dashboard → AI → Workers AI.
 - Turn the AI off: set `aiEndpoint: ''` in `uni/config.js` (the built-in tutor stays), or delete the Worker in
   the Cloudflare dashboard → Workers & Pages.
 - Redeploy: Cloudflare dashboard → Workers & Pages → learn-ai-professor → Edit code, paste `worker.js`, Deploy.
-  The bindings `AI` (Workers AI) and `PER_IP` (rate limit 8 per 60 s) must stay. Redeploying keeps the secrets.
+  The bindings `AI` (Workers AI), `PER_IP` (rate limit 8 per 60 s) and `TR_IP` (30 per 60 s) must stay. Redeploying keeps the secrets.
 
 ## What was tested
+- 18 November 2026 (translation): `tests/ai-worker.test.mjs` now has 36 checks, including `/translate` limits,
+  origins, placeholder and tag checks, unsafe answers rejected, batching and the cache, all with **simulated** services.
+  Deployed with the `TR_IP` binding; the real model translated sample lesson paragraphs through the Cloudflare API
+  with the same prompt (about 6 to 11 Neurons per batch of four; one Hindi batch took 34 s). The site's side was tested in a real browser against a **mocked**
+  `/translate` (`tests/e2e-i18n.js`). **Not tested:** the site calling the live `/translate`, and the quality of the
+  translations.
 - 17 November 2026 (backup services): `tests/ai-worker.test.mjs`, 22 checks with **simulated** services: order,
   services without keys skipped, out-of-allowance service skipped then retried, `retry-after`, second Workers AI model,
   OpenRouter free models only, model variables, all used up → 429 "daily limit reached" (page falls back to the

@@ -49,6 +49,13 @@ does not see code, answers, names or emails. The privacy note on the home page s
 downloaded from this site only when a language other than English is chosen. When a language other than English is
 in use, the AI tutor is told that language so it can answer in it; nothing else about the student is added.
 
+**Automatic translation (5.8):** in a language other than English, page text that has no hand translation (lesson
+explanations, course descriptions and similar site text) is sent to the site's own AI service (the Cloudflare Worker)
+to be translated. Only the site's text is sent: code, editors, program output, the AI tutor conversation, names and
+nothing typed by the student. The answers are kept on the device (Cache Storage) and on Cloudflare (by a hash of the
+text, for 30 days) so the same text is not translated twice. The free AI services in the fallback chain receive that
+text. **Show original** switches it off.
+
 ## Why each item is collected
 - Names, scores and presence: so that players can find and play each other and see a leaderboard.
 - Account ID and optional email: so that only the owner can change their own online data, and so that an

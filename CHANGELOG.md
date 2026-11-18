@@ -1,5 +1,28 @@
 # Changelog
 
+## 5.8 — 18 November 2026
+### Added
+- **Hand translations of the rest of the interface:** 453 more strings in each of the five languages (University —
+  home, dashboard, study plan, review, departments, catalogue, videos, labs, exams, projects, careers, AI Professor,
+  transcript, course and project pages —, Shop, Locker, Avatar Studio, Multiplayer lobby, Workspace sidebar and
+  terminal, automatic-translation labels). `tests/i18n-keys.json` now has 1,119 strings; every language has all of them.
+- **Automatic translation** of whatever has no hand translation (most lessons, long University text). After the hand
+  translations are applied, remaining English text in `#app` is collected per block, inline `code`/`kbd` replaced by
+  `<x i="N"/>` placeholders, and sent in batches (one model call each: ≤ 20 items, ≤ 3,500 characters; up to 3 at once; 90 s timeout; a refused piece is not asked for again in the same visit) to `POST /translate` on the site's
+  own Worker. Answers are cleaned on the device (only simple inline tags survive; links only `#`/`http(s)`; placeholders
+  restored to the original code) and kept in Cache Storage `learn-tr` (kept across updates by the service worker), so a
+  piece is translated once per device; the Worker also caches answers for 30 days. Code blocks, editors, terminal,
+  output, errors and answer choices that look like program output are never sent. Brand and language names alone are
+  not sent; ordinary single words are. A small note says text was translated automatically, with **Show original**
+  (stored as `autoTr: false`) and ✕. When the daily allowance is used up (429) the note says so and the client waits
+  10 minutes before asking again.
+- Worker: `POST /translate {lang, items}` (≤ 40 items, ≤ 12,000 characters, ≤ 3,000 each; allowed origins only; 30 per
+  minute per address), same free fallback chain as the tutor, temperature 0.2; an answer is rejected unless it keeps
+  every placeholder and the same number of tags and contains no script, image, svg, event handler or `javascript:`.
+### Changed
+- With automatic translation on, lessons without a hand translation no longer show the "English for now" note; it
+  still appears when automatic translation is switched off.
+
 ## 5.7 — 17 November 2026
 ### Added
 - **Interface languages:** Español, Français, 中文 (simplified), हिन्दी and العربية, besides English (🌐 in the top bar; the

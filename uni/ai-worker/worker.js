@@ -11,7 +11,7 @@
 // Keys live only as encrypted Worker secrets. They are never in the website's code or in this file.
 // Model names can be changed without editing code by adding a plain variable, e.g. GROQ_MODEL = "llama-3.3-70b-versatile".
 //
-// Bindings: AI (Workers AI), PER_IP (rate limit, 8 requests per 60 s per address and Cloudflare location).
+// Bindings: AI (Workers AI), PER_IP (rate limit, 8 questions per 60 s per address and Cloudflare location), TR_IP (rate limit, 30 translation requests per 60 s).
 // Cost: everything here uses free allowances. Workers AI includes 10,000 Neurons per day free (a short answer is about 2 to 20 Neurons).
 // The other services have their own free limits; when all are used up, the page falls back to the built-in tutor.
 const MODEL = '@cf/zai-org/glm-4.7-flash';
@@ -43,8 +43,8 @@ const pickText = (r) => String((r && (r.response || (r.choices && r.choices[0] &
 
 class Fail extends Error { constructor(kind, msg) { super(msg); this.kind = kind; } } // kind: 'quota' | 'error'
 
-async function runWorkersAI(env, msgs, now) {
-  const opts = { messages: msgs, max_completion_tokens: MAX_TOKENS, temperature: 0.4 };
+async function runWorkersAI(env, msgs, now, maxTok = MAX_TOKENS, temp = 0.4) {
+  const opts = { messages: msgs, max_completion_tokens: maxTok, temperature: temp };
   try {
     const r = await env.AI.run(MODEL, { ...opts, chat_template_kwargs: { enable_thinking: false } }); // thinking off: faster, and it cannot use up the answer's token budget
     const t = pickText(r); if (t) return t;
@@ -53,7 +53,7 @@ async function runWorkersAI(env, msgs, now) {
     if (/4006|daily free allocation|neurons/i.test(m)) { rest('workers-ai', untilUtcMidnight(now), now); throw new Fail('quota', m); }
   }
   try { // first model failed for another reason: try the second Workers AI model once
-    const t = pickText(await env.AI.run(MODEL_2, { messages: msgs, max_tokens: MAX_TOKENS, temperature: 0.4 }));
+    const t = pickText(await env.AI.run(MODEL_2, { messages: msgs, max_tokens: maxTok, temperature: temp }));
     if (t) return t;
     throw new Fail('error', 'empty reply');
   } catch (e) {
@@ -63,9 +63,9 @@ async function runWorkersAI(env, msgs, now) {
   }
 }
 
-async function runService(s, env, msgs, now, fetchImpl) {
+async function runService(s, env, msgs, now, fetchImpl, maxTok = MAX_TOKENS, temp = 0.4) {
   const models = String(env[s.modelVar] || s.model).split(',').map((x) => x.trim()).filter(Boolean);
-  const body = { messages: msgs, temperature: 0.4, max_tokens: MAX_TOKENS };
+  const body = { messages: msgs, temperature: temp, max_tokens: maxTok };
   if (s.multi) { body.model = models[0]; if (models.length > 1) body.models = models.slice(0, 3); } else body.model = models[0];
   const headers = { 'content-type': 'application/json', authorization: 'Bearer ' + env[s.key] };
   if (s.id === 'openrouter') { headers['HTTP-Referer'] = ALLOWED[0] + '/Learn/'; headers['X-Title'] = 'Learn'; }
@@ -86,9 +86,9 @@ async function runService(s, env, msgs, now, fetchImpl) {
 }
 
 // Exposed for tests. Returns { reply, via } or throws Fail with kind 'quota' if every service was out of allowance.
-export async function answer(env, msgs, fetchImpl = fetch, now = Date.now()) {
-  const chain = [{ id: 'workers-ai', run: () => runWorkersAI(env, msgs, now), on: !!env.AI }]
-    .concat(SERVICES.map((s) => ({ id: s.id, run: () => runService(s, env, msgs, now, fetchImpl), on: !!env[s.key] })));
+export async function answer(env, msgs, fetchImpl = fetch, now = Date.now(), maxTok = MAX_TOKENS, temp = 0.4) {
+  const chain = [{ id: 'workers-ai', run: () => runWorkersAI(env, msgs, now, maxTok, temp), on: !!env.AI }]
+    .concat(SERVICES.map((s) => ({ id: s.id, run: () => runService(s, env, msgs, now, fetchImpl, maxTok, temp), on: !!env[s.key] })));
   let quota = 0, tried = 0;
   const ready = chain.filter((c) => c.on && !isResting(c.id, now));
   const list = ready.length ? ready : chain.filter((c) => c.on); // if everything is resting, try them all anyway
@@ -100,6 +100,43 @@ export async function answer(env, msgs, fetchImpl = fetch, now = Date.now()) {
   throw new Fail(tried && quota === tried ? 'quota' : 'error', 'all services failed');
 }
 export const _resting = resting; // tests only
+
+/* Automatic translation (5.8). POST /translate { lang, items: [html strings] } -> { items: [translation or null] }.
+   Items are short pieces of the site's own text; code inside them has already been replaced by placeholders like <x i="0"/>
+   in the browser, so code never reaches the model. Each translation is cached (Cloudflare cache, 30 days) by a hash of
+   language + text, so a piece is translated once per language per Cloudflare location, not once per visitor. */
+export const TR_LANGS = { es: 'Spanish (Latin American, informal "tú")', fr: 'French (informal "tu")', zh: 'Simplified Chinese', hi: 'Hindi (Devanagari script)', ar: 'Modern Standard Arabic' };
+const TR_MAX_ITEMS = 40, TR_MAX_CHARS = 12000, TR_BATCH_CHARS = 3500;
+const trRules = (L) => 'You translate text from a free website that teaches programming to beginners, from English into ' + L + '. ' +
+  'The input is a JSON array of strings. Reply with ONLY a JSON array of the same length, where each string is the translation of the string at the same position. ' +
+  'Each string may contain simple HTML tags such as <b>, <em>, <a href="...">, <br> and placeholders like <x i="3"/>. Keep every tag and every <x .../> placeholder exactly as written (same attributes), placed where they belong in the translated sentence. ' +
+  'Placeholders stand for code: never add, drop or change them. Do not translate programming keywords, function or variable names, file names, commands, or English words that are part of code. Keep numbers, emoji and punctuation symbols. ' +
+  'Use clear, friendly language for students. Keep common technical terms that learners use in English (for example Python, JavaScript, API, HTML) in their usual form. Never add explanations, notes or quotation marks around the strings.';
+const phSet = (s) => (String(s).match(/<x i="\d+"\s*\/>/g) || []).map((x) => x.replace(/\s+/g, '')).sort().join('|');
+const tagCount = (s) => (String(s).match(/<\/?(b|strong|em|i|a|br|span|sub|sup|small|kbd|mark|u|s)\b/gi) || []).length;
+export function trCheck(src, out) { // a translation is used only if it keeps the same placeholders and tags and adds nothing dangerous
+  if (typeof out !== 'string' || !out.trim() || out.length > src.length * 4 + 200) return false;
+  if (/<\s*(script|style|iframe|img|svg|object|embed|form|input|button|link|meta)\b|\son[a-z]+\s*=|javascript:/i.test(out)) return false;
+  return phSet(src) === phSet(out) && tagCount(src) === tagCount(out);
+}
+function parseArray(text, n) { const a = text.indexOf('['), b = text.lastIndexOf(']'); if (a < 0 || b < a) return null; try { const v = JSON.parse(text.slice(a, b + 1)); return Array.isArray(v) && v.length === n ? v : null; } catch (e) { return null; } }
+async function sha(s) { const d = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(s)); return [...new Uint8Array(d)].map((x) => x.toString(16).padStart(2, '0')).join(''); }
+export async function translateItems(env, lang, items, { fetchImpl = fetch, cache = (typeof caches !== 'undefined' ? caches.default : null), now = Date.now() } = {}) {
+  const L = TR_LANGS[lang]; const out = new Array(items.length).fill(null); const keys = await Promise.all(items.map((s) => sha(lang + '\n' + s)));
+  const reqOf = (k) => new Request('https://learn-translation-cache.invalid/' + lang + '/' + k);
+  if (cache) await Promise.all(items.map(async (s, i) => { try { const r = await cache.match(reqOf(keys[i])); if (r) out[i] = await r.text(); } catch (e) {} }));
+  const miss = items.map((s, i) => i).filter((i) => out[i] === null); let quota = false;
+  const batches = []; let cur = [], len = 0; for (const i of miss) { const n = items[i].length; if (cur.length && (len + n > TR_BATCH_CHARS || cur.length >= 20)) { batches.push(cur); cur = []; len = 0; } cur.push(i); len += n; } if (cur.length) batches.push(cur);
+  for (const bt of batches) {
+    const src = bt.map((i) => items[i]); let arr = null;
+    try { const r = await answer(env, [{ role: 'system', content: trRules(L) }, { role: 'user', content: JSON.stringify(src) }], fetchImpl, now, Math.min(4000, 400 + Math.ceil(src.join('').length * 1.2)), 0.2); arr = parseArray(r.reply, src.length); }
+    catch (e) { if (e && e.kind === 'quota') { quota = true; break; } }
+    if (!arr) continue;
+    for (let j = 0; j < bt.length; j++) { const i = bt[j]; const v = String(arr[j] == null ? '' : arr[j]); if (!trCheck(items[i], v)) continue; out[i] = v;
+      if (cache) { try { await cache.put(reqOf(keys[i]), new Response(v, { headers: { 'content-type': 'text/plain; charset=utf-8', 'cache-control': 'public, max-age=2592000' } })); } catch (e) {} } }
+  }
+  return { items: out, quota };
+}
 
 export default {
   async fetch(request, env) {
@@ -113,6 +150,18 @@ export default {
       const services = [{ id: 'workers-ai', on: !!env.AI }].concat(SERVICES.map((s) => ({ id: s.id, on: !!env[s.key] })))
         .map((s) => ({ ...s, resting: isResting(s.id, now) }));
       return json({ ok: true, model: MODEL, services }, 200, cors); // shows which services are switched on, never any key
+    }
+    if (request.method === 'POST' && url.pathname === '/translate') {
+      if (!allowed) return json({ error: 'origin not allowed' }, 403, cors);
+      const ipT = request.headers.get('cf-connecting-ip') || 'unknown';
+      if (env.TR_IP) { const { success } = await env.TR_IP.limit({ key: ipT }); if (!success) return json({ error: 'busy' }, 429, cors); }
+      const rawT = await request.text(); if (rawT.length > TR_MAX_CHARS * 2 + 2000) return json({ error: 'too large' }, 413, cors);
+      let bT; try { bT = JSON.parse(rawT); } catch (e) { return json({ error: 'bad json' }, 400, cors); }
+      const items = Array.isArray(bT.items) ? bT.items.slice(0, TR_MAX_ITEMS).map((s) => String(s || '').slice(0, 3000)) : [];
+      if (!TR_LANGS[bT.lang] || !items.length || items.join('').length > TR_MAX_CHARS) return json({ error: 'bad request' }, 400, cors);
+      const r = await translateItems(env, bT.lang, items);
+      if (r.quota && r.items.every((x) => x === null)) return json({ error: 'daily limit reached' }, 429, cors);
+      return json({ items: r.items }, 200, cors);
     }
     if (request.method !== 'POST' || url.pathname !== '/') return json({ error: 'not found' }, 404, cors);
     if (!allowed) return json({ error: 'origin not allowed' }, 403, cors);

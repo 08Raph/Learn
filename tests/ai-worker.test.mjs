@@ -1,6 +1,6 @@
 // AI Worker fallback chain, run in Node with SIMULATED services (no real AI service is contacted).
 // Proves the order, skipping, "resting" and error mapping in uni/ai-worker/worker.js. It does not prove the real services' APIs.
-import W, { answer, _resting } from '../uni/ai-worker/worker.js';
+import W, { answer, _resting, translateItems, trCheck } from '../uni/ai-worker/worker.js';
 let pass = 0, fail = 0; const ok = (c, m) => { if (c) pass++; else { fail++; console.log('FAIL:', m); } };
 const reply = (t) => new Response(JSON.stringify({ choices: [{ message: { content: t } }] }), { status: 200 });
 const status = (s, h = {}) => new Response('{}', { status: s, headers: h });
@@ -68,5 +68,29 @@ reset(); { const env = { AI: ai(quotaErr), GROQ_API_KEY: 'SECRET-123', PER_IP: {
   const gj = await g.json(); ok(g.status === 200 && gj.reply === 'hello' && gj.via === 'groq', 'http reply via groq');
   globalThis.fetch = realFetch; }
 
-console.log(`AI worker fallback (SIMULATED services): ${fail} failed of ${pass + fail}`);
+
+// 9. 5.8 automatic translation
+const mkCache = () => { const m = new Map(); return { m, async match(r) { const v = m.get(r.url); return v === undefined ? undefined : new Response(v); }, async put(r, res) { m.set(r.url, await res.text()); } }; };
+reset(); { let calls = 0, lastSys = '', lastUser = '';
+  const env = { AI: { async run(model, o) { calls++; lastSys = o.messages[0].content; lastUser = o.messages[1].content; const a = JSON.parse(o.messages[1].content); return { response: JSON.stringify(a.map((s) => 'ES:' + s)) }; } } };
+  const cache = mkCache();
+  const r = await translateItems(env, 'es', ['Hello <b>world</b>', 'Use <x i="0"/> to print.'], { cache, now: T0 });
+  ok(r.items[0] === 'ES:Hello <b>world</b>' && r.items[1] === 'ES:Use <x i="0"/> to print.', 'translate: items translated in order');
+  ok(/into Spanish/.test(lastSys) && /placeholders/i.test(lastSys) && JSON.parse(lastUser).length === 2, 'translate: one model call with the rules and a JSON array');
+  ok(cache.m.size === 2, 'translate: each translation is cached');
+  await translateItems(env, 'es', ['Hello <b>world</b>'], { cache, now: T0 }); ok(calls === 1, 'translate: a cached item is not sent to the model again');
+  const big = Array.from({ length: 30 }, (_, i) => 'Sentence number ' + i + ' ' + 'x'.repeat(200)); calls = 0; await translateItems(env, 'fr', big, { cache: mkCache(), now: T0 }); ok(calls >= 2, 'translate: long pages are split into several model calls'); }
+ok(trCheck('Use <x i="0"/> now', 'Usa <x i="0"/> ya') && !trCheck('Use <x i="0"/> now', 'Usa ya') && !trCheck('Use <x i="0"/>', 'Usa <x i="0"/><x i="1"/>'), 'translate: placeholders must be kept exactly');
+ok(!trCheck('Hi', '<img src=x onerror=alert(1)>Hola') && !trCheck('Hi', 'Hola <script>x</script>') && !trCheck('Hi', '<a href="javascript:alert(1)">Hola</a>') && !trCheck('Hi', ''), 'translate: dangerous or empty output is refused');
+reset(); { const env = { AI: { async run() { return { response: 'Sure! Here you go: ["Hola", "<b>bad"]' }; } } };
+  const r = await translateItems(env, 'es', ['Hello', 'Bye'], { cache: mkCache(), now: T0 }); ok(r.items[0] === 'Hola' && r.items[1] === null, 'translate: a bad item is dropped (shown in English), good ones kept'); }
+reset(); { const env = { AI: { async run() { return { response: 'not json' }; } } }; const r = await translateItems(env, 'es', ['Hello'], { cache: mkCache(), now: T0 }); ok(r.items[0] === null && !r.quota, 'translate: unreadable model output leaves English'); }
+reset(); { const env = { AI: { async run() { quotaErr(); } } }; const r = await translateItems(env, 'es', ['Hello'], { cache: mkCache(), now: T0 }); ok(r.quota && r.items[0] === null, 'translate: daily allowance used up is reported'); }
+reset(); { const env = { AI: { async run(m, o) { return { response: JSON.stringify(JSON.parse(o.messages[1].content).map(() => 'T')) }; } }, TR_IP: { limit: async () => ({ success: true }) } };
+  const post = (origin, body) => W.fetch(new Request('https://w/translate', { method: 'POST', headers: { origin }, body: JSON.stringify(body) }), env);
+  ok((await post('https://evil.example', { lang: 'es', items: ['a'] })).status === 403, 'translate: other websites are refused');
+  ok((await post('https://08raph.github.io', { lang: 'de', items: ['a'] })).status === 400, 'translate: only the five languages');
+  const ok1 = await post('https://08raph.github.io', { lang: 'hi', items: ['Hello'] }); ok(ok1.status === 200 && (await ok1.json()).items[0] === 'T', 'translate: HTTP request works');
+  env.TR_IP = { limit: async () => ({ success: false }) }; ok((await post('https://08raph.github.io', { lang: 'es', items: ['a'] })).status === 429, 'translate: its own rate limit'); }
+console.log(`AI worker fallback and translation (SIMULATED services and cache): ${fail} failed of ${pass + fail}`);
 process.exit(fail ? 1 : 0);

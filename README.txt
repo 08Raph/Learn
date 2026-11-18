@@ -1,3 +1,6 @@
+08Raph Learn 5.8: the whole site in six languages (hand translations for every menu, automatic translation for the rest)
+- NEW: nothing to upload separately; the i18n folder changed. No database rule changes.
+
 08Raph Learn 5.7: six interface languages, a start guide, homework for classes, shareable progress pictures
 
 08Raph Learn 5.2: 24 coding challenges, activity heatmap, save everything for offline
