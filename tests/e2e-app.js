@@ -20,7 +20,18 @@ let pass = 0, fail = 0; const ok = (m, c, x) => { if (c) pass++; else { fail++; 
     ok('5.1: the font stylesheet does not block the first paint', /fonts\.googleapis\.com\/css2[^>]*media="print" onload="this\.media='all'"/.test(page));
     // 5.3: pages for search engines and sharing
     { const pages = fs.readdirSync(ROOT).filter((f) => /^learn-[a-z]+\.html$/.test(f)); const sm = fs.readFileSync(path.join(ROOT, 'sitemap.xml'), 'utf8');
-      ok('5.3: a landing page for each of the 15 languages plus the pathway, all in the sitemap', pages.length === 15 && fs.existsSync(path.join(ROOT, 'software-engineering.html')) && (sm.match(/<loc>/g) || []).length === 17 && pages.every((f) => sm.includes(f)));
+      ok('5.3: a landing page for each of the 15 languages plus the pathway, all in the sitemap', pages.length === 15 && fs.existsSync(path.join(ROOT, 'software-engineering.html')) && (sm.match(/<loc>/g) || []).length === 107 && pages.every((f) => sm.includes(f)));
+      // 5.4: a page per University course and per coding challenge, all in the sitemap, linking into the app
+      global.window = {}; require(path.join(ROOT, 'uni/data/catalog.js')); require(path.join(ROOT, 'uni/data/departments.js')); require(path.join(ROOT, 'challenges.js'));
+      const UC = window.UNI_CATALOG, ALLC = UC.courses.concat(UC.electives), CHL = window.LEARN_CHALLENGES;
+      ok('5.4: one page per University course (' + ALLC.length + ') and per challenge (' + CHL.length + '), plus the challenge list, all in the sitemap',
+        ALLC.every((c) => fs.existsSync(path.join(ROOT, 'course-' + c.id + '.html')) && sm.includes('course-' + c.id + '.html')) && CHL.every((c) => fs.existsSync(path.join(ROOT, 'challenge-' + c.id + '.html')) && sm.includes('challenge-' + c.id + '.html')) && sm.includes('coding-challenges.html'));
+      const cpOk = ALLC.every((c) => { const h = fs.readFileSync(path.join(ROOT, 'course-' + c.id + '.html'), 'utf8'); const n = (h.match(/· \d+ min<\/span><\/li>/g) || []).length; return n > 0 && h.includes('href="./#/uni/course/' + c.id + '"') && /not an accredited/.test(h); });
+      ok('5.4: every course page lists its lessons, links into the course and says it is not accredited', cpOk);
+      const ref = fs.readFileSync(path.join(ROOT, 'tests/challenges-ref.py'), 'utf8');
+      const chOk = CHL.every((c) => { const h = fs.readFileSync(path.join(ROOT, 'challenge-' + c.id + '.html'), 'utf8'); const m = new RegExp('def ' + c.py + '\\([^)]*\\):\\n([\\s\\S]*?)(?=\\ndef |$)').exec(ref); const body = m ? m[1].split('\n').map((x) => x.trim()).filter((x) => x.length > 12) : [];
+        return h.includes('href="./#/challenges/' + c.id + '"') && body.every((line) => !h.includes(line.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'))) && /isAccessibleForFree/.test(h); });
+      ok('5.4: every challenge page links into the challenge and never shows the reference solution', chOk);
       const ldOk = [page].concat(pages.map((f) => fs.readFileSync(path.join(ROOT, f), 'utf8'))).every((h) => { const m = /<script type="application\/ld\+json">([\s\S]*?)<\/script>/.exec(h); try { return m && JSON.parse(m[1]).isAccessibleForFree === true; } catch (e) { return false; } });
       ok('5.3: every page has valid structured data marking it free', ldOk);
       ok('5.3: the pathway page says it is not an accredited degree', /not an accredited degree/.test(fs.readFileSync(path.join(ROOT, 'software-engineering.html'), 'utf8'))); }
@@ -51,7 +62,7 @@ let pass = 0, fail = 0; const ok = (m, c, x) => { if (c) pass++; else { fail++; 
     await p.keyboard.press('Tab'); ok('keyboard focus lands on a visible control with an accessible name', await p.evaluate(() => { const e = document.activeElement; return !!e && e !== document.body && ((e.textContent || '').trim().length > 0 || e.getAttribute('aria-label') || e.title); }));
     const noName = await p.evaluate(() => Array.from(document.querySelectorAll('#app button, #app a[href]')).filter((e) => e.offsetParent && !(e.textContent || '').trim() && !e.getAttribute('aria-label') && !e.title).length); ok('every visible button and link on the home page has a name', noName === 0, noName);
     const noLabel = await p.evaluate(() => Array.from(document.querySelectorAll('#app input, #app select, #app textarea')).filter((e) => e.offsetParent && e.type !== 'hidden' && !e.getAttribute('aria-label') && !e.placeholder && !e.title && !(e.id && document.querySelector('label[for="' + e.id + '"]')) && !e.closest('label')).length); ok('every visible form field on the home page is labelled', noLabel === 0, noLabel);
-    ok('version 5.3 is reported', await p.evaluate(() => /5\.3/.test(document.body.innerHTML)));
+    ok('version 5.4 is reported', await p.evaluate(() => /5\.4/.test(document.body.innerHTML)));
     // quiz loads the bank on demand
     const before = reqs.length; await p.evaluate(() => { location.hash = '#/quiz'; }); await p.waitForFunction(() => !/Loading the question bank/.test(document.querySelector('#app').innerText), null, { timeout: 30000 });
     ok('opening Quiz downloads the bank', reqs.slice(before).some((u) => u.includes('ranked_extra.json'))); ok('quiz page renders after loading', await p.locator('.quizcard .opt').count() >= 2 && !/could not be loaded/.test(await text()));

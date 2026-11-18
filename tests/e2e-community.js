@@ -196,6 +196,13 @@ const savedFor = (email) => { const uid = Object.keys(accounts).find((k) => acco
       await p.goto(BASE.replace('index.html', 'learn-go.html')); await p.click('a.cta'); await p.waitForTimeout(1500); ok('5.3: the landing page button opens the first lesson in the app', /#\/go\//.test(await p.evaluate(() => location.hash)) && await p.locator('#runBtn').count() === 1);
       await p.goto(BASE + '#/'); await p.waitForSelector('#shareLearn'); await ctx.grantPermissions(['clipboard-read', 'clipboard-write']); await p.click('#shareLearn'); await p.waitForTimeout(500);
       ok('5.3: Share Learn copies an invitation with the site link (when the share sheet is not available)', /08raph\.github\.io\/Learn/.test(await p.evaluate(() => navigator.clipboard.readText().catch(() => ''))) || /copied/.test(await p.evaluate(() => document.body.innerText)));
+      // 5.4: course and challenge pages open the right screen in the app; Share on a challenge copies its page link
+      await p.goto(BASE.replace('index.html', 'course-c201.html')); await p.click('a.cta'); await p.waitForTimeout(2500);
+      ok('5.4: a course page button opens that course in the University', /#\/uni\/course\/c201/.test(await p.evaluate(() => location.hash)) && /SEU 201|CS 201|201/.test(await T(p)));
+      await p.goto(BASE.replace('index.html', 'challenge-two-sum.html')); await p.click('a.cta'); await p.waitForSelector('#chShare', { timeout: 15000 });
+      ok('5.4: a challenge page button opens that challenge', /#\/challenges\/two-sum/.test(await p.evaluate(() => location.hash)) && await p.locator('#runBtn').count() === 1);
+      await p.evaluate(() => navigator.clipboard.writeText('')); await p.click('#chShare'); await p.waitForTimeout(500);
+      ok('5.4: Share on a challenge copies the link to its public page', /08raph\.github\.io\/Learn\/challenge-two-sum\.html/.test(await p.evaluate(() => navigator.clipboard.readText().catch(() => ''))));
       await ctx.close(); }
     ok('the app never sent a request without a token that the rules refused', !denied.some((x) => / as null/.test(x) && !/certs/.test(x)), denied.join(' ; '));
     ok('no page errors', errs.length === 0, errs.join(' | '));

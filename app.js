@@ -12584,13 +12584,14 @@ async function renderChallenge(id) {
   S.chalCode = S.chalCode || {}; let l = S.chalLang === 'js' ? 'js' : 'py'; const shown = 2;
   const draw = () => {
     const key = c.id + ':' + l, code = S.chalCode[key] || chalStarter(c, l);
-    app.innerHTML = '<div class="wrap">' + topbar('<button class="btn small" id="back">← Challenges</button><div class="crumb">🧩 ' + esc(c.t) + '</div>', '<span class="pill" style="color:' + LEVELS[c.lv][1] + '">' + LEVELS[c.lv][0] + '</span>') +
+    app.innerHTML = '<div class="wrap">' + topbar('<button class="btn small" id="back">← Challenges</button><div class="crumb">🧩 ' + esc(c.t) + '</div>', '<span class="pill" style="color:' + LEVELS[c.lv][1] + '">' + LEVELS[c.lv][0] + '</span><button class="btn small" id="chShare" type="button" aria-label="Share this challenge">🔗 Share</button>') +
       '<div class="playgrid"><section class="card"><h2 style="margin-top:0">' + esc(c.t) + '</h2><p>' + esc(c.d) + '</p>' +
       '<div class="seg" role="tablist" aria-label="Language" style="margin:6px 0 12px"><button role="tab" data-cl="py" aria-selected="' + (l === 'py') + '" class="' + (l === 'py' ? 'on' : '') + '">Python' + (chalDone(c.id, 'py') ? ' ✓' : '') + '</button><button role="tab" data-cl="js" aria-selected="' + (l === 'js') + '" class="' + (l === 'js' ? 'on' : '') + '">JavaScript' + (chalDone(c.id, 'js') ? ' ✓' : '') + '</button></div>' +
       '<h3>Examples</h3><ul class="chex">' + c.tests.slice(0, shown).map((t) => '<li><code>' + esc(l === 'py' ? c.py + '(' + t.a.map(pyRepr).join(', ') + ')' : c.js + '(' + t.a.map(jsLit).join(', ') + ')') + '</code> → <code>' + esc(l === 'py' ? pyRepr(t.e) : JSON.stringify(t.e)) + '</code></li>').join('') + '</ul>' +
       '<p class="muted">' + (c.tests.length - shown) + ' more tests are hidden.</p><details><summary>💡 Hint</summary><p>' + esc(c.h) + '</p></details></section>' +
       '<section class="card"><div id="edhost"></div><div class="btns"><button class="btn primary" id="runBtn" type="button">▶ Run tests<span class="kbd">' + RUNKEY + '</span></button><button class="btn" id="resetBtn" type="button">Reset</button><button class="btn" id="aiBtn" type="button">🤖 Ask AI</button></div><div id="aiHelp"></div><div id="chRes" aria-live="polite"></div></section></div></div>';
     bindTheme(); $('#back').addEventListener('click', () => go({ name: 'chal' }));
+    $('#chShare').addEventListener('click', () => shareLink('Can you solve "' + c.t + '"? A free coding challenge in Python or JavaScript.', SITE_URL + 'challenge-' + c.id + '.html'));
     $$('[data-cl]').forEach((b) => b.addEventListener('click', () => { l = b.dataset.cl; S.chalLang = l; save(); draw(); }));
     let ed;
     const run = async () => {
@@ -12671,6 +12672,10 @@ function bindOffline() {
 
 /* 5.3: help people find and share Learn */
 const SITE_URL = 'https://08raph.github.io/Learn/';
+async function shareLink(text, url) { // 5.4: share sheet when available, otherwise copy text and link
+  try { if (navigator.share) { await navigator.share({ title: 'Learn to Code', text, url }); bump('shares'); save(); return true; } } catch (e) { if (e && e.name === 'AbortError') return false; }
+  try { await navigator.clipboard.writeText(text + ' ' + url); toast('📋 Link copied. Paste it to a friend!'); return true; } catch (e) { toast(url); return false; }
+}
 function bindShareLearn() {
   const b = $('#shareLearn'); if (b) b.addEventListener('click', async () => {
     const text = 'I am learning to code for free on Learn: ' + LANG_ORDER.length + ' languages, coding challenges and an AI tutor. No account needed.';
@@ -12769,7 +12774,7 @@ function renderHome() {
     '<h2 class="sect">Capstone</h2><div class="cards">' + termCardHtml('cloud') + '</div>' +
     achievementsHtml() +
     '<div class="foot"><p>' + (acctEmail() ? 'Progress, XP and your code are saved on this device and in your account.' : 'Progress, XP and your code are saved on this device only. <a href="#/account">Sign in</a> to keep them in an account.') + '</p><p><button class="btn small" id="pnOpen" type="button">📋 What\'s new</button> <button class="btn small" id="shareLearn" type="button">📣 Share Learn</button></p>' + installTipHtml() +
-    '<nav class="coursenav" aria-label="Course pages">' + LANG_ORDER.map((k) => '<a href="learn-' + ({ py: 'python', js: 'javascript', ts: 'typescript', cpp: 'cpp', cs: 'csharp' }[k] || k) + '.html">' + esc(LANGS[k].name) + '</a>').join('') + '<a href="software-engineering.html">Software engineering pathway</a></nav>' + backupNudgeHtml() + '<details class="backup" id="bkDetails"><summary>Backup and restore your progress</summary><p>Your progress lives only in this browser. Safari can clear it if the site is not used for a while or storage runs low, so keep a backup file somewhere safe (Files, iCloud Drive, email to yourself).</p><div class="row" style="gap:8px;flex-wrap:wrap"><button class="btn small primary" id="bkFile" type="button">⬇ Download backup file</button><label class="btn small" for="bkPick" style="cursor:pointer">⬆ Restore from file</label><input type="file" id="bkPick" accept=".json,application/json" style="position:absolute;left:-9999px" aria-label="Choose a backup file to restore"></div><p class="pill" id="bkLast" style="margin:8px 0 0">' + backupLastText() + '</p><div id="bkPreview" aria-live="polite"></div><details style="margin-top:10px"><summary>Backup code (copy and paste instead of a file)</summary><div class="row"><button class="btn small" id="bkCopy" type="button">Copy backup code</button></div><textarea id="bkBox" class="stdinbox" placeholder="Paste a backup code here" spellcheck="false" aria-label="Backup code"></textarea><div class="row" style="margin-top:8px"><button class="btn small" id="bkRestore" type="button">Check this code</button></div></details><p class="pill" id="bkMsg" role="status" aria-live="polite" style="margin:8px 0 0"></p></details><p><button class="btn small" id="resetAll">Reset all progress</button></p></div></div>';
+    '<nav class="coursenav" aria-label="Course pages">' + LANG_ORDER.map((k) => '<a href="learn-' + ({ py: 'python', js: 'javascript', ts: 'typescript', cpp: 'cpp', cs: 'csharp' }[k] || k) + '.html">' + esc(LANGS[k].name) + '</a>').join('') + '<a href="software-engineering.html">Software engineering pathway</a><a href="coding-challenges.html">Coding challenges</a></nav>' + backupNudgeHtml() + '<details class="backup" id="bkDetails"><summary>Backup and restore your progress</summary><p>Your progress lives only in this browser. Safari can clear it if the site is not used for a while or storage runs low, so keep a backup file somewhere safe (Files, iCloud Drive, email to yourself).</p><div class="row" style="gap:8px;flex-wrap:wrap"><button class="btn small primary" id="bkFile" type="button">⬇ Download backup file</button><label class="btn small" for="bkPick" style="cursor:pointer">⬆ Restore from file</label><input type="file" id="bkPick" accept=".json,application/json" style="position:absolute;left:-9999px" aria-label="Choose a backup file to restore"></div><p class="pill" id="bkLast" style="margin:8px 0 0">' + backupLastText() + '</p><div id="bkPreview" aria-live="polite"></div><details style="margin-top:10px"><summary>Backup code (copy and paste instead of a file)</summary><div class="row"><button class="btn small" id="bkCopy" type="button">Copy backup code</button></div><textarea id="bkBox" class="stdinbox" placeholder="Paste a backup code here" spellcheck="false" aria-label="Backup code"></textarea><div class="row" style="margin-top:8px"><button class="btn small" id="bkRestore" type="button">Check this code</button></div></details><p class="pill" id="bkMsg" role="status" aria-live="polite" style="margin:8px 0 0"></p></details><p><button class="btn small" id="resetAll">Reset all progress</button></p></div></div>';
   bindTheme();
   $$('.lcard').forEach((b) => b.addEventListener('click', () => { const k = b.dataset.lang; go({ name: 'lesson', lang: k, idx: nextLessonIdx(k) }); }));
   const cb = $('#contBtn'); if (cb) cb.addEventListener('click', () => go({ name: 'lesson', lang: lk, idx: ni }));
@@ -17321,8 +17326,13 @@ function makeCard(lang) {
 document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeDrawer(); });
 
 /* ---------- patch notes (pop up once per update; brand-new players never see old notes) ---------- */
-const APP_VERSION = '5.3';
+const APP_VERSION = '5.4';
 const PATCH_NOTES = [
+  { v: '5.4', date: 'Nov 17, 2026', title: '🔎 90 new pages people can find', items: [
+    'Every coding challenge now has its own public page (problem, examples and a hint, never the answer) that links straight into the challenge, plus a page listing all 24.',
+    'Every University course (all 65, including electives) has its own public page with its lessons, goals and prerequisites.',
+    'New 🔗 Share button on each challenge: send a friend a link to try the same problem.',
+    'The AI tutor now has backup AI services, so it keeps working on busy days (when the site owner switches them on).'] },
   { v: '5.3', date: 'Nov 17, 2026', title: '📣 Easier to find and share', items: [
     '📣 Share Learn button at the bottom of the home page sends an invitation with the link (or copies it).',
     '📲 On iPad and iPhone, a one-time tip shows how to install Learn on the home screen (Safari has no install button of its own).',
