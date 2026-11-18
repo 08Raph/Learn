@@ -1,4 +1,4 @@
-# Learn 5.0: what data the site handles, why, and how to remove it
+# Learn 5.6: what data the site handles, why, and how to remove it
 
 Written for the site owner. Adapt it into a notice for your users.
 
@@ -11,7 +11,6 @@ Written for the site owner. Adapt it into a notice for your users.
 - The name typed for the transcript and certificates.
 - CV builder fields, including an email address if the user types one. It appears only in the file they
   export. It is never transmitted by the site.
-- A GitHub token, only if the user sets up cloud sync.
 - In secure mode: a Firebase sign-in token (`learn-fb-auth`), so the player stays signed in.
 - The downloaded question bank (in the browser cache, for offline use). It contains no personal data.
 
@@ -39,14 +38,18 @@ are saved wherever the user chooses and are never sent anywhere by the site.
 | AI Professor (4.7) | The messages typed on that page, the last 12 messages of that conversation, the teaching mode, and the course and lesson being studied. No name, email or account ID | The site's Worker `learn-ai-professor` on Cloudflare, which runs the model on Cloudflare Workers AI. The Worker's code stores nothing; Cloudflare's own processing is covered by Cloudflare's terms. **If the site owner has added backup services** and Workers AI is busy, the same text is sent to one of Groq, Cerebras, Google Gemini or OpenRouter instead, under that service's terms (Gemini's free tier may use prompts to improve Google's products). The same applies to Ask AI in lessons. |
 
 The University's departments, career centre, CV builder, study tools and challenges send **nothing** anywhere.
-There are no analytics, advertising or tracking scripts.
+**Visit counting:** the site loads **Cloudflare Web Analytics** (`static.cloudflareinsights.com`, token set in
+`CF_TOKEN` in `app.js`). It counts page views, referring sites, countries and device types, sets **no cookies** and
+does not see code, answers, names or emails. The privacy note on the home page says so. To switch it off, set
+`CF_TOKEN = ''` in `app.js`. There is no advertising and no other tracking script.
 
 ## Why each item is collected
 - Names, scores and presence: so that players can find and play each other and see a leaderboard.
 - Account ID and optional email: so that only the owner can change their own online data, and so that an
   identity can be kept across devices.
 - Audit entries: so that misuse of reward codes can be investigated.
-Nothing is collected for advertising or analytics, and nothing is sold or shared.
+- Visit counts (Cloudflare Web Analytics): so the owner can see how many people use the site and where they come from.
+Nothing is collected for advertising, and nothing is sold or shared.
 
 ## How data is removed
 | Data | How to remove it |
@@ -55,7 +58,7 @@ Nothing is collected for advertising or analytics, and nothing is sold or shared
 | A player's online name, friends and scores | **The player:** Multiplayer → More → Delete my online data (since 4.1). It removes presence, leaderboard entries, name, friend code, both sides of every friendship, friend requests and invitations received, inbox and party, and in secure mode the ownership records and the sign-in account. Requests the player sent to others stay in those players' lists until they dismiss them. **The owner:** Firebase console → Realtime Database: delete the player's ID under `duel/names`, `duel/lb/*`, `duel/fl`, `duel/frq`, `duel/inv`, `duel/inbox`, `duel/presence`, and `duel/owners/<id>` with its `duel/uids/<uid>`. |
 | An account, its email and its saved progress | **The student:** 👤 Account → Delete my account (deletes `saves/<id>`, online data and the sign-in account). **The owner:** delete `saves/<uid>` in the database and the user under Authentication → Users. |
 | A sign-in account and its email (older method) | Firebase console → Authentication → Users → delete the user. |
-| A cloud-sync copy | The user deletes the Gist in their own GitHub account and revokes the token. |
+| A copy from the old GitHub Gist sync (removed in 5.6) | The user deletes the Gist in their own GitHub account and revokes the token. 5.6 deletes any saved token from the device. |
 | Audit entries | Firebase console → `duel/audit`. Decide how long you keep them; 90 days is a reasonable default. |
 
 Since 4.1 players can delete their own online data (see above). The audit log keeps a `delete-account` entry

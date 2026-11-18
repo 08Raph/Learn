@@ -32,6 +32,12 @@ let pass = 0, fail = 0; const ok = (m, c, x) => { if (c) pass++; else { fail++; 
       const chOk = CHL.every((c) => { const h = fs.readFileSync(path.join(ROOT, 'challenge-' + c.id + '.html'), 'utf8'); const m = new RegExp('def ' + c.py + '\\([^)]*\\):\\n([\\s\\S]*?)(?=\\ndef |$)').exec(ref); const body = m ? m[1].split('\n').map((x) => x.trim()).filter((x) => x.length > 12) : [];
         return h.includes('href="./#/challenges/' + c.id + '"') && body.every((line) => !h.includes(line.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'))) && /isAccessibleForFree/.test(h); });
       ok('5.4: every challenge page links into the challenge and never shows the reference solution', chOk);
+      // 5.6: electives whose assignments are in JavaScript need SEU 105; the cloud simulation never shows a real-looking domain; wording
+      ok('5.6: CEN 101, HCI 101, MAT 101 and MAT 102 require SEU 105 (their assignments are in JavaScript)', ['ce101', 'hc101', 'ma101', 'ma102'].every((id) => (UC.electives.find((c) => c.id === id).pre || []).includes('c105')));
+      const appSrc = fs.readFileSync(path.join(ROOT, 'app.js'), 'utf8'), uniSrc = ['university.js', 'uni-assess.js'].map((f) => fs.readFileSync(path.join(ROOT, 'uni', f), 'utf8')).join('');
+      ok('5.6: the deploy simulation says it is a simulation and uses .example addresses', /Practice simulation/.test(appSrc) && /\.learnapp\.example/.test(appSrc) && !/learnapp\.dev/.test(appSrc));
+      ok('5.6: no "master\'s-level equivalent" or "labs in 16 languages" wording', !/equivalent pathway|level equivalent|labs in 16 languages/i.test(uniSrc));
+      ok('5.6: the privacy document no longer says there are no analytics', !/There are no analytics/.test(fs.readFileSync(path.join(ROOT, 'docs/PRIVACY.md'), 'utf8')) && /Cloudflare Web Analytics/.test(fs.readFileSync(path.join(ROOT, 'docs/PRIVACY.md'), 'utf8')));
       const ldOk = [page].concat(pages.map((f) => fs.readFileSync(path.join(ROOT, f), 'utf8'))).every((h) => { const m = /<script type="application\/ld\+json">([\s\S]*?)<\/script>/.exec(h); try { return m && JSON.parse(m[1]).isAccessibleForFree === true; } catch (e) { return false; } });
       ok('5.3: every page has valid structured data marking it free', ldOk);
       ok('5.3: the pathway page says it is not an accredited degree', /not an accredited degree/.test(fs.readFileSync(path.join(ROOT, 'software-engineering.html'), 'utf8'))); }
@@ -62,7 +68,7 @@ let pass = 0, fail = 0; const ok = (m, c, x) => { if (c) pass++; else { fail++; 
     await p.keyboard.press('Tab'); ok('keyboard focus lands on a visible control with an accessible name', await p.evaluate(() => { const e = document.activeElement; return !!e && e !== document.body && ((e.textContent || '').trim().length > 0 || e.getAttribute('aria-label') || e.title); }));
     const noName = await p.evaluate(() => Array.from(document.querySelectorAll('#app button, #app a[href]')).filter((e) => e.offsetParent && !(e.textContent || '').trim() && !e.getAttribute('aria-label') && !e.title).length); ok('every visible button and link on the home page has a name', noName === 0, noName);
     const noLabel = await p.evaluate(() => Array.from(document.querySelectorAll('#app input, #app select, #app textarea')).filter((e) => e.offsetParent && e.type !== 'hidden' && !e.getAttribute('aria-label') && !e.placeholder && !e.title && !(e.id && document.querySelector('label[for="' + e.id + '"]')) && !e.closest('label')).length); ok('every visible form field on the home page is labelled', noLabel === 0, noLabel);
-    ok('version 5.5 is reported', await p.evaluate(() => /5\.5/.test(document.body.innerHTML)));
+    ok('version 5.6 is reported', await p.evaluate(() => /5\.6/.test(document.body.innerHTML)));
     // quiz loads the bank on demand
     const before = reqs.length; await p.evaluate(() => { location.hash = '#/quiz'; }); await p.waitForFunction(() => !/Loading the question bank/.test(document.querySelector('#app').innerText), null, { timeout: 30000 });
     ok('opening Quiz downloads the bank', reqs.slice(before).some((u) => u.includes('ranked_extra.json'))); ok('quiz page renders after loading', await p.locator('.quizcard .opt').count() >= 2 && !/could not be loaded/.test(await text()));

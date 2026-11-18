@@ -186,8 +186,8 @@ details.stdin textarea { width: 100%; min-height: 64px; font-family: var(--mono)
 @media (max-width: 760px) { .path .arrow { display: none; } }
 .sect { font-size: 22px; font-weight: 800; margin: 26px 0 12px; }
 .cards { margin: 0 0 4px; }
-.tiers3 { display: grid; gap: 5px; margin-top: 2px; } .t3 { display: grid; grid-template-columns: 34px 1fr 38px; align-items: center; gap: 8px; }
-.t3l { font-size: 11px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; color: var(--tc); } .t3n { font-size: 12px; color: var(--muted); font-weight: 700; text-align: right; }
+.tiers3 { display: grid; gap: 5px; margin-top: 2px; } .t3 { display: grid; grid-template-columns: 84px 1fr 38px; align-items: center; gap: 8px; }
+.t3l { font-size: 10px; font-weight: 800; letter-spacing: .02em; white-space: nowrap; text-transform: uppercase; color: var(--tc); } .t3n { font-size: 12px; color: var(--muted); font-weight: 700; text-align: right; }
 .bar.sm { height: 6px; } .bar .f-beginner { background: var(--beg); } .bar .f-intermediate { background: var(--mid); } .bar .f-pro { background: var(--prc); }
 .badges { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 10px; }
 .ach { background: var(--surface); border: 1.5px dashed var(--border); border-radius: 14px; padding: 12px; display: flex; flex-direction: column; gap: 2px; opacity: .55; filter: grayscale(1); }
@@ -383,6 +383,7 @@ a.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;text
 .cd-brand b{font-size:15px;word-break:break-all}
 .cd-brand code{color:#9db4ff;background:rgba(106,168,255,.12)!important;padding:1px 6px!important;border-radius:5px!important}
 .cd-logo{display:grid;place-items:center;width:34px;height:34px;border-radius:10px;background:linear-gradient(135deg,#fff,#aab8ff);color:#0a1020;font-size:16px;flex:none;box-shadow:0 0 22px rgba(150,170,255,.45)}
+.cd-sim{margin:10px 0 0;padding:8px 12px;border-radius:10px;border:1px dashed var(--border, #3a4580);font-size:13px;line-height:1.45;opacity:.95}.cd-sim code{font-size:12px}
 .cd-pill{display:inline-flex;align-items:center;gap:8px;padding:6px 12px;border-radius:999px;border:1px solid var(--cd-line);background:rgba(255,255,255,.03);font-size:13px}
 .cd-pill i{width:9px;height:9px;border-radius:50%;background:var(--cd-dim)}
 .cd-pill[data-s="linting"] i,.cd-pill[data-s="building"] i,.cd-pill[data-s="uploading"] i{background:var(--cd-run);animation:cdPulse 1.1s ease-in-out infinite}
@@ -527,6 +528,6 @@ a.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;text
   window.__learnLoadFail=function(){show(navigator.onLine?'the main app file (app.js) could not be loaded':'you are offline and the app has not been saved for offline use yet')};
 })();
 </script>
-<script src="app.js?v=5.5" defer onerror="window.__learnLoadFail && window.__learnLoadFail()"></script>
+<script src="app.js?v=5.6" defer onerror="window.__learnLoadFail && window.__learnLoadFail()"></script>
 </body>
 </html>

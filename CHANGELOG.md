@@ -1,5 +1,26 @@
 # Changelog
 
+## 5.6 — 17 November 2026 (fixes from a full review)
+### Fixed
+- Achievements: "Closest to unlocking" read the progress pair wrongly and showed "0 / undefined"; duel-rating
+  achievements are suggested only after at least one duel.
+- Electives CEN 101, HCI 101, MAT 101 and MAT 102 have JavaScript assignments but opened before JavaScript is taught;
+  they now require SEU 105. The Mathematics and Computer Engineering department paths list SEU 103–105 first.
+- Cloud capstone: says it is a practice simulation (dashboard note and lesson 1); made-up addresses end in
+  `.learnapp.example` (a reserved name) instead of `.learnapp.dev`; "open the live URL" → "open the preview".
+- Privacy: the home-page note described a site without accounts; it now covers accounts, the AI tutor (and its backup
+  services) and Cloudflare Web Analytics, and links `docs/PRIVACY.md`, which no longer says there are no analytics.
+### Removed
+- GitHub Gist cloud sync (asked students to paste a GitHub token; accounts replace it). Any saved token is deleted
+  from the device on load. The "Backed up" achievement is now earned by creating an account.
+### Changed
+- Home: hero names "15 programming languages … plus the terminal"; language cards spell out the five levels (two were
+  both "PRO"); Locker and Catalog buttons removed from the header (they are in the Shop); the daily challenge comes
+  from a language the student has started (Python for a new student).
+- University: "hands-on labs in Python, JavaScript, SQL and four more languages" (was "16 languages"); "master's-level
+  equivalent" → "up to master's-level topics" on the home page and certificates.
+- Versions: app 5.6, University files 2.0.2. Tests: `e2e-app.js` 51 → 55, `e2e-community.js` 67 → 73.
+
 ## 5.5 — 17 November 2026
 ### Changed
 - SEU 101 and SEU 102 programming assignments asked for Python before SEU 103 teaches it. Each now explains the Python

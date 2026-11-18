@@ -13,7 +13,7 @@
 (function () {
   'use strict';
   const CAT = window.UNI_CATALOG; const CFG = window.UNI_CONFIG || {};
-  const BUILD = '2.0.1'; // bump together with UNI_VER in index.html and the stamp at the top of each uni-*.js file
+  const BUILD = '2.0.2'; // bump together with UNI_VER in index.html and the stamp at the top of each uni-*.js file
   const U = { build: BUILD, ready: false, cat: CAT, cfg: CFG, content: {}, files: {}, views: {}, mods: {} };
   let A = null; // API handed over by index.html
   const PASS = 70, FINAL_PASS = 75;
@@ -269,7 +269,7 @@
 
   U.views[''] = function () {
     const o = overall(), cs = currentStage(), nx = nextUp(); const started = o.lesDone > 0 || Object.keys(st().exams).length > 0;
-    let h = '<section class="u-hero"><div class="uh-text"><p class="u-eyebrow">A master\'s-level equivalent self-study pathway</p><h1>Learn software engineering the way a university teaches it.</h1><p>Six academic stages take you from "what is a computer?" to principal-level engineering: ' + CAT.courses.length + ' courses, ' + o.les + ' lessons, hands-on labs in 16 languages, graded examinations and capstone projects. Free, in your browser, at your own pace.</p><div class="uh-cta">' +
+    let h = '<section class="u-hero"><div class="uh-text"><p class="u-eyebrow">A free self-study pathway, from beginner to master\'s-level topics</p><h1>Learn software engineering the way a university teaches it.</h1><p>Six academic stages take you from "what is a computer?" to principal-level engineering: ' + CAT.courses.length + ' courses, ' + o.les + ' lessons, hands-on labs in Python, JavaScript, SQL and four more languages, graded examinations and capstone projects. Free, in your browser, at your own pace.</p><div class="uh-cta">' +
       (nx ? link(nextStep(nx).path, (started ? 'Continue: ' : 'Start: ') + E(nx.code + ' · ' + nextStep(nx).label) + ' →', 'btn primary') : link(['transcript'], 'View your transcript →', 'btn primary')) + link(['courses'], 'Browse the catalogue', 'btn') + '</div><p class="u-fine">This is not an accredited degree. See the note at the bottom of every page.</p></div>' +
       '<div class="uh-side">' + ring(o.pct, 'Overall completion ' + o.pct + ' percent') + '<dl><div><dt>Current stage</dt><dd>' + cs + ' of ' + CAT.stages.length + '</dd></div><div><dt>Courses</dt><dd>' + o.done + ' / ' + o.tot + '</dd></div><div><dt>Lessons</dt><dd>' + o.lesDone + ' / ' + o.les + '</dd></div></dl></div></section>';
     h += '<h2 class="u-h2">Your academic pathway</h2><ol class="u-timeline">' + CAT.stages.map((s) => {

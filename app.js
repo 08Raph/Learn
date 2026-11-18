@@ -10823,7 +10823,7 @@ const CLOUD_CONTENT = (() => {
 
   const LESSONS = [
     { tier: 'beginner', id: 'cloud-01', title: 'Your first deploy', concept: 'CI/CD pipeline', project: 'first-site',
-      body: '<p><b>CI/CD</b> turns "I saved my code" into "it is live on the internet" without manual steps. <b>Continuous Integration</b> checks every change automatically. <b>Continuous Delivery</b> ships the checked build to real users.</p><p>This dashboard works like Vercel, Netlify or GitHub Actions: a <b>pipeline</b> runs three <b>stages</b> in order. If a stage fails, the pipeline stops and nothing goes live.</p><ol><li><b>Lint &amp; review</b> finds mistakes before they ship.</li><li><b>Build</b> compiles, minifies and fingerprints your files.</li><li><b>Upload to the edge CDN</b> copies them to servers near your users.</li></ol>',
+      body: '<p><b>CI/CD</b> turns "I saved my code" into "it is live on the internet" without manual steps. <b>Continuous Integration</b> checks every change automatically. <b>Continuous Delivery</b> ships the checked build to real users.</p><p>This practice dashboard works like Vercel, Netlify or GitHub Actions (it is a simulation: nothing really goes online): a <b>pipeline</b> runs three <b>stages</b> in order. If a stage fails, the pipeline stops and nothing goes live.</p><ol><li><b>Lint &amp; review</b> finds mistakes before they ship.</li><li><b>Build</b> compiles, minifies and fingerprints your files.</li><li><b>Upload to the edge CDN</b> copies them to servers near your users.</li></ol>',
       example: YAML('      - run: npm run lint\n      - run: npm run build\n      - run: npx deploy --prod'),
       task: 'The project below is healthy. Press <b>Deploy App</b> and watch all three stages finish.',
       hint: 'You do not need to change anything. Just press Deploy App.', startFiles: L1s, solutionFiles: L1s, solution: 'Press Deploy App',
@@ -10865,7 +10865,7 @@ const CLOUD_CONTENT = (() => {
       goal: (f) => (/env\s*:\s*["']production["']/.test(f['app.js'])) || 'Set CONFIG.env to "production" in app.js.',
       quiz: q('const KEY = "sk_live_51H8..."', ['Unsafe: secrets in source code can leak', 'Safe: the key is hidden in the bundle', 'Required for every deploy'], 0, 'Bundled JavaScript is public. Keep secrets on the server as environment variables.') },
     { tier: 'pro', id: 'cloud-07', title: 'Capstone: ship a todo app', concept: 'full pipeline', project: 'todo-app',
-      body: '<p>Time to ship a real mini product. Build a working todo list: type into the input, press <b>Add</b>, and a new item appears. Then take it through the full pipeline and open the live URL.</p><p>You need: an <code>&lt;input&gt;</code>, a <code>&lt;button&gt;</code> and a <code>&lt;ul&gt;</code> in the HTML (already there), and JavaScript that creates an <code>&lt;li&gt;</code> for each task. Skip empty text, and clear the input after adding.</p>',
+      body: '<p>Time to ship a real mini product. Build a working todo list: type into the input, press <b>Add</b>, and a new item appears. Then take it through the full pipeline and open the preview.</p><p>You need: an <code>&lt;input&gt;</code>, a <code>&lt;button&gt;</code> and a <code>&lt;ul&gt;</code> in the HTML (already there), and JavaScript that creates an <code>&lt;li&gt;</code> for each task. Skip empty text, and clear the input after adding.</p>',
       example: 'const li = document.createElement("li");\nli.textContent = text;\nlist.appendChild(li);',
       task: 'Finish <code>app.js</code> so Add puts the typed text in the list. Deploy it, press <b>Visit</b> and add two todos on the live site.',
       hint: 'In the click handler: read input.value, create an li, set textContent, list.appendChild(li), clear the input.', startFiles: L7s, solutionFiles: L7f, solution: 'Finish the todo app',
@@ -10915,7 +10915,7 @@ const CLOUD_CONTENT = (() => {
   return { lessons: LESSONS, extra: EXTRA };
 })();
 LANGS.cloud = { key: 'cloud', name: 'Deploying to the Cloud', short: '☁', file: 'index.html', color: '#0e7490', comment: '#',
-  blurb: 'Capstone: lint, build and ship a real project through a Vercel-style CI/CD pipeline, then open your live URL.',
+  blurb: 'Capstone: lint, build and ship a real project through a Vercel-style CI/CD pipeline (a practice simulation), then open the preview.',
   lessons: CLOUD_CONTENT.lessons.map((l) => Object.assign({}, l, { type: 'deploy', starter: '', check: {}, example: l.example })) };
 TRACKS.push('cloud');
 
@@ -11353,7 +11353,7 @@ B('night', '🦉', 'Night owl', 'Finish a lesson between midnight and 5 am', 'me
 B('early', '🐦', 'Early bird', 'Finish a lesson between 5 am and 8 am', 'medium', () => cnt('early') > 0);
 B('weekend', '🏖️', 'Weekend warrior', 'Finish a lesson on a Saturday or Sunday', 'easy', () => cnt('weekend') > 0);
 B('theme', '🌗', 'Light and dark', 'Switch the colour theme', 'easy', () => cnt('theme') > 0);
-B('cloud', '☁️', 'Backed up', 'Set up cloud sync for your progress', 'easy', () => !!(S.gh && (S.gh.token || S.gh.id)));
+B('cloud', '☁️', 'Backed up', 'Create an account so your progress is saved online', 'easy', () => !!acctEmail());
 B('code1', '🎟️', 'Code breaker', 'Redeem a code', 'easy', () => Object.keys(S.redeemed || {}).length >= 1);
 NB('web1', '🌐', 'Web builder', 'Finish a Web lab lesson', 'easy', () => Object.keys(S.web || {}).length, 1);
 NB('web5', '🕸️', 'Page crafter', 'Finish 5 Web lab lessons', 'medium', () => Object.keys(S.web || {}).length, 5);
@@ -11415,8 +11415,9 @@ function achievementsHtml() {
     return '<details class="achg"><summary><span class="achd" style="--dc:' + D.c + '">' + D.name + '</span> ' + on + ' / ' + list.length + ' · +' + D.xp + ' XP each</summary><div class="badges">' + cards + '</div></details>';
   }).join('');
   // 5.1: show the four achievements closest to unlocking; the full list is in the closed groups below
-  const near = BADGES.filter((b) => !S.badges[b.id] && b.prog).map((b) => { let p = null; try { p = b.prog(); } catch (e) {} return { b, f: p && p[1] ? Math.min(1, (p[0] || 0) / p[1]) : 0, p }; }).filter((x) => x.f > 0).sort((a, b) => b.f - a.f).slice(0, 4);
-  const nearHtml = near.length ? '<h3 class="achnear-h">Closest to unlocking</h3><div class="badges achnear">' + near.map(({ b, p }) => { const D = BADGE_DIFF[b.diff]; return '<div class="ach" title="' + esc(b.desc) + '"><span class="ic">' + b.icon + '</span><b>' + esc(b.name) + '</b><small>' + esc(b.desc) + '</small><span class="achx" style="--dc:' + D.c + '">' + D.name + ' · +' + b.xp + ' XP</span><span class="achp"><i style="width:' + Math.round(Math.min(1, (p.v || 0) / p.t) * 100) + '%"></i></span><small>' + (p.v || 0) + ' / ' + p.t + '</small></div>'; }).join('') + '</div>' : '';
+  const duelPlayed = (() => { const d = S.duel || {}; return (d.w || 0) + (d.l || 0) + (d.d || 0) > 0; })();
+  const near = BADGES.filter((b) => !S.badges[b.id] && b.prog && (duelPlayed || !/^rate\d/.test(b.id))).map((b) => { let p = null; try { p = b.prog(); } catch (e) {} return { b, f: p && p[1] ? Math.min(1, (p[0] || 0) / p[1]) : 0, p }; }).filter((x) => x.f > 0).sort((a, b) => b.f - a.f).slice(0, 4);
+  const nearHtml = near.length ? '<h3 class="achnear-h">Closest to unlocking</h3><div class="badges achnear">' + near.map(({ b, p }) => { const D = BADGE_DIFF[b.diff]; return '<div class="ach" title="' + esc(b.desc) + '"><span class="ic">' + b.icon + '</span><b>' + esc(b.name) + '</b><small>' + esc(b.desc) + '</small><span class="achx" style="--dc:' + D.c + '">' + D.name + ' · +' + b.xp + ' XP</span><span class="achp"><i style="width:' + Math.round(Math.min(1, (p[0] || 0) / p[1]) * 100) + '%"></i></span><small>' + (p[0] || 0) + ' / ' + p[1] + '</small></div>'; }).join('') + '</div>' : '';
   return '<h2 class="sect">Achievements</h2><p class="pill" style="font-size:15px">🏆 <b>' + got.length + ' / ' + BADGES.length + '</b> unlocked · ' + gotXp + ' of ' + allXp + ' bonus XP earned. Harder achievements give more XP.</p>' + nearHtml + '<p class="muted" style="margin:14px 0 6px">All achievements, by difficulty (tap to open):</p>' + groups;
 }
 function nextLessonIdx(k) { const ls = lessonsOf(k); const i = ls.findIndex((l) => !isDone(k, l)); return i < 0 ? ls.length - 1 : i; }
@@ -11715,6 +11716,7 @@ const Cloud = (() => {
     host.innerHTML = '<div class="cl"><div class="cl-tabs" role="tablist" aria-label="Project files"></div><div class="cl-ed"></div>' +
       '<div class="cdash" data-state="idle" aria-label="Deployment dashboard">' +
       '<header class="cd-head"><div class="cd-brand"><span class="cd-logo" aria-hidden="true">▲</span><div><b class="cd-proj">' + E(user + '/' + proj) + '</b><small>Production · <span>main</span> · <code class="cd-sha"></code></small></div></div><span class="cd-pill" data-s="idle" role="status" aria-live="polite"><i></i><b>Not deployed</b></span></header>' +
+      '<p class="cd-sim" role="note">🧪 Practice simulation: this dashboard runs inside Learn. Nothing is put on the internet, and the addresses it shows are made up (they end in <code>.example</code>, which never belongs to a real site). Visit opens a preview here.</p>' +
       '<ol class="cd-stages">' + STAGES.map((s, i) => '<li data-st="' + s.k + '" data-s="pending"><span class="cd-ico" aria-hidden="true">' + (i + 1) + '</span><div class="cd-stx"><b>' + s.n + '</b><small class="cd-sub">Waiting</small></div><span class="cd-time"></span><div class="cd-bar" role="progressbar" aria-label="' + E(s.n) + ' progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><i></i></div></li>').join('') + '</ol>' +
       '<div class="cd-main"><section class="cd-term" role="log" aria-live="off" aria-label="Build log" tabindex="0"><div class="cd-termbar"><span class="d r"></span><span class="d y"></span><span class="d g"></span><span class="cd-tt">build log</span></div><div class="cd-lines"></div></section><section class="cd-side" aria-label="Pipeline details"></section></div>' +
       '<div class="cd-result" aria-live="polite"></div><div class="cd-hist"></div></div></div>';
@@ -11874,7 +11876,7 @@ const Cloud = (() => {
         }
         log('Purging stale cache…', 'dim'); await sleep(320); live();
         const hc = 24 + Math.round(rnd() * 40); log('Health check  GET /  → 200 OK (' + hc + ' ms)', 'ok'); await sleep(320); live();
-        const url = 'https://' + user + '-' + proj + '-' + (100 + (parseInt(fnv(sha() + Date.now() + deploys.length), 16) % 900)) + '.learnapp.dev';
+        const url = 'https://' + user + '-' + proj + '-' + (100 + (parseInt(fnv(sha() + Date.now() + deploys.length), 16) % 900)) + '.learnapp.example';
         log('Assigning domain ' + url, 'dim'); await sleep(300); live(); done('upload', performance.now() - stageT0.upload);
         const dep = { id: 'd' + (deploys.length + 1) + '-' + sha(), url, sha: sha(), at: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }), files: snap, preview: br.preview, current: true, edge: m.ctx.regions[1].ms };
         deploys.forEach((d) => { d.current = false; }); deploys.unshift(dep);
@@ -12703,7 +12705,7 @@ function rankedGate() {
 /* ===== Software Engineering University (lazy-loaded from ./uni/) =====
    Nothing in ./uni/ is downloaded until the student opens #/uni. The module gets
    the page internals it needs through this API object instead of globals. */
-const UNI_VER = '2.0.1';
+const UNI_VER = '2.0.2';
 let uniLoad = null;
 function uniApi() {
   return {
@@ -12752,7 +12754,7 @@ function renderUni() {
 
 const termCardHtml = (k) => {
   k = k || 'term'; const L = LANGS[k], d = countDone(k), n = lessonsOf(k).length;
-  return '<button class="lcard" data-lang="' + k + '">' + badge(k, true) + '<h3>' + L.name + '</h3><p>' + esc(L.blurb) + '</p><div class="tiers3">' + tiersFor(k).map((tr) => { const td = tierDone(k, tr.key), tt = tierLessons(k, tr.key).length; return '<div class="t3"><span class="t3l t-' + tr.key + '">' + tr.name.slice(0, 3) + '</span><div class="bar sm"><div class="f-' + tr.key + '" style="width:' + Math.round(td / tt * 100) + '%"></div></div><span class="t3n">' + td + '/' + tt + '</span></div>'; }).join('') + '</div><div class="meta"><span>' + d + ' of ' + n + ' done</span><span>' + (d === 0 ? 'Start' : d === n ? 'Complete ✓' : 'Continue') + ' →</span></div></button>';
+  return '<button class="lcard" data-lang="' + k + '">' + badge(k, true) + '<h3>' + L.name + '</h3><p>' + esc(L.blurb) + '</p><div class="tiers3">' + tiersFor(k).map((tr) => { const td = tierDone(k, tr.key), tt = tierLessons(k, tr.key).length; return '<div class="t3"><span class="t3l t-' + tr.key + '">' + tr.name + '</span><div class="bar sm"><div class="f-' + tr.key + '" style="width:' + Math.round(td / tt * 100) + '%"></div></div><span class="t3n">' + td + '/' + tt + '</span></div>'; }).join('') + '</div><div class="meta"><span>' + d + ' of ' + n + ' done</span><span>' + (d === 0 ? 'Start' : d === n ? 'Complete ✓' : 'Continue') + ' →</span></div></button>';
 };
 function uniBannerHtml() {
   const u = S.uni || {}; const n = Object.keys(u.lessons || {}).length;
@@ -12762,14 +12764,14 @@ function renderHome() {
   const r = rankInfo(), st = streak(), done = doneTotal();
   const lk = S.lastLang && LANGS[S.lastLang] ? S.lastLang : 'py'; const ni = nextLessonIdx(lk); const nl = lessonsOf(lk)[ni];
   const cont = done === TOTAL ? '' : '<button class="continue" id="contBtn">' + badge(lk) + '<span class="ct"><small>' + (done ? 'Continue where you left off' : 'Start here') + '</small><b>' + LANGS[lk].name + ' · ' + (ni + 1) + '. ' + esc(nl.title) + '</b></span><span class="go">→</span></button>';
-  app.innerHTML = '<div class="wrap">' + topbar('<div class="crumb"><img src="icon-192.png" alt="" width="30" height="30" style="border-radius:8px"> Learn to Code</div>', '<button class="btn small uni-nav" id="uniBtn">🎓 University</button> <button class="btn small" id="avatarBtn">🧑 Avatar</button> <button class="btn small" id="lockerHomeBtn">🎒 Locker</button> <button class="btn small" id="catHomeBtn">📖 Catalog</button> <button class="btn small" id="shopBtn">🎁 Shop · ' + wallet() + ' XP to spend</button> <button class="btn small" id="projBtn">🗂 Project</button> <button class="btn small" id="playBtn">⌨ Playground</button>') +
-    '<div class="homegrid"><div class="hero"><h1>From <em>first line</em> to <em>pro</em>.</h1><p>' + TOTAL + ' hands-on lessons in Python, JavaScript, TypeScript, C, C++, C# and SQL. Learn a concept, write real code, and get instant feedback. It all runs in your browser on Windows, iPad or anything else.</p>' + cont + '</div>' +
+  app.innerHTML = '<div class="wrap">' + topbar('<div class="crumb"><img src="icon-192.png" alt="" width="30" height="30" style="border-radius:8px"> Learn to Code</div>', '<button class="btn small uni-nav" id="uniBtn">🎓 University</button> <button class="btn small" id="avatarBtn">🧑 Avatar</button> <button class="btn small" id="shopBtn">🎁 Shop · ' + wallet() + ' XP to spend</button> <button class="btn small" id="projBtn">🗂 Project</button> <button class="btn small" id="playBtn">⌨ Playground</button>') +
+    '<div class="homegrid"><div class="hero"><h1>From <em>first line</em> to <em>pro</em>.</h1><p>' + TOTAL + ' hands-on lessons in ' + LANG_ORDER.length + ' programming languages, from Python and JavaScript to Rust and Swift, plus the terminal. Learn a concept, write real code, and get instant feedback. It all runs in your browser on Windows, iPad or anything else.</p>' + cont + '</div>' +
     myBanner() + '<div class="statcard"><div class="rankrow"><div><small>YOUR RANK</small><div class="rank">' + r.rank.name + titleHtml() + '</div></div><div class="streak" title="Days in a row you completed a lesson">🔥 <b>' + st + '</b><small>day' + (st === 1 ? '' : 's') + '</small></div></div>' +
     '<div class="bar"><div style="width:' + r.pct + '%"></div></div><div class="xpline"><span>' + r.x + ' XP</span><span>' + (r.next ? (r.next.xp - r.x) + ' XP to ' + r.next.name : 'Top rank reached!') + '</span></div>' +
     '<div class="mini"><div><b>' + done + '</b><small>of ' + TOTAL + ' lessons</small></div><div><b>' + Object.keys(S.quiz).length + '</b><small>quiz answers</small></div><div><b>' + Object.keys(S.badges).length + '</b><small>of ' + BADGES.length + ' badges</small></div></div></div></div>' +
     '<div class="path" aria-label="Learning path">' + TIERS.map((t, i) => '<div class="step t-' + t.key + '"><span class="num">' + (i + 1) + '</span><div><b>' + t.name + '</b><small>' + t.blurb + '</small></div></div>').join('<span class="arrow">→</span>') + '</div>' +
     weekCardHtml() + uniBannerHtml() + chBanner() + dailyHtml() + searchHtml() + '<h2 class="sect">Choose a language</h2><div class="cards">' + LANG_ORDER.map((k) => { const L = LANGS[k], d = countDone(k), n = lessonsOf(k).length;
-      return '<button class="lcard" data-lang="' + k + '">' + badge(k, true) + '<h3>' + L.name + '</h3><p>' + esc(L.blurb) + '</p><div class="tiers3">' + tiersFor(k).map((t) => { const td = tierDone(k, t.key), tt = tierLessons(k, t.key).length; return '<div class="t3"><span class="t3l t-' + t.key + '">' + t.name.slice(0, 3) + '</span><div class="bar sm"><div class="f-' + t.key + '" style="width:' + Math.round(td / tt * 100) + '%"></div></div><span class="t3n">' + td + '/' + tt + '</span></div>'; }).join('') + '</div><div class="meta"><span>' + d + ' of ' + n + ' done</span><span>' + (d === 0 ? 'Start' : d === n ? 'Complete ✓' : 'Continue') + ' →</span></div></button>'; }).join('') + '</div>' +
+      return '<button class="lcard" data-lang="' + k + '">' + badge(k, true) + '<h3>' + L.name + '</h3><p>' + esc(L.blurb) + '</p><div class="tiers3">' + tiersFor(k).map((t) => { const td = tierDone(k, t.key), tt = tierLessons(k, t.key).length; return '<div class="t3"><span class="t3l t-' + t.key + '">' + t.name + '</span><div class="bar sm"><div class="f-' + t.key + '" style="width:' + Math.round(td / tt * 100) + '%"></div></div><span class="t3n">' + td + '/' + tt + '</span></div>'; }).join('') + '</div><div class="meta"><span>' + d + ' of ' + n + ' done</span><span>' + (d === 0 ? 'Start' : d === n ? 'Complete ✓' : 'Continue') + ' →</span></div></button>'; }).join('') + '</div>' +
     '<h2 class="sect">Command line</h2><div class="cards">' + termCardHtml('term') + '</div>' +
     '<h2 class="sect">Capstone</h2><div class="cards">' + termCardHtml('cloud') + '</div>' +
     achievementsHtml() +
@@ -12781,7 +12783,7 @@ function renderHome() {
   $('#projBtn').addEventListener('click', () => go({ name: 'project' }));
   $('#uniBtn').addEventListener('click', () => go({ name: 'uni', path: [] })); { const ub = $('#uniBanner'); if (ub) ub.addEventListener('click', () => go({ name: 'uni', path: [] })); }
   $('#playBtn').addEventListener('click', () => go({ name: 'play', lang: S.playLang || 'py' }));
-  $('#shopBtn').addEventListener('click', () => go({ name: 'shop' })); $('#lockerHomeBtn').addEventListener('click', () => go({ name: 'locker' })); $('#catHomeBtn').addEventListener('click', () => go({ name: 'catalog' }));
+  $('#shopBtn').addEventListener('click', () => go({ name: 'shop' }));
   $('#avatarBtn').addEventListener('click', () => go({ name: 'avatar' }));
   $$('.dcard[data-dk]').forEach((b) => b.addEventListener('click', () => go({ name: 'lesson', lang: b.dataset.dk, idx: +b.dataset.di })));
   mountExtras(); bindHome(); bindWeekCard(); bindShareLearn();
@@ -15126,7 +15128,8 @@ function renderShop() {
 }
 function tiersFor(lang) { return TIERS.filter((t) => tierLessons(lang, t.key).length > 0); }
 function dailyPick() {
-  const all = []; LANG_ORDER.forEach((k) => lessonsOf(k).forEach((l, i) => all.push([k, i])));
+  const started = LANG_ORDER.filter((k) => lessonsOf(k).some((l) => isDone(k, l)));
+  const all = []; (started.length ? started : ['py']).forEach((k) => lessonsOf(k).forEach((l, i) => all.push([k, i]))); // 5.6: only languages the student has started (Python for a new student)
   const d = dayStr(new Date()); let h = 0; for (const c of d) h = (h * 31 + c.charCodeAt(0)) >>> 0;
   const [k, i] = all[h % all.length]; return { k, i, l: lessonsOf(k)[i], d };
 }
@@ -15144,7 +15147,6 @@ function dailyHtml() {
     (due.length ? card(due[0][0], due[0][1], '🔁 REVIEW · ' + due.length + ' due', 'Finished a while ago. Refresh your memory.') : '') + '</div>';
 }
 /* cloud sync through the user's own private GitHub Gist (works on static hosting) */
-const GH = 'https://api.github.com', GF = 'learn-to-code.json';
 function snapshot() { return { done: S.done, code: S.code, cur: S.cur, pg: S.pg, quiz: S.quiz, days: S.days, badges: S.badges, spent: S.spent, bonus: S.bonus, owned: S.owned, equip: S.equip, doneAt: S.doneAt, web: S.web, quizDay: S.quizDay, duel: S.duel, avatar: S.avatar, avatarOwned: S.avatarOwned, redeemed: S.redeemed, cnt: S.cnt, daily: S.daily, uni: S.uni }; }
 // University progress in cloud sync: union of both copies, never losing a completed item or an examination attempt.
 /* ===== Backup and restore (4.1) =====
@@ -15171,7 +15173,7 @@ function backupSummary(d) { const u = d.uni && typeof d.uni === 'object' ? d.uni
 function backupLastText() { return S.lastBackup ? 'Last backup file made on this device: ' + esc(S.lastBackup) + '.' : 'No backup file has been made on this device yet.'; }
 function backupNudgeHtml() { const have = Object.keys(S.done || {}).length + Object.keys((S.uni && S.uni.lessons) || {}).length; if (have < 5) return ''; const last = S.lastBackup ? Date.parse(S.lastBackup) : 0; if (last && Date.now() - last < 14 * 864e5) return ''; return '<p class="pill" id="bkNudge" style="margin:0 0 10px">💾 ' + (last ? 'Your last backup is more than two weeks old.' : 'You have progress that is not backed up.') + ' <a href="#bkDetails" id="bkNudgeGo">Make a backup file</a></p>'; }
 function backupApply(d, mode) {
-  if (mode === 'replace') { const keep = { theme: S.theme, gh: S.gh, lastBackup: S.lastBackup }; Object.keys(BK_KEYS).forEach((k) => { delete S[k]; }); Object.assign(S, { done: {}, code: {}, cur: {}, pg: {}, quiz: {}, days: [], badges: {}, fs: 15, spent: 0, bonus: 0, owned: {}, equip: {}, doneAt: {}, daily: {}, web: {}, quizDay: '' }, d, keep); if (d.theme) S.theme = d.theme; }
+  if (mode === 'replace') { const keep = { theme: S.theme, lastBackup: S.lastBackup }; Object.keys(BK_KEYS).forEach((k) => { delete S[k]; }); Object.assign(S, { done: {}, code: {}, cur: {}, pg: {}, quiz: {}, days: [], badges: {}, fs: 15, spent: 0, bonus: 0, owned: {}, equip: {}, doneAt: {}, daily: {}, web: {}, quizDay: '' }, d, keep); if (d.theme) S.theme = d.theme; }
   else { mergeIn(d); ['duel', 'quizDay', 'lastLang', 'playLang'].forEach((k) => { if (S[k] === undefined && d[k] !== undefined) S[k] = d[k]; }); S.fs = S.fs || d.fs || 15; }
   save();
 }
@@ -15216,33 +15218,14 @@ function mergeIn(d) {
   S.spent = Math.max(S.spent || 0, d.spent || 0); S.bonus = Math.max(S.bonus || 0, d.bonus || 0);
   ['wkGoal', 'wkTime', 'certName'].forEach((k) => { if (S[k] === undefined && d[k] !== undefined) S[k] = d[k]; });
 }
-async function gh(path, opt) {
-  const r = await fetch(GH + path, Object.assign({ headers: { Authorization: 'Bearer ' + S.gh.token, Accept: 'application/vnd.github+json' } }, opt));
-  if (!r.ok) throw new Error('GitHub replied ' + r.status + (r.status === 401 ? ' (check your token)' : ''));
-  return r.json();
-}
-async function syncNow() {
-  if (!S.gh.id) { const list = await gh('/gists?per_page=100'); const f = list.find((g) => g.files && g.files[GF]); if (f) S.gh.id = f.id; }
-  if (S.gh.id) {
-    const g = await gh('/gists/' + S.gh.id); const fl = g.files && g.files[GF];
-    if (fl) { const txt = fl.truncated ? await (await fetch(fl.raw_url)).text() : fl.content; mergeIn(JSON.parse(txt)); }
-  }
-  const body = { description: 'Learn to Code progress', files: { [GF]: { content: JSON.stringify(snapshot()) } } };
-  if (S.gh.id) await gh('/gists/' + S.gh.id, { method: 'PATCH', body: JSON.stringify(body) });
-  else { body.public = false; S.gh.id = (await gh('/gists', { method: 'POST', body: JSON.stringify(body) })).id; }
-  save();
-}
 function mountExtras() {
   const f = $('.foot'); if (!f) return;
-  f.insertAdjacentHTML('beforeend', '<p><a href="https://github.com/08raph/Learn/issues/new" target="_blank" rel="noopener">💬 Report a problem or suggest a lesson</a></p><details class="backup"><summary>☁ Cloud sync (your own GitHub Gist)</summary><p>Sync progress between devices with no account on this site. Create a GitHub token with <b>only the “gist” permission</b>, paste it here and press Sync now. Use the same token on your other devices. Progress is merged, so nothing is lost. Your data goes to a private gist in your GitHub account, and the token stays on this device.</p><input id="ghTok" type="password" autocomplete="off" placeholder="GitHub token (gist scope)" style="width:100%;min-height:44px;padding:0 12px;border-radius:10px;border:1.5px solid var(--border);background:var(--surface);color:var(--text)"><div class="row" style="margin-top:8px"><button class="btn small primary" id="ghSync">Sync now</button><button class="btn small" id="ghForget">Forget token</button></div><p class="pill" id="ghMsg" role="status"></p></details>' +
-    '<details class="backup"><summary>🔒 Privacy</summary><p>No account and no cookies. Your progress and code are stored only in this browser unless you turn on cloud sync, which sends them to your own private GitHub gist.' + (ANALYTICS_DOMAIN ? ' This site uses Plausible, a cookie-free analytics service, to count visits and completed lessons. The code you write is never sent.' : CF_TOKEN ? ' This site uses Cloudflare Web Analytics, which is cookie-free, to count visits. The code you write is never sent.' : '') + '</p></details>');
-  $('#ghTok').value = S.gh.token || '';
-  $('#ghSync').addEventListener('click', async () => {
-    const t = $('#ghTok').value.trim(), m = $('#ghMsg'); if (!t) { m.textContent = 'Paste a token first.'; return; }
-    if (t !== S.gh.token) S.gh = { token: t }; m.textContent = 'Syncing…';
-    try { await syncNow(); render(); toast('☁ Synced'); } catch (e) { m.textContent = 'Sync failed: ' + e.message; }
-  });
-  $('#ghForget').addEventListener('click', () => { S.gh = {}; save(); $('#ghTok').value = ''; $('#ghMsg').textContent = 'Token removed from this device.'; });
+  f.insertAdjacentHTML('beforeend', '<p><a href="https://github.com/08raph/Learn/issues/new" target="_blank" rel="noopener">💬 Report a problem or suggest a lesson</a></p>' +
+    '<details class="backup"><summary>🔒 Privacy</summary><p>Your progress and code are saved in this browser. If you create an account, they are also saved in your account (Google Firebase), where only you can read them. ' +
+    'Questions you send to the AI tutor go to this site\'s AI service on Cloudflare (and, when it is busy, possibly to a backup AI service); nothing is stored there. ' +
+    (ANALYTICS_DOMAIN ? 'This site uses Plausible, a cookie-free analytics service, to count visits and completed lessons. ' : CF_TOKEN ? 'This site uses Cloudflare Web Analytics to count visits: it sets no cookies and never sees your code or answers. ' : '') +
+    'No advertising, and nothing is sold. <a href="https://github.com/08Raph/Learn/blob/main/docs/PRIVACY.md" target="_blank" rel="noopener">Full privacy details</a></p></details>');
+  if (S.gh) { delete S.gh; save(); } // 5.6: the GitHub Gist sync was removed (accounts replace it); forget any token saved on this device
 }
 function initAnalytics() {
   if (CF_TOKEN) { const c = document.createElement('script'); c.defer = true; c.src = 'https://static.cloudflareinsights.com/beacon.min.js'; c.setAttribute('data-cf-beacon', JSON.stringify({ token: CF_TOKEN })); document.head.appendChild(c); }
@@ -17326,8 +17309,16 @@ function makeCard(lang) {
 document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeDrawer(); });
 
 /* ---------- patch notes (pop up once per update; brand-new players never see old notes) ---------- */
-const APP_VERSION = '5.5';
+const APP_VERSION = '5.6';
 const PATCH_NOTES = [
+  { v: '5.6', date: 'Nov 17, 2026', title: '🧹 Clearer and more honest', items: [
+    'Fixed: achievements could show "0 / undefined". Duel-rating achievements are only suggested after you play a duel.',
+    'Electives CEN 101, HCI 101, MAT 101 and MAT 102 now need SEU 105 (Introduction to JavaScript) first, because their assignments are in JavaScript.',
+    'The Cloud capstone now says clearly that it is a practice simulation; its made-up web addresses end in .example so they can never point at a real site.',
+    'The old GitHub Gist cloud sync was removed: create an account instead (it keeps your progress safely, with no token to paste). Any saved token is deleted from this device.',
+    'The privacy note now describes accounts, the AI tutor and the cookie-free visit counter.',
+    'Language cards spell out Beginner, Intermediate, Pro, Bug hunt and Projects. The home page names all 15 languages, has fewer buttons at the top (Locker and Catalog are in the Shop), and the daily challenge comes from a language you have started.',
+    'University wording: "hands-on labs in Python, JavaScript, SQL and four more languages"; certificates say "Software Engineering pathway, up to master\'s-level topics" (it is not an accredited degree).'] },
   { v: '5.5', date: 'Nov 17, 2026', title: '🐍 Help for your first assignments', items: [
     'SEU 101 and SEU 102 assignments now explain every piece of Python they need (functions, %, //, loops, if, strings), with small examples to try, before Python is taught in SEU 103.',
     'SEU 101 also has a step-by-step plan for the binary converter and a table that follows the method for 13, one loop at a time. The answer itself is still yours to write.'] },
@@ -17335,7 +17326,7 @@ const PATCH_NOTES = [
     'Every coding challenge now has its own public page (problem, examples and a hint, never the answer) that links straight into the challenge, plus a page listing all 24.',
     'Every University course (all 65, including electives) has its own public page with its lessons, goals and prerequisites.',
     'New 🔗 Share button on each challenge: send a friend a link to try the same problem.',
-    'The AI tutor now has backup AI services, so it keeps working on busy days (when the site owner switches them on).'] },
+    'The AI tutor can now switch to backup AI services, so it keeps answering on busy days.'] },
   { v: '5.3', date: 'Nov 17, 2026', title: '📣 Easier to find and share', items: [
     '📣 Share Learn button at the bottom of the home page sends an invitation with the link (or copies it).',
     '📲 On iPad and iPhone, a one-time tip shows how to install Learn on the home screen (Safari has no install button of its own).',
