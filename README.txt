@@ -1,3 +1,6 @@
+08Raph Learn 5.9: ethical hacking (SEC 101, SEC 102 and a hacking range with fake targets) and digital logic (CEN 104 and a circuit simulator)
+- NEW FILES: uni/uni-sims.js, uni/data/electives5.txt, course-ce104.html, course-sec101.html, course-sec102.html, tests/e2e-sims.js. Upload the whole folder. No database rule changes.
+
 08Raph Learn 5.8: the whole site in six languages (hand translations for every menu, automatic translation for the rest)
 - NEW: nothing to upload separately; the i18n folder changed. No database rule changes.
 

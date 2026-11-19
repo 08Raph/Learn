@@ -13,7 +13,7 @@
 (function () {
   'use strict';
   const CAT = window.UNI_CATALOG; const CFG = window.UNI_CONFIG || {};
-  const BUILD = '2.0.2'; // bump together with UNI_VER in index.html and the stamp at the top of each uni-*.js file
+  const BUILD = '2.0.3'; // bump together with UNI_VER in index.html and the stamp at the top of each uni-*.js file
   const U = { build: BUILD, ready: false, cat: CAT, cfg: CFG, content: {}, files: {}, views: {}, mods: {} };
   let A = null; // API handed over by index.html
   const PASS = 70, FINAL_PASS = 75;
@@ -30,7 +30,7 @@
     if (!isObj(S.uni)) S.uni = {};
     const u = S.uni;
     // sanitize: a restored backup is untrusted input
-    ['lessons', 'labs', 'exams', 'projects', 'videos', 'missed', 'scratch', 'tries', 'certs', 'bm', 'goal', 'cv', 'arena', 'iv', 'studio', 'srs', 'git', 'mock'].forEach((k) => { if (!isObj(u[k])) u[k] = {}; });
+    ['lessons', 'labs', 'exams', 'projects', 'videos', 'missed', 'scratch', 'tries', 'certs', 'bm', 'goal', 'cv', 'arena', 'iv', 'studio', 'srs', 'git', 'mock', 'circ', 'range'].forEach((k) => { if (!isObj(u[k])) u[k] = {}; });
     if (!Array.isArray(u.days)) u.days = [];
     u.days = u.days.filter((d) => typeof d === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(d)).slice(-2000);
     u.time = Math.max(0, Math.min(1e9, Math.floor(+u.time || 0)));
@@ -168,7 +168,7 @@
   /* ---------- markdown (safe: everything is escaped first) ---------- */
   function inline(t) {
     return E(t).replace(/`([^`]+)`/g, '<code>$1</code>').replace(/\*\*([^*]+)\*\*/g, '<b>$1</b>').replace(/(^|[\s(])\*([^*\s][^*]*)\*/g, '$1<i>$2</i>')
-      .replace(/\[([^\]]+)\]\((https:\/\/[^\s)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
+      .replace(/\[([^\]]+)\]\((https:\/\/[^\s)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>').replace(/\[([^\]]+)\]\((#\/uni\/[a-z0-9\/-]+)\)/g, '<a href="$2">$1</a>');
   }
   function md(src) {
     const L = String(src || '').split('\n'); let h = '', i = 0;
@@ -478,6 +478,9 @@
   U.views.terminal = toolView('terminal', 'labs', [['University', []], ['Laboratories', ['labs']], ['Git and terminal simulator']]);
   U.views.portfolio = toolView('portfolio', 'projects', [['University', []], ['Projects', ['projects']], ['Portfolio']]);
   U.views.practice = studioView('practice', 'Practice studio');
+  const simView = (key, name) => async function (path) { const crumbs = [['University', []], ['Laboratories', ['labs']], [name]]; loading('labs', crumbs); try { await loadMod('uni-sims'); } catch (e) { shell('labs', offlineHtml('This section could not be loaded.'), crumbs); return bindRetry(); } if (U.path !== path) return; return U.sims[key](path); };
+  U.views.circuit = simView('circuit', 'Circuit simulator');
+  U.views.range = simView('range', 'Ethical hacking range');
 
   /* ---------- public surface ---------- */
   Object.assign(U, { srsMiss, srsAnswer, srsSync, srsCounts, addDays, $, $$, E, md, inline, st, save, shell, link, href, ring, bar, courseCard, quizHtml, bindQuiz, qText, loadCourse, loadFile, loadMod, ensureVideos, markStudy, lkey, viaMod, streak, fmtTime, offlineHtml, bindRetry, loading,

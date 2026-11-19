@@ -303,3 +303,25 @@ label.u-check { display: flex; gap: 8px; align-items: center; margin: 8px 0; fon
 .sr-item > a b { text-decoration: underline; text-underline-offset: 3px; }
 .sr-item p { margin: 6px 0 0; line-height: 1.5; }
 .sr-item mark { background: #ffe58a; color: #141a33; border-radius: 3px; padding: 0 2px; }
+
+/* 5.9 circuit simulator */
+.cz-tools{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0}
+.cz-board{overflow-x:auto;border:1px solid var(--border);border-radius:12px;background:var(--surface);padding:6px;margin:8px 0}
+.cz-board svg{display:block;max-width:none;height:auto}
+.czw{fill:none;stroke-width:2.5}.czw.off{stroke:var(--muted)}.czw.on{stroke:#16a34a}.czw.na{stroke:var(--muted);stroke-dasharray:2 4;opacity:.6}.czw.back{stroke-dasharray:6 4}
+.czn rect{fill:var(--bg);stroke:var(--border);stroke-width:1.5}.czn.on rect{fill:rgba(22,163,74,.16);stroke:#16a34a}.czn text{fill:var(--text);font-size:11px;font-family:inherit}.czn .czv{font-weight:700;font-size:12px}
+.czn[data-in]{cursor:pointer}.czn[data-in]:focus{outline:none}.czn[data-in]:focus rect{stroke:var(--accent);stroke-width:3}
+.cz-parts{list-style:none;padding:0;margin:0}.cz-parts li,.cz-parts p{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:0 0 8px}.cz-parts select{min-height:36px;max-width:9em}
+.cz-table{overflow-x:auto}.cz-table tr.bad td{background:rgba(220,38,38,.12)}
+/* 5.9 hacking range */
+.hr-warn{border-left:4px solid #d97706}
+.hr-browser{border:1px solid var(--border);border-radius:12px;overflow:hidden;background:var(--surface)}
+.hr-url{display:flex;gap:6px;align-items:center;padding:6px;border-bottom:1px solid var(--border);flex-wrap:wrap}.hr-url input{flex:1;min-width:8em;min-height:36px;font-family:ui-monospace,Menlo,monospace}
+.hr-proto{font-family:ui-monospace,Menlo,monospace;font-size:13px;color:var(--muted)}
+.hr-status{font-size:12px;color:var(--muted);margin:4px 10px}
+.hr-page{padding:10px 12px;overflow-wrap:anywhere}.hr-page pre,.hr-q{white-space:pre-wrap;overflow-wrap:anywhere;font-size:13px;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:8px;min-height:1.5em}
+.hr-form{display:grid;gap:8px;max-width:28em;margin:8px 0}.hr-form label{display:grid;gap:4px}.hr-form input,.hr-form textarea,.hr-tools textarea{min-height:36px;width:100%;box-sizing:border-box}
+.hr-frame{width:100%;height:300px;border:1px solid var(--border);border-radius:12px;background:#fffdf8;margin:8px 0}
+.hr-scope{padding-left:1.4em}.hr-scope li{margin-bottom:12px}.hr-scope li.ok{border-left:3px solid #16a34a;padding-left:8px}.hr-scope li.no{border-left:3px solid #dc2626;padding-left:8px}.hr-scope .sel{outline:2px solid var(--accent)}
+.hr-hex{word-break:break-all}
+.sr-only{position:absolute!important;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}

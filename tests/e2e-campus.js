@@ -16,7 +16,7 @@ const R = []; const ok = (n, c, x) => R.push((c ? 'PASS ' : 'FAIL ') + n + (x ? 
     const UE = (fn, arg) => p.evaluate(fn, arg);
 
     ok('programme totals unchanged by electives (52 courses, 255 lessons)', await UE(() => { const o = window.LearnUniversity.overall(); return o.tot === 52 && o.les === 255; }));
-    ok('13 electives registered and resolvable', await UE(() => { const U = window.LearnUniversity; return U.cat.electives.length === 13 && U.cat.electives.every((c) => U.courseById(c.id) === c); }));
+    ok('16 electives registered and resolvable', await UE(() => { const U = window.LearnUniversity; return U.cat.electives.length === 16 && U.cat.electives.every((c) => U.courseById(c.id) === c); }));
 
     /* ---- stage final through the UI ---- */
     const sitFinal = async (good) => {
@@ -138,8 +138,8 @@ const R = []; const ok = (n, c, x) => R.push((c ? 'PASS ' : 'FAIL ') + n + (x ? 
 
     /* ---- service worker ---- */
     await p.evaluate(() => navigator.serviceWorker.ready); await p.waitForTimeout(1500);
-    const keys = await p.evaluate(() => caches.keys()); ok('service worker: only the current cache exists', keys.length === 1 && keys[0] === 'learn-v5.8', keys.join(','));
-    const cached = await p.evaluate(async () => { const c = await caches.open('learn-v5.8'); const ks = (await c.keys()).map((r) => new URL(r.url).pathname); return ['uni/uni-campus.js', 'uni/data/departments.js', 'uni/university.js'].every((f) => ks.some((k) => k.endsWith(f))); });
+    const keys = await p.evaluate(() => caches.keys()); ok('service worker: only the current cache exists', keys.length === 1 && keys[0] === 'learn-v5.9', keys.join(','));
+    const cached = await p.evaluate(async () => { const c = await caches.open('learn-v5.9'); const ks = (await c.keys()).map((r) => new URL(r.url).pathname); return ['uni/uni-campus.js', 'uni/data/departments.js', 'uni/university.js'].every((f) => ks.some((k) => k.endsWith(f))); });
     ok('service worker: new University files are precached', cached);
     await ctx.setOffline(true); await p.goto(BASE + '#/uni/dashboard').catch(() => {}); await p.goto(BASE + '#/uni/departments').catch(() => {}); await p.waitForTimeout(1500); t = await text().catch(() => '');
     ok('offline: departments page works from cache', /Eight departments/.test(t)); await ctx.setOffline(false);

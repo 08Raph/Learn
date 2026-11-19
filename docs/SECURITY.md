@@ -116,6 +116,20 @@ project owner can always read the whole database in the Firebase console; that i
 - **Practice studio (4.0):** students' test cases are parsed as JSON and never executed; exercises run through the same sandboxed engines as course work.
 - **No secrets found** in the release: checked automatically for private keys, service-account files and API-key patterns.
 
+### Ethical hacking range (5.9)
+The range deliberately contains vulnerable fake applications. They are contained as follows:
+
+- Every target is a JavaScript function in `uni/uni-sims.js`. The range makes no network requests;
+  `tests/e2e-sims.js` blocks and counts every request to another host and fails if the range makes one.
+- The fake browser, terminal and API explorer only ever insert text with `textContent` or escape it; the
+  "vulnerabilities" are simulated in data (a small SQL engine and a simulated shell), not real.
+- The one challenge where student HTML really runs (the XSS guestbook) renders inside
+  `<iframe sandbox="allow-scripts">` without `allow-same-origin`, so its code runs in an opaque origin and
+  cannot read Learn's page, storage or cookies. The test checks that a payload trying to change the parent
+  page and clear its storage fails. Completion is accepted only from that frame's window with a random
+  per-visit token, so the page cannot be told it was solved by a message from elsewhere.
+- Saved circuits and range records are untrusted (they come back in backups) and are cleaned before use.
+
 ## Not possible on static hosting
 
 A Content-Security-Policy that forbids inline script and `eval` would be the strongest defence against

@@ -12652,7 +12652,7 @@ function weeklyBarsHtml() {
 /* ===== 5.2 Save everything for offline use ===== */
 async function saveOffline(onStep) {
   if (!('serviceWorker' in navigator) || !navigator.serviceWorker.controller) throw Object.assign(new Error('no sw'), { nosw: true });
-  const V = UNI_VER, A2 = APP_VERSION; let files = ['uni/config.js', 'uni/data/catalog.js', 'uni/data/departments.js', 'uni/university.js', 'uni/university.css', 'uni/uni-assess.js', 'uni/uni-campus.js', 'uni/uni-professor.js', 'uni/uni-studio.js', 'uni/uni-tools.js', 'uni/gitsim.js'].map((f) => f + '?v=' + V);
+  const V = UNI_VER, A2 = APP_VERSION; let files = ['uni/config.js', 'uni/data/catalog.js', 'uni/data/departments.js', 'uni/university.js', 'uni/university.css', 'uni/uni-assess.js', 'uni/uni-campus.js', 'uni/uni-professor.js', 'uni/uni-studio.js', 'uni/uni-tools.js', 'uni/uni-sims.js', 'uni/gitsim.js'].map((f) => f + '?v=' + V);
   const cat = await (await fetch('uni/data/catalog.js?v=' + V)).text(); [...new Set((cat.match(/file: '([\w.-]+\.txt)'/g) || []).map((s) => s.slice(7, -1)))].forEach((f) => files.push('uni/data/' + f + '?v=' + V));
   files = files.concat(['ranked_extra.json?v=' + A2, 'challenges.js?v=' + A2]); if (uiLang() !== 'en') files.push('i18n/' + uiLang() + '.js?v=' + A2);
   let done = 0, failed = 0, bytes = 0;
@@ -13006,7 +13006,7 @@ function rankedGate() {
 /* ===== Software Engineering University (lazy-loaded from ./uni/) =====
    Nothing in ./uni/ is downloaded until the student opens #/uni. The module gets
    the page internals it needs through this API object instead of globals. */
-const UNI_VER = '2.0.2';
+const UNI_VER = '2.0.3';
 let uniLoad = null;
 function uniApi() {
   return {
@@ -17613,8 +17613,13 @@ function makeCard(lang) {
 document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeDrawer(); });
 
 /* ---------- patch notes (pop up once per update; brand-new players never see old notes) ---------- */
-const APP_VERSION = '5.8';
+const APP_VERSION = '5.9';
 const PATCH_NOTES = [
+  { v: '5.9', date: 'Nov 19, 2026', title: '🛡 Ethical hacking and digital logic', items: [
+    'New in the University: SEC 101 Ethical Hacking Foundations and SEC 102 Web Application Security Testing. You learn the law and permission first, then reconnaissance, passwords, SQL injection, cross-site scripting, access control and more, and every lesson ends with how to fix the problem.',
+    'New lab: the Ethical hacking range, 10 capture-the-flag challenges against a fake bakery. Every website, server and database in it is pretend and lives inside the page, so you can practise without harming anyone.',
+    'New course: CEN 104 Digital Logic Design, covering Karnaugh maps, multiplexers, flip-flops, state machines, a tiny CPU and Verilog.',
+    'New lab: the Circuit simulator. Build gates, adders, decoders, counters and state machines, tap the inputs to watch the signals, and have each of the 13 tasks checked against its full truth table.'] },
   { v: '5.8', date: 'Nov 18, 2026', title: '🌐 Everything translated', items: [
     'In Español, Français, 中文, हिन्दी and العربية, the whole site is now translated: the University, the Shop, Multiplayer, the Workspace, the AI Professor, transcripts and project pages are translated by hand (about 450 more menus and labels in each language).',
     'Anything that has no hand translation yet, such as most lessons, is translated automatically the first time you open it, then kept on your device. Code is never translated.',

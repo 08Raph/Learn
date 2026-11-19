@@ -114,7 +114,7 @@ const dayPlus = (n) => { const d = new Date(); d.setDate(d.getDate() + n); retur
     await p.reload(); await p.waitForTimeout(900); ok('backup: a reminder appears when there is progress and no backup', seeded && await p.locator('#bkNudge').count() === 1);
     await p.click('#bkNudgeGo'); ok('backup: the reminder opens the backup section', await p.evaluate(() => document.getElementById('bkDetails').open));
     const [bk] = await Promise.all([p.waitForEvent('download'), p.click('#bkFile')]); const bkText = fs.readFileSync(await bk.path(), 'utf8'); const bkObj = JSON.parse(bkText);
-    ok('backup: file is named by date and holds the app id, version and University progress', /^learn-backup-\d{4}-\d{2}-\d{2}\.json$/.test(bk.suggestedFilename()) && bkObj.app === 'learn' && bkObj.v === 3 && bkObj.ver === '5.8' && !!bkObj.d.uni && !!bkObj.d.uni.git.files);
+    ok('backup: file is named by date and holds the app id, version and University progress', /^learn-backup-\d{4}-\d{2}-\d{2}\.json$/.test(bk.suggestedFilename()) && bkObj.app === 'learn' && bkObj.v === 3 && bkObj.ver === '5.9' && !!bkObj.d.uni && !!bkObj.d.uni.git.files);
     ok('backup: the online sign-in identity is not copied into the file', !bkObj.d.duel || (!bkObj.d.duel.uid && !bkObj.d.duel.fc));
     ok('backup: the date of the last backup is shown and the reminder goes away', /Last backup file made on this device/.test(await p.innerText('#bkLast')) && await p.locator('#bkNudge').count() === 0);
     const pick = (name, content) => p.setInputFiles('#bkPick', { name, mimeType: 'application/json', buffer: Buffer.from(content) });
@@ -177,7 +177,7 @@ const dayPlus = (n) => { const d = new Date(); d.setDate(d.getDate() + n); retur
     ok('search: "hash table" finds the Hash tables lesson first', /Hash tables/.test(first) && /lesson/.test(first), first.slice(0, 120));
     ok('search: matching words are highlighted', await UE(() => document.querySelectorAll('.sr-item mark').length > 0));
     ok('search: the address keeps the query', /#\/uni\/search\/hash-table$/.test(await UE(() => location.hash)));
-    ok('search: every lesson is indexed (327)', await UE(() => { let n = 0; Object.values(window.LearnUniversity.content).forEach((c) => { n += c.lessons.length; }); return n; }) === 327);
+    ok('search: every lesson is indexed (345)', await UE(() => { let n = 0; Object.values(window.LearnUniversity.content).forEach((c) => { n += c.lessons.length; }); return n; }) === 345);
     await UE(() => document.querySelector('.sr-item a').click()); await p.waitForTimeout(1200);
     ok('search: a result opens its lesson', /#\/uni\/course\/c202\/lesson\/2$/.test(await UE(() => location.hash)), await UE(() => location.hash));
     await p.goto(BASE + '#/uni/search/qqqzzzx'); await p.waitForTimeout(1500); ok('search: no results gives advice', /Nothing found/.test(await text()));

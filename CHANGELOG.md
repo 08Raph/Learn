@@ -1,5 +1,37 @@
 # Changelog
 
+## 5.9 — 19 November 2026
+### Added
+- **Three elective courses** in `uni/data/electives5.txt` (6 lessons each, tested JavaScript assignment, examination,
+  project): **CEN 104 Digital Logic Design** (Computer Engineering; Boolean algebra and Karnaugh maps, multiplexers and
+  decoders, flip-flops and registers, state machines, datapath and control, timing, Verilog and FPGAs), **SEC 101
+  Ethical Hacking Foundations** and **SEC 102 Web Application Security Testing** (Cybersecurity; law and rules of
+  engagement first, then methodology, recon and scanning, password hashing, common weaknesses, reporting, SQL injection,
+  XSS, access control, sessions, command injection, path traversal and SSRF; every attack lesson ends with the fix).
+  Electives 13 → 16, lessons 327 → 345. Departments, the security-engineer career path and the search-engine course
+  pages (`course-ce104.html`, `course-sec101.html`, `course-sec102.html`, sitemap) updated.
+- **Circuit simulator** (`#/uni/circuit`, new lazily loaded module `uni/uni-sims.js`): build from AND, OR, NOT, NAND,
+  NOR, XOR, XNOR and D flip-flops by choosing each part's inputs (touch-friendly, no dragging), tap inputs to switch them,
+  watch values in a live diagram, tick the clock. 13 graded tasks, each checked against its full truth table or a
+  timed test sequence, with gate-type and gate-count limits where the puzzle needs them. A gate can only use parts above
+  it, so loops only pass through flip-flops. A loaded example solution works but does not count as a pass. Drafts and
+  passes are saved in `uni.circ`; saved circuits are cleaned on load (untrusted backups).
+- **Ethical hacking range** (`#/uni/range`): 10 capture-the-flag challenges against a fictional bakery. Rules of
+  engagement (a scope quiz plus a promise) must be completed first. Then: robots.txt recon, a network scan and anonymous
+  FTP (the scan tool refuses targets outside the scope), cracking an unsalted SHA-256 table with a wordlist, SQL
+  injection login bypass and UNION extraction (a small SQL engine with SQLite-style errors), stored XSS in a guestbook,
+  an IDOR in an API, tampering with an unsigned session cookie, and command injection in a router's ping tool. Every
+  target is a JavaScript function in the page; nothing is sent anywhere. The guestbook runs in an `<iframe sandbox=
+  "allow-scripts">` with no same-origin access, and completion is accepted only from that frame with a per-visit token.
+  Progress in `uni.range`.
+- Lessons can link to University pages with `[text](#/uni/...)`.
+- `tests/e2e-sims.js` (suite 15, 111 checks). `e2e-campus.js`, `e2e-tools.js` and `e2e-app.js` updated for 16 electives, 345 lessons and 110 sitemap entries.
+### Changed
+- The Cybersecurity department note no longer says offensive skills are not taught: it describes the two courses and
+  the range, and keeps "only test what you own or are authorised to test". Exploit development and malware analysis are
+  still not taught.
+- University build 2.0.3 (all module stamps), app version 5.9.
+
 ## 5.8 — 18 November 2026
 ### Added
 - **Hand translations of the rest of the interface:** 453 more strings in each of the five languages (University —

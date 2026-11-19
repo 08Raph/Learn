@@ -9,7 +9,7 @@
    System-design answers are self-assessed against a checklist and are labelled as such.
    Practice results are stored in S.uni.studio and never count toward courses, stages or certificates.
    ============================================================ */
-(window.LEARN_MOD_BUILD = window.LEARN_MOD_BUILD || {})['uni-studio'] = '2.0.2'; // must equal BUILD in university.js
+(window.LEARN_MOD_BUILD = window.LEARN_MOD_BUILD || {})['uni-studio'] = '2.0.3'; // must equal BUILD in university.js
 (function () {
   'use strict';
   const U = window.LearnUniversity, A = U.api;

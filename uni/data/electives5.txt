@@ -1,0 +1,1484 @@
+#COURSE ce104
+#LESSON Boolean algebra and simplification | 14
+CEN 101 showed that any truth table can be turned into a circuit. This course is about doing it **well**: with fewer gates, in a way you can check, and in a form that real hardware tools accept. It starts with the algebra that lets you rewrite a circuit without changing what it does.
+
+### Writing logic down
+Engineers write Boolean expressions compactly. **AND** is written like multiplication (`AB`), **OR** like addition (`A + B`), and **NOT** with a bar or an apostrophe (`A'`). So `A'B + AB'` means "(not A and B) or (A and not B)", which is XOR.
+
+### The laws you will use most
+
+| Law | AND form | OR form |
+|---|---|---|
+| Identity | A·1 = A | A + 0 = A |
+| Null | A·0 = 0 | A + 1 = 1 |
+| Idempotent | A·A = A | A + A = A |
+| Complement | A·A' = 0 | A + A' = 1 |
+| Absorption | A(A + B) = A | A + AB = A |
+| De Morgan | (AB)' = A' + B' | (A + B)' = A'B' |
+
+Every law can be proved by checking all the rows of a truth table, which is exactly what a computer does when it verifies a circuit.
+
+### Simplifying with algebra
+Take `F = A'B + AB`. Factor out B: `F = B(A' + A) = B·1 = B`. Two AND gates and an OR gate become a plain wire.
+
+```text
+F = A'B'C + A'BC + AB'C + ABC
+  = A'C(B' + B) + AC(B' + B)
+  = A'C + AC
+  = C(A' + A)
+  = C
+```
+
+### Minterms and sum of products
+Number the rows of a truth table from 0. A **minterm** is a row where the output is 1, written as a product of every input (inverted where that input is 0). Row 5 of a three-input table is `101`, so its minterm is `AB'C`. Listing the minterms and ORing them gives the **sum of products**, the starting point for any design.
+
+### Karnaugh maps
+Algebra works, but it is easy to miss a step. A **Karnaugh map** lays the truth table out as a grid in which neighbouring cells differ in exactly one input. The rows and columns are therefore in **Gray code** order (00, 01, 11, 10), not binary order.
+
+```text
+            BC
+          00  01  11  10
+   A  0 |  0   1   1   0 |
+      1 |  0   1   1   0 |
+```
+
+Circle rectangular groups of 1s whose size is a power of two (1, 2, 4, 8), as large as possible; groups may wrap round the edges. Each group becomes one product term containing only the inputs that do not change inside it. Here one group of four covers every 1, and only C stays the same in it, so F = C.
+
+### Don't-care conditions
+Sometimes an input combination can never happen, such as the codes 10 to 15 in a circuit that only ever receives decimal digits. Mark those cells **X** (don't care) and treat each as 0 or 1, whichever makes a bigger group.
+
+> Key idea: Boolean laws and Karnaugh maps both remove inputs that do not matter. A smaller expression means fewer gates, less power and a faster circuit, and every step can be checked against the truth table.
+#Q What does the expression A + AB simplify to?
+- AB
+* A
+- B
+! Absorption: if A is 1 the whole thing is 1, and if A is 0 both terms are 0.
+#Q Why are the rows and columns of a Karnaugh map in the order 00, 01, 11, 10?
+- It is alphabetical
+* So that neighbouring cells differ in exactly one input, which is what makes grouping work
+- To make the map smaller
+! That ordering is Gray code.
+
+#LESSON Combinational building blocks | 13
+Engineers rarely design from single gates. They reuse a small set of standard blocks, the way programmers reuse functions. Each one is a combinational circuit: its outputs depend only on its present inputs.
+
+### Multiplexer
+A **multiplexer** (mux) has several data inputs, a few **select** inputs, and one output. The select inputs form a number that chooses which data input reaches the output. A 4-to-1 mux needs two select bits.
+
+```text
+S1 S0 | Y
+ 0  0 | D0
+ 0  1 | D1
+ 1  0 | D2
+ 1  1 | D3
+```
+
+It is the hardware version of `switch`, and processors are full of them: choosing between a register and a constant, or between the results of different ALU operations.
+
+A mux can also implement **any** function: connect its data inputs to the constants of a truth table and its select inputs to the variables.
+
+### Decoder and encoder
+A **decoder** turns an n-bit number into 2ⁿ lines, exactly one of which is active. It selects a memory chip from an address, or a register from an instruction field. You built a 2-to-4 decoder in the circuit simulator. An **encoder** does the reverse, and a **priority encoder** reports the highest-numbered active input, which is how a processor decides which of several interrupts to serve first.
+
+### Comparators
+An **equality comparator** XORs each pair of bits (1 means "different") and checks that none is 1. A **magnitude comparator** (A > B?) looks at the bits from the most significant end: the first position where they differ decides.
+
+### Adders, again
+The ripple-carry adder from CEN 101 chains full adders. Its delay grows with the number of bits because each carry waits for the previous one. A **carry-lookahead** adder computes, for each bit, whether it **generates** a carry (`G = AB`) or **propagates** one (`P = A XOR B`), and from those works out all the carries in a few gate delays. It uses more gates to save time, a trade-off you will see everywhere in hardware.
+
+### An ALU slice
+Put an adder, AND, OR and XOR side by side and choose between their results with a multiplexer controlled by an **operation code**. That is one bit of an **arithmetic logic unit**. Repeat it 32 or 64 times, with the carries linked, and you have the ALU of a processor.
+
+```diagram
+   A ──┬──[ AND ]──┐
+   B ──┼──[ OR  ]──┤
+       ├──[ XOR ]──┼──[ 4-to-1 mux ]──> result
+       └──[ ADD ]──┘        ^
+                         opcode (2 bits)
+```
+
+### Try it
+Build the [2-to-1 multiplexer](#/uni/circuit/mux), the [2-to-4 decoder](#/uni/circuit/dec) and the [equality comparator](#/uni/circuit/eq) in the circuit simulator. Each one is checked against its full truth table.
+
+> Key idea: Multiplexers choose, decoders select, comparators compare, adders add. An ALU is those blocks side by side with a multiplexer picking the result, and that pattern of "compute everything, then select" is common in hardware.
+#Q A 4-to-1 multiplexer receives S1 = 1 and S0 = 0. Which data input reaches the output?
+- D0
+- D1
+* D2
+! The select bits 10 are the number 2.
+#Q What does a carry-lookahead adder gain over a ripple-carry adder?
+- It uses fewer gates
+* It works out the carries in parallel, so wide additions finish much sooner
+- It can add negative numbers
+! It spends extra gates to remove the long carry chain.
+
+#LESSON Latches, flip-flops and registers | 13
+Combinational logic has no memory. To build counters, controllers and processors, circuits must remember, and memory in hardware comes from **feedback** controlled by a **clock**.
+
+### From latch to flip-flop
+An **SR latch** is two cross-coupled NOR gates: a pulse on S sets it to 1, a pulse on R resets it to 0, and otherwise it holds. A **D latch** adds gating so that while an *enable* signal is high the output follows the input D, and when enable goes low it keeps the last value.
+
+A latch is **transparent** while enabled, which causes trouble: a change can race through several latches in one clock phase. The solution is the **edge-triggered D flip-flop**, which samples D only at the instant the clock rises and ignores it at all other times.
+
+```text
+clock   _/‾\_/‾\_/‾\_/‾\_
+D       __/‾‾‾‾‾‾\_______
+Q       ____/‾‾‾‾‾‾‾\____     Q changes only at rising edges
+```
+
+### Timing rules
+A flip-flop needs D to be stable for a short **setup time** before the clock edge and a **hold time** after it. If D changes inside that window, the flip-flop can go **metastable**, hovering between 0 and 1 before settling unpredictably. Signals from outside the clock domain, such as a button press, therefore pass through a **synchroniser** (two flip-flops in a row) before the rest of the circuit uses them.
+
+### Registers and shift registers
+A **register** is a row of flip-flops on the same clock, storing a binary number. Add a multiplexer in front of each flip-flop to choose between "keep" and "load", and you have a register with a load-enable signal.
+
+In a **shift register**, each flip-flop's output feeds the next one's input, so on every tick the bits move one place along. Shift registers turn parallel data into a serial stream and back, which is how USB, SPI and serial ports send bytes one bit at a time.
+
+```text
+tick:   0     1     2     3
+in:     1     0     1     1
+FF1:    0     1     0     1
+FF2:    0     0     1     0      each stage holds what the previous stage held one tick earlier
+```
+
+### Memory arrays
+Large memories are not built from flip-flops, which take many transistors per bit. **SRAM** uses six transistors per bit and is used for caches; **DRAM** uses one transistor and a capacitor and is used for main memory. Both are arrays addressed through decoders, like the ones in the previous lesson.
+
+### Try it
+In the circuit simulator, build the [toggle flip-flop](#/uni/circuit/toggle) and the [two-in-a-row detector](#/uni/circuit/detect). The second one is a two-stage shift register with an AND gate on the end.
+
+> Key idea: An edge-triggered flip-flop stores its input only at the clock edge, so the whole circuit updates in step. Respect setup and hold times, and synchronise any signal that does not share the clock.
+#Q What is the main advantage of an edge-triggered flip-flop over a transparent latch?
+* It changes only at the clock edge, so values cannot race through several stages in one cycle
+- It uses fewer transistors
+- It does not need a clock
+! A latch passes changes through for as long as it is enabled.
+#Q What can happen if the input of a flip-flop changes during its setup and hold window?
+- Nothing: it is ignored
+- The clock stops
+* The flip-flop may become metastable and settle to an unpredictable value
+! That is why asynchronous inputs go through synchronisers.
+
+#LESSON Counters and finite state machines | 14
+A **finite state machine** (FSM) is a circuit that is always in one of a fixed set of states, and moves between them on each clock tick according to its inputs. Traffic lights, vending machines, network protocols and the control unit of a processor are all FSMs.
+
+### Parts of a state machine
+- A **state register**: flip-flops holding the current state.
+- **Next-state logic**: combinational logic computing the next state from the current state and the inputs.
+- **Output logic**: combinational logic computing the outputs.
+
+In a **Moore** machine the outputs depend only on the current state. In a **Mealy** machine they also depend on the current inputs, which can save states but makes outputs change between clock edges.
+
+### Counters
+The simplest FSM is a counter. A 2-bit binary counter has four states and no inputs except an enable:
+
+```text
+state  Q1 Q0  next (EN = 1)
+  0     0  0      1
+  1     0  1      2
+  2     1  0      3
+  3     1  1      0
+```
+
+From the table: Q0 flips on every enabled tick, so `Q0next = Q0 XOR EN`; Q1 flips when Q0 is 1, so `Q1next = Q1 XOR (Q0 AND EN)`. You can build exactly this in the [2-bit counter](#/uni/circuit/count) task.
+
+### Designing an FSM step by step
+1. **Describe the behaviour** in words and list the states.
+2. Draw the **state diagram**: circles for states, arrows labelled with the inputs that cause each transition.
+3. Write the **state table**: current state and input on the left, next state and output on the right.
+4. **Encode** the states in binary. With n flip-flops you get up to 2ⁿ states; *one-hot* encoding uses one flip-flop per state, which is common on FPGAs.
+5. Derive and simplify the next-state and output logic with Karnaugh maps.
+
+### Example: a sequence detector
+Output 1 whenever the input has just been 1, 0, 1 (overlaps allowed). Three states are enough: "nothing useful yet", "just seen 1" and "just seen 1, 0".
+
+```diagram
+   (start) --1--> (seen 1) --0--> (seen 10)
+      ^  |0          |1  ^           |0      |1 (output 1)
+      |__|           |___|           v       v
+      ^____________________________(start)  (seen 1)
+```
+
+From "seen 10", an input of 1 completes the pattern **and** is itself the start of a new one, so the machine goes back to "seen 1", not to the start. Getting overlaps right is the classic mistake in these designs. You will program this exact machine in the lab.
+
+### State machines in software
+The same structure works in code: a variable holds the state and a `switch` on it decides the next state. Parsers, game AI and user-interface flows are often written this way because every possible situation is listed explicitly.
+
+> Key idea: A state machine is a state register plus next-state and output logic. Design it with a diagram and a table, encode the states, then simplify the logic. Counters are the simplest example; processors are the largest.
+#Q In a Moore machine, what do the outputs depend on?
+* Only the current state
+- Only the current inputs
+- The clock frequency
+! In a Mealy machine they also depend on the inputs.
+#Q A 101 detector with overlaps is in the state "seen 1, 0" and receives 1. Where does it go?
+- Back to the start
+* To "seen 1", because that 1 can begin the next pattern
+- It stays in "seen 1, 0"
+! Forgetting overlaps misses patterns such as 10101.
+
+#LESSON Datapath and control: building a tiny CPU | 15
+A processor is two parts working together. The **datapath** holds and transforms data: registers, the ALU, multiplexers and the connections between them. The **control unit** is a state machine that, for each instruction, sets the control signals telling the datapath what to do on each clock tick.
+
+### A datapath for an accumulator machine
+CEN 101's tiny CPU had one register, the accumulator. Its datapath needs:
+
+- a **program counter** (PC) register and an incrementer to add 1 to it;
+- an **instruction memory** addressed by the PC;
+- an **accumulator** register;
+- an **ALU** that can add and subtract;
+- a **multiplexer** choosing what is loaded into the accumulator: the ALU result or the constant from the instruction;
+- a **multiplexer** choosing the next PC: PC + 1 or a jump address;
+- a **zero detector**: a NOR of all the accumulator bits, used by `JNZ`.
+
+### Control signals
+Each instruction becomes a pattern of control signals:
+
+| Instruction | acc load | acc source | ALU op | PC source |
+|---|---|---|---|---|
+| LOAD n | 1 | constant | (any) | PC + 1 |
+| ADD n | 1 | ALU | add | PC + 1 |
+| SUB n | 1 | ALU | subtract | PC + 1 |
+| JNZ a | 0 | (any) | (any) | a if acc is not 0, else PC + 1 |
+| HALT | 0 | (any) | (any) | PC (stay) |
+
+The control unit's job is to produce this table from the opcode bits. In a simple design it is pure combinational logic, a decoder followed by a few OR gates; in older and more complex processors it is a state machine stepping through several cycles per instruction, or a small memory of **microcode**.
+
+### Single-cycle and multi-cycle
+In a **single-cycle** design each instruction finishes in one clock tick, so the clock must be slow enough for the slowest instruction. A **multi-cycle** design splits instructions into steps (fetch, decode, execute, write back) and gives each step one tick, so simple instructions finish sooner. **Pipelining** goes further: different instructions are in different steps at the same time, like a production line.
+
+```text
+cycle:     1      2       3       4       5
+instr 1:  fetch  decode  execute write
+instr 2:         fetch   decode  execute write
+instr 3:                 fetch   decode  execute
+```
+
+Pipelines create **hazards**: an instruction may need a result that is not written yet, or a jump may mean the following instructions should never have been fetched. Forwarding, stalling and branch prediction deal with them.
+
+### From here to real processors
+Real instruction sets such as RISC-V and ARM have dozens of registers, load and store instructions, and many more operations, but the datapath-plus-control structure is the same. RISC-V is an open standard, so you can read its full specification for free and even run your own designs on an FPGA.
+
+> Key idea: The datapath moves and computes data; the control unit turns each opcode into control signals for the multiplexers, registers and ALU. Multi-cycle and pipelined designs trade complexity for speed.
+#Q In the accumulator machine, which part decides whether JNZ actually jumps?
+- The instruction memory
+* The zero detector, whose output steers the multiplexer that chooses the next PC
+- The incrementer
+! The jump is taken only when the accumulator is not zero.
+#Q What is a pipeline hazard?
+- A fault in the power supply
+* A situation where an instruction cannot proceed correctly because of an earlier instruction still in the pipeline
+- A program with an infinite loop
+! Data dependences and jumps cause them.
+
+#LESSON Timing, hardware description languages and FPGAs | 14
+Diagrams are fine for a few gates. Real chips contain billions of transistors, so they are described in text, checked by simulation and then turned into hardware by tools.
+
+### The critical path
+Each gate takes time to respond: its **propagation delay**. Between two flip-flops, the slowest chain of gates is the **critical path**, and the clock period must be longer than that delay plus the flip-flops' setup time. To raise the clock speed you shorten the critical path: use faster adders, or split the work across more pipeline stages.
+
+**Clock skew**, the clock arriving at different flip-flops at slightly different times, eats into the same budget, so chip designers distribute the clock through carefully balanced networks.
+
+### Hardware description languages
+**Verilog** and **VHDL** describe hardware in text. They look like programming languages, but every statement describes hardware that exists at the same time; nothing runs "first". Here is a full adder and a 4-bit counter in Verilog:
+
+```verilog
+module full_adder(input a, b, cin, output sum, cout);
+  assign sum  = a ^ b ^ cin;
+  assign cout = (a & b) | (cin & (a ^ b));
+endmodule
+
+module counter4(input clk, reset, enable, output reg [3:0] q);
+  always @(posedge clk)
+    if (reset)       q <= 4'b0000;
+    else if (enable) q <= q + 1;
+endmodule
+```
+
+`assign` describes combinational logic. `always @(posedge clk)` describes flip-flops that update at the rising clock edge, and `<=` means "on the clock edge". A **synthesis** tool turns this text into gates and flip-flops, and a **place-and-route** tool decides where each one goes on the chip.
+
+### Testbenches
+Hardware bugs are expensive: a mistake in a manufactured chip can cost millions. Designs are therefore tested in simulation with **testbenches**: code that drives inputs, waits for clock edges and checks outputs against expected values, much like unit tests. The circuit simulator in this University does the same thing when it checks your circuit against every row of a truth table, or against a test sequence tick by tick.
+
+### FPGAs
+A **field-programmable gate array** is a chip full of small configurable blocks, each built around a **look-up table** (LUT): a tiny memory that can implement any function of, say, six inputs, plus a flip-flop. Programmable wiring connects them. Loading a configuration file turns the same FPGA into a video processor, a network card or a home-made CPU. FPGAs are used for prototyping chips, for low-volume products and for jobs that need custom hardware speed.
+
+### Where to go next
+Free simulators such as Logisim Evolution and Digital let you draw larger circuits, and open tools such as Icarus Verilog and Yosys simulate and synthesise Verilog. Cheap FPGA boards run the designs on real hardware. The capstone of the free *Nand to Tetris* course builds a whole computer.
+
+> Key idea: Clock speed is limited by the critical path. Large designs are written in a hardware description language, verified with testbenches, and synthesised to gates, either for a custom chip or for an FPGA.
+#Q What limits the maximum clock frequency of a synchronous circuit?
+- The number of input pins
+* The delay of the slowest path of logic between flip-flops, plus setup time
+- The size of the program
+! That slowest path is the critical path.
+#Q What does `always @(posedge clk)` describe in Verilog?
+- A loop that runs for ever
+* Logic that updates at each rising edge of the clock, in other words flip-flops
+- A comment
+! Combinational logic is written with assign instead.
+
+#LAB js | A logic design toolkit
+Write the tools a logic designer uses, in JavaScript. Bits are the numbers 0 and 1.
+
+**Truth tables.**
+- `truthTable(fn, n)` calls `fn` with every combination of `n` bits and returns the outputs as an array. Rows are numbered from 0, and the first argument is the **most significant** bit, so for `n = 2` the calls are `fn(0,0)`, `fn(0,1)`, `fn(1,0)`, `fn(1,1)`.
+- `minterms(fn, n)` returns the row numbers where `fn` returns 1, in increasing order.
+- `sop(minterms, names)` writes the sum of products for those minterms. Each minterm is the input names in order, with `'` after any name that is 0 in that row, and the terms are joined with `" + "`. So `sop([1, 2], ["A", "B"])` is `"A'B + AB'"`. With no minterms, return `"0"`.
+
+**Building blocks.**
+- `mux4(s1, s0, d0, d1, d2, d3)` returns the data input chosen by the select bits (`s1` is the high bit).
+- `grayCode(n)` returns all `n`-bit Gray codes as strings, in order, starting from all zeros. Each code differs from the previous one in exactly one bit. (Hint: the i-th code is `i XOR (i >> 1)`.)
+
+**State machines.**
+- `runMoore(machine, inputs)` simulates a Moore machine. `machine.start` is the name of the first state, and `machine.states[name]` is `{ out, next }`, where `next[x]` is the state to move to on input `x`. For each input, move to the next state, then record that state's `out`. Return the recorded outputs.
+- `detect101(bits)` returns an array the same length as `bits`, with 1 at every position where the last three bits were 1, 0, 1, and 0 everywhere else. Overlapping patterns count: `[1, 0, 1, 0, 1]` gives `[0, 0, 1, 0, 1]`.
+@starter
+function truthTable(fn, n) {
+  return [];
+}
+
+function minterms(fn, n) {
+  return [];
+}
+
+function sop(minterms, names) {
+  return "";
+}
+
+function mux4(s1, s0, d0, d1, d2, d3) {
+  return d0;
+}
+
+function grayCode(n) {
+  return [];
+}
+
+function runMoore(machine, inputs) {
+  return [];
+}
+
+function detect101(bits) {
+  return bits.map(() => 0);
+}
+@solution
+function truthTable(fn, n) {
+  const out = [];
+  for (let row = 0; row < (1 << n); row++) {
+    const bits = [];
+    for (let i = n - 1; i >= 0; i--) bits.push((row >> i) & 1);
+    out.push(fn(...bits));
+  }
+  return out;
+}
+
+function minterms(fn, n) {
+  const out = [];
+  truthTable(fn, n).forEach((v, row) => {
+    if (v === 1) out.push(row);
+  });
+  return out;
+}
+
+function sop(minterms, names) {
+  if (minterms.length === 0) return "0";
+  const n = names.length;
+  return minterms.map((m) => names.map((name, i) => (((m >> (n - 1 - i)) & 1) ? name : name + "'")).join("")).join(" + ");
+}
+
+function mux4(s1, s0, d0, d1, d2, d3) {
+  return [d0, d1, d2, d3][s1 * 2 + s0];
+}
+
+function grayCode(n) {
+  const out = [];
+  for (let i = 0; i < (1 << n); i++) out.push((i ^ (i >> 1)).toString(2).padStart(n, "0"));
+  return out;
+}
+
+function runMoore(machine, inputs) {
+  let state = machine.start;
+  const out = [];
+  for (const x of inputs) {
+    state = machine.states[state].next[x];
+    out.push(machine.states[state].out);
+  }
+  return out;
+}
+
+function detect101(bits) {
+  // 0 = nothing useful yet, 1 = just seen 1, 2 = just seen 1 then 0
+  let state = 0;
+  const out = [];
+  for (const b of bits) {
+    let hit = 0;
+    if (state === 0) state = b === 1 ? 1 : 0;
+    else if (state === 1) state = b === 1 ? 1 : 2;
+    else if (b === 1) { hit = 1; state = 1; }
+    else state = 0;
+    out.push(hit);
+  }
+  return out;
+}
+@tests
+truthTable((a, b) => a & b, 2) => [0, 0, 0, 1]
+truthTable((a, b, c) => a ^ b ^ c, 3) => [0, 1, 1, 0, 1, 0, 0, 1]
+truthTable((a) => 1 - a, 1) => [1, 0]
+truthTable((a, b) => a, 2) => [0, 0, 1, 1]
+minterms((a, b) => a | b, 2) => [1, 2, 3]
+minterms((a, b, c) => a & b & c, 3) => [7]
+minterms((a, b) => 0, 2) => []
+sop([1, 2], ["A", "B"]) => "A'B + AB'"
+sop([7], ["A", "B", "C"]) => "ABC"
+sop([0, 3], ["X", "Y"]) => "X'Y' + XY"
+sop([], ["A"]) => "0"
+sop(minterms((a, b, c) => (a + b + c >= 2 ? 1 : 0), 3), ["A", "B", "C"]) => "A'BC + AB'C + ABC' + ABC"
+[mux4(0, 0, 5, 6, 7, 8), mux4(0, 1, 5, 6, 7, 8), mux4(1, 0, 5, 6, 7, 8), mux4(1, 1, 5, 6, 7, 8)] => [5, 6, 7, 8]
+grayCode(1) => ["0", "1"]
+grayCode(2) => ["00", "01", "11", "10"]
+grayCode(3) => ["000", "001", "011", "010", "110", "111", "101", "100"]
+runMoore({ start: "A", states: { A: { out: 0, next: ["A", "B"] }, B: { out: 1, next: ["A", "B"] } } }, [1, 1, 0, 1]) => [1, 1, 0, 1]
+runMoore({ start: "E", states: { E: { out: 0, next: ["E", "O"] }, O: { out: 1, next: ["O", "E"] } } }, [1, 1, 1, 0]) => [1, 0, 1, 1]
+runMoore({ start: "E", states: { E: { out: 0, next: ["E", "O"] }, O: { out: 1, next: ["O", "E"] } } }, []) => []
+detect101([1, 0, 1, 0, 1]) => [0, 0, 1, 0, 1]
+detect101([1, 1, 0, 1, 1, 0, 1]) => [0, 0, 0, 1, 0, 0, 1]
+detect101([1, 0, 0, 1, 0, 1]) => [0, 0, 0, 0, 0, 1]
+detect101([0, 0, 0]) => [0, 0, 0]
+detect101([]) => []
+@hints
+Loop `row` from 0 to `2ⁿ − 1`. The bit for argument `i` (counting from the left) is `(row >> (n - 1 - i)) & 1`. Spread the bits into the call with `fn(...bits)`.
+`minterms` can reuse `truthTable`: keep the indexes whose value is 1.
+In `sop`, look at each bit of the minterm number in the same order as the names; add `'` when the bit is 0.
+`mux4` can index an array with the number `s1 * 2 + s0`.
+For `detect101`, keep a state: nothing, "seen 1" or "seen 1 0". From "seen 1 0", an input of 1 is a hit and also leaves you in "seen 1".
+
+#EXAM 20
+#Q Using De Morgan's law, (A + B)' equals:
+- A' + B'
+* A'B'
+- AB
+! Inverting an OR gives an AND of the inverted inputs.
+#Q Simplify A'B + AB.
+- A
+* B
+- A + B
+! Factor out B: B(A' + A) = B.
+#Q What is the minterm for row 6 of a three-input truth table with inputs A, B, C?
+- A'BC
+* ABC'
+- AB'C
+! 6 is 110 in binary.
+#Q In a Karnaugh map, which group size is NOT allowed?
+- 2
+- 4
+* 3
+! Groups must have a power-of-two number of cells.
+#Q How many select inputs does an 8-to-1 multiplexer need?
+- 2
+* 3
+- 8
+! 2³ = 8.
+#Q What does a 3-to-8 decoder output when its input is 101?
+- All eight outputs are 1
+* Only output 5 is 1
+- Outputs 1, 0 and 1
+! Exactly one line is active: the one numbered by the input.
+#Q What is a shift register mainly used for?
+- Adding numbers
+* Moving bits along one position per clock tick, for example to send data serially
+- Storing the clock signal
+! Serial links such as SPI use them.
+#Q A state machine has 9 states. What is the smallest number of flip-flops that can encode them in binary?
+- 3
+* 4
+- 9
+! Three flip-flops give only 8 combinations.
+#Q Which statement about Verilog is true?
+- Statements run one after another, like Python
+* It describes hardware in which all the parts operate at the same time
+- It can only describe combinational logic
+! Synthesis turns it into gates and flip-flops.
+#Q What is inside each configurable block of an FPGA?
+- A small processor
+* A look-up table that can implement any small Boolean function, plus a flip-flop
+- A hard disk
+! Loading a configuration sets the contents of every look-up table.
+#W Design a Moore state machine with one input X and one output Y, where Y is 1 when the last two inputs were both 1 (overlaps allowed). Give the states and what each one means, the state table (current state, input, next state, output), a binary encoding of the states, and simplified next-state and output equations. Then explain how you would test it.
++ Defines suitable states, such as "last input 0", "one 1" and "two or more 1s in a row", and says what each means
++ Gives a complete state table covering every state and both input values, with correct next states and outputs
++ Chooses a binary encoding with enough flip-flops (two for three states) and states what the unused code does
++ Derives next-state and output equations consistent with the table, for example Y = Q1 for a suitable encoding
++ Describes a test: an input sequence with expected outputs, including overlapping runs such as 0111
+
+#PROJECT A traffic-light controller and a 4-bit ALU
+Design, build and test two digital systems: a state machine and a datapath block. Use a free logic simulator (Logisim Evolution or Digital), or Verilog with a free simulator such as Icarus Verilog, or a carefully structured program that models gates and flip-flops.
+@requirements
+A traffic-light controller for a crossing of two roads, as a Moore state machine with at least four states, timed by a counter, with a pedestrian button that is synchronised before use
+A state diagram and a state table for the controller, and the chosen state encoding
+A 4-bit ALU with at least add, subtract (by two's complement), AND, OR and XOR, selected by an operation code, with carry-out and zero flags
+The ALU built from smaller blocks (full adders, multiplexers), not from a built-in arithmetic component
+A test for every ALU operation including overflow and zero cases, and a test sequence for the controller that checks every state and the button
+A note on the critical path of the ALU and how it could be shortened
+@deliverables
+The simulator files or source code
+The state diagram, state table and encoding
+The test results, with the input sequences and expected outputs
+A short design report (one or two pages)
+@rubric
+Controller design: states, timing and synchronised button | 25
+ALU design from building blocks, with flags | 25
+Tests that cover the behaviour, with results | 25
+Design report, diagrams and critical-path note | 15
+Clarity and structure of the circuits or code | 10
+
+#COURSE sec101
+#LESSON What ethical hacking is, and the law | 14
+**Ethical hacking**, or **penetration testing**, means attacking a system with its owner's permission to find weaknesses before criminals do. The skills are the same as an attacker's. The difference is entirely in **permission**, **purpose** and **what you do with what you find**.
+
+### Permission is the whole job
+Without permission, the same actions are crimes in most countries, whatever your intentions:
+
+| Country | Main law | What it covers |
+|---|---|---|
+| Canada | Criminal Code, section 342.1 (and 430 for data) | Using a computer system without authorisation; interfering with data |
+| United States | Computer Fraud and Abuse Act | Accessing a computer without authorisation or beyond what is allowed |
+| United Kingdom | Computer Misuse Act 1990 | Unauthorised access, and acts that impair a computer |
+
+"I was only looking", "I wanted to help" and "the door was open" are not defences. A port scan, a guessed password or a modified URL against someone else's system can all be unauthorised access. Penalties include prison, and the organisation can also sue.
+
+### What real permission looks like
+A professional engagement starts with a signed contract and a **scope** document, often called the **rules of engagement**:
+
+- **Targets:** exact domains, IP ranges and applications, and anything explicitly excluded.
+- **Methods:** what is allowed (for example no denial of service, no social engineering).
+- **Times:** testing windows, and who to call if something breaks.
+- **Data handling:** how findings and any data you touch are stored and destroyed.
+- **Authority:** the person signing must actually own or control the systems. A shop cannot authorise you to test its payment provider or its cloud host; those need their own permission.
+
+```text
+Before every action, ask:
+  1. Is this target listed in my scope?   (if not written down: no)
+  2. Is this method allowed?
+  3. Is it inside the agreed time window?
+  4. Could it cause harm I have not been permitted to cause?
+```
+
+### Bug bounties and disclosure
+Many companies run **bug bounty** or **vulnerability disclosure** programmes that give public permission, within published rules, to test their services and report problems, sometimes for a reward. Read the policy before you start: it lists what is in scope and how to report, and you must follow it exactly. Finding a bug outside such a programme and reporting it in good faith is still legally risky; never demand money in exchange for details, which is extortion.
+
+### Where to practise legally
+- **Your own machines**: virtual machines on your own computer, deliberately vulnerable apps such as OWASP Juice Shop running locally.
+- **Training platforms** built for it, such as picoCTF, OverTheWire, TryHackMe and Hack The Box.
+- The **hacking range** in this University's labs, where every target is fake.
+
+### The ethics
+Ethical testers do the minimum needed to prove a problem, protect any data they see, report everything they find to the client and nobody else, and never keep access afterwards. Your reputation for trustworthiness is the product you are selling.
+
+Begin with the range's first challenge: [Rules of engagement](#/uni/range/scope).
+
+> Key idea: Ethical hacking is attacking with written permission, inside an agreed scope, to help the owner. Without permission it is a crime. If something is not written in the scope, it is not allowed.
+#Q You find a website with an obvious security hole while browsing. It has no disclosure programme. What may you legally test?
+- Anything, as long as you report it afterwards
+- Only the obvious hole, to confirm it
+* Nothing without the owner's permission; you can report what you noticed without probing further
+! Even a "quick check" can be unauthorised access.
+#Q A bakery's owner signs a scope that includes their online payment page, which is run by a payment company. Can you test it?
+- Yes, the owner signed
+* No, only the payment company can authorise testing its systems
+- Yes, but only at night
+! Permission must come from whoever controls the system.
+
+#LESSON Methodology: how a test is run | 13
+Good testing is systematic. Professionals follow a methodology so that they cover everything, can repeat their work and can explain it in the report. The best-known references are the **Penetration Testing Execution Standard (PTES)** and the **OWASP Web Security Testing Guide**.
+
+### The phases
+1. **Pre-engagement:** agree scope, rules, contacts and goals.
+2. **Reconnaissance:** collect information about the target: domains, addresses, technologies, people's roles.
+3. **Scanning and enumeration:** find live hosts, open ports, running services and their versions.
+4. **Vulnerability analysis:** match what you found against known weaknesses and misconfigurations, and test the application's logic.
+5. **Exploitation:** prove a weakness is real, with the least harmful method that demonstrates it.
+6. **Post-exploitation:** within scope, show the impact (what else could an attacker reach?), then clean up anything you created.
+7. **Reporting:** explain the findings, their risk and how to fix them.
+
+### Types of test
+- **Black box:** you start with no inside knowledge, like an outside attacker.
+- **White box:** you get source code, diagrams and accounts, which finds more in less time.
+- **Grey box:** something in between, often a normal user account.
+
+Other activities use the same skills: a **vulnerability assessment** lists weaknesses without exploiting them; a **red team** exercise simulates a real adversary over weeks to test the organisation's detection and response, and the defenders, the **blue team**, may not be told in advance.
+
+### Think like an attacker, organise like an auditor
+Keep a log of every command and request with its time. It protects you if something breaks ("we were not running anything at 14:02"), lets you reproduce findings, and makes the report much easier to write.
+
+```text
+2026-03-04 10:12  scan 10.10.0.0/24        5 hosts up
+2026-03-04 10:20  scan 10.10.0.7           21/ftp vsftpd 2.3, 22/ssh
+2026-03-04 10:23  ftp 10.10.0.7 anonymous  login accepted  -> finding F-01
+```
+
+### Frameworks defenders use
+**MITRE ATT&CK** is a public catalogue of the tactics and techniques real attackers use, from initial access to data theft. Defenders use it to check which techniques they can detect; testers use it to describe what they did in language the security team already knows. The **Cyber Kill Chain** is an older, simpler model of the same idea.
+
+### When to stop
+Stop and contact the client immediately if you find signs that someone else has already broken in, if you hit data you were not meant to see (for example medical records), or if a system becomes unstable. These are in the rules of engagement for a reason.
+
+> Key idea: A test moves from permission to reconnaissance, scanning, analysis, careful exploitation and a report. Keep a timed log of everything, prove problems with the least harm, and stop when something unexpected happens.
+#Q What is the difference between a vulnerability assessment and a penetration test?
+* An assessment lists weaknesses; a penetration test also proves them by exploiting them within scope
+- There is no difference
+- An assessment is always illegal
+! Both need permission.
+#Q Why keep a timed log of every action during a test?
+- It is required by every browser
+* To reproduce findings, write the report and show exactly what you did if something goes wrong
+- So the client can bill you
+! It protects both the tester and the client.
+
+#LESSON Reconnaissance and scanning | 14
+You cannot attack what you do not know exists. **Reconnaissance** maps the target; **scanning** finds which doors are open.
+
+### Passive reconnaissance
+Passive recon uses public information without touching the target's systems:
+
+- **DNS records** show subdomains and mail servers.
+- **Certificate transparency logs** publicly list every TLS certificate issued, which often reveals forgotten subdomains such as `old-admin.example.com`.
+- The company's website, job adverts ("experience with Oracle 12 required") and staff profiles reveal technologies and roles.
+- Search engines and archived copies of old pages.
+
+### Active reconnaissance
+Active recon sends traffic to the target, so it needs permission. Simple examples: requesting `robots.txt` and `sitemap.xml`, reading error pages and HTTP headers such as `Server: nginx/1.18`, and looking at which paths exist. Try it in the range: [What robots.txt gives away](#/uni/range/recon).
+
+### Ports and services
+A server offers services on numbered **ports**: 22 for SSH, 80 and 443 for web, 21 for FTP, 25 for email, 3306 for MySQL, 5432 for PostgreSQL. A **port scanner** such as Nmap sends packets to each port and reports which answer.
+
+```text
+PORT    STATE  SERVICE  VERSION
+22/tcp  open   ssh      OpenSSH 7.4
+21/tcp  open   ftp      vsftpd 2.3 (anonymous login allowed)
+80/tcp  open   http     nginx 1.24
+```
+
+- **open**: a program is listening.
+- **closed**: the computer answered, but nothing is listening.
+- **filtered**: no answer, usually because a firewall drops the packets.
+
+**Service and version detection** reads the greeting (the *banner*) each service sends. Old versions are the first thing to research, because their known weaknesses are public.
+
+### Scanning responsibly
+- Scan **only** the addresses in scope. A typo in an IP range can make you scan a stranger's network.
+- Start gently: a full aggressive scan can slow down or crash fragile devices such as old printers and industrial controllers.
+- Agree the timing with the client, who may need to tell their monitoring team.
+
+### Known vulnerabilities
+Publicly known weaknesses get a **CVE** identifier (for example CVE-2014-0160, the "Heartbleed" bug in OpenSSL) and a **CVSS** score from 0 to 10 for severity. Testers look up the versions they find in the CVE databases. Defenders do the same thing continuously with vulnerability scanners, and patch.
+
+### Try it
+Sweep the lab network and find the badly configured service in [Scan the network](#/uni/range/scan).
+
+> Key idea: Recon finds what exists, scanning finds what is listening and which versions. Stay strictly inside scope, scan gently, and research old versions against the CVE databases.
+#Q A scan reports port 443 as "filtered". What does that usually mean?
+- A web server is running
+- The port is closed and the computer replied
+* No reply came back, typically because a firewall dropped the probes
+! Closed ports answer; filtered ones stay silent.
+#Q Why are certificate transparency logs useful for reconnaissance?
+* They publicly list certificates issued for a domain, which can reveal subdomains
+- They contain the server's private keys
+- They show users' passwords
+! It is passive: you never touch the target.
+
+#LESSON Passwords, hashes and authentication | 14
+Passwords are still the most common way in. Understanding how they are stored and attacked tells you exactly how to defend them.
+
+### Hashing is not encryption
+Encryption can be reversed with a key. A **hash function** cannot: it turns any input into a fixed-size fingerprint, and the only way back is to guess inputs and compare. Websites should store a hash of each password, never the password.
+
+```text
+sha256("sunshine") = a941a4c4fd0c01cddef61b8be963bf4c1e2b0811c037ce3f1835fddf6ef6c223
+sha256("sunshinE") = a completely different value
+```
+
+### How stolen hashes are cracked
+- **Dictionary attack:** hash every word in a list of common passwords and compare. Lists from past breaches contain billions of real passwords.
+- **Brute force:** try every combination. The number of guesses is the **keyspace**: characters available raised to the power of the length. Eight lowercase letters give 26⁸, about 209 billion, which a graphics card can try against a fast hash in seconds.
+- **Rainbow tables:** precomputed hashes of huge numbers of passwords, reused against every breach.
+
+Two weaknesses make these attacks easy: **fast** hash functions (SHA-256 is designed to be fast, which is good for files and bad for passwords) and **no salt**, so identical passwords have identical hashes and one guess cracks every account using it.
+
+### Storing passwords properly
+- Use a dedicated password-hashing function: **Argon2id**, **scrypt** or **bcrypt**. They are deliberately slow and use memory, so each guess costs thousands of times more.
+- Each password gets a random **salt**, stored with the hash, so precomputed tables are useless and equal passwords look different.
+
+### Attacks on live logins
+- **Credential stuffing:** trying username and password pairs leaked from other sites, because people reuse passwords.
+- **Password spraying:** trying one or two very common passwords against many accounts, which avoids per-account lockouts.
+- Defences: rate limiting, alerts on many failures, checking new passwords against breach lists, and above all **multi-factor authentication**, which stops most of these attacks even when the password is known.
+
+### Testing passwords ethically
+Only crack hashes the client has authorised you to test, keep them encrypted, and report the statistics ("38% of accounts cracked within an hour") rather than listing people's passwords. A tester who leaks a client's passwords does more damage than the vulnerability did.
+
+Try a dictionary attack on a leaked table in [Crack a leaked password table](#/uni/range/hash).
+
+> Key idea: Hashes cannot be reversed, only guessed. Fast, unsalted hashes fall to wordlists in seconds; slow salted ones (Argon2id, bcrypt, scrypt) and multi-factor authentication are the defence.
+#Q Two users in a leaked table have exactly the same password hash. What does that tell you?
+- Nothing
+* They have the same password, and the passwords were stored without salts
+- The database is encrypted
+! A per-user salt would make the hashes differ.
+#Q Why is SHA-256 alone a poor choice for storing passwords?
+- It can be reversed easily
+* It is very fast, so attackers can test billions of guesses per second
+- It produces hashes that are too short
+! Password hashing should be deliberately slow.
+
+#LESSON Common weaknesses in networks and services | 13
+Most real breaches do not need clever new attacks. They use the same handful of mistakes, over and over. Knowing them lets you find them quickly as a tester, and avoid them as a builder.
+
+### Default and weak credentials
+Routers, cameras, printers and database servers often ship with known default passwords (`admin` / `admin`). Lists of defaults are public, and attackers' scanners try them automatically. Every device should have its default password changed before it goes on a network.
+
+### Services that should not be exposed
+- An admin panel or database reachable from the internet instead of only from inside.
+- **Anonymous FTP** or open file shares holding backups.
+- Development tools and debug pages left switched on in production.
+- Cloud storage buckets set to public by mistake, a frequent cause of large leaks.
+
+### Outdated software
+Software with known vulnerabilities is the most common way in. Once a CVE is published, attackers often scan the whole internet for affected versions within days. **Patching** quickly, and keeping an inventory of what you run so that you know what to patch, are among the most effective defences there are.
+
+### Weak protocols
+Telnet, plain FTP and plain HTTP send everything, passwords included, unencrypted. Anyone on the same network can read them. Use SSH, SFTP and HTTPS instead.
+
+### Scoring severity: CVSS
+The **Common Vulnerability Scoring System** gives each weakness a score from 0.0 to 10.0 based on how it is exploited (over the network? needs a login? needs the victim to click?) and its impact on confidentiality, integrity and availability. Scores map to ratings:
+
+```text
+0.0         None
+0.1 - 3.9   Low
+4.0 - 6.9   Medium
+7.0 - 8.9   High
+9.0 - 10.0  Critical
+```
+
+The score is a starting point. A medium-rated issue on the server holding all customer data may matter more than a high-rated one on an isolated test machine, so good reports explain the risk in the client's own context.
+
+### Defence in depth
+No single control is perfect, so defenders layer them: a firewall that only exposes what is needed, patched software, strong authentication, least privilege (each account and service can do only what it must), encryption, monitoring that notices attacks, and backups that cannot be deleted by an attacker. A tester's report should recommend fixes at several layers, not only "patch this".
+
+> Key idea: Default passwords, needlessly exposed services, outdated software and unencrypted protocols cause most breaches. Score findings with CVSS, explain them in context, and recommend layered fixes.
+#Q A vulnerability has a CVSS score of 7.5. What is its rating?
+- Medium
+* High
+- Critical
+! 7.0 to 8.9 is High.
+#Q Which is the best example of defence in depth?
+- One very expensive firewall
+* A firewall, patched software, multi-factor login, least privilege and monitoring together
+- Hiding the server's address
+! Several independent layers, so one failure is not a disaster.
+
+#LESSON Reporting, disclosure and a career | 13
+The report is the product. A brilliant test with a confusing report changes nothing; a clear report gets problems fixed.
+
+### The structure of a report
+1. **Executive summary:** one page, no jargon, for managers. What was tested, the overall risk, the most important findings and what to do first.
+2. **Scope and method:** what was in scope, dates, approach and any limitations ("the payment system was out of scope").
+3. **Findings**, most severe first.
+4. **Appendices:** tool output and the full log.
+
+### Writing a finding
+Each finding is a self-contained mini-report that a developer can act on without asking you anything:
+
+```text
+F-01  Anonymous FTP access exposes backup notes          Severity: High (CVSS 7.5)
+Affected:     10.10.0.7, port 21 (vsftpd 2.3)
+Description:  The FTP server accepts the user name "anonymous" with no password.
+Steps:        1. ftp 10.10.0.7   2. Name: anonymous   3. ls   4. get backup-notes.txt
+Impact:       Anyone on the office network can read internal files, including notes
+              about the backup system.
+Evidence:     Screenshot 3; log entry 10:23.
+Remediation:  Disable anonymous login; replace FTP with SFTP; upgrade the server
+              software; move backups to a system that requires authentication.
+```
+
+Write the impact in business terms ("customers' addresses could be downloaded"), give exact reproduction steps, and make the remediation specific. Acknowledge what was done well too; it helps the client trust the rest.
+
+### Responsible disclosure
+When you find a problem outside a contract, for example in open-source software or through a bug bounty, report it privately to the people who can fix it, give them reasonable time (90 days is a common default), and publish details only after a fix is available or that time has passed. Many organisations publish a `security.txt` file at `/.well-known/security.txt` saying how to contact them.
+
+### A career in security
+Security has many roles: penetration tester, security engineer, security operations (SOC) analyst, incident responder, application security specialist, cloud security engineer. Most good security people were first good at something else: networking, development or system administration.
+
+Ways to build evidence of skill:
+- Solve challenges on legal platforms (picoCTF, OverTheWire, TryHackMe, Hack The Box) and join capture-the-flag competitions.
+- Write up what you learned, without revealing live challenge answers.
+- Certifications: CompTIA Security+ is a common entry point; PenTest+, eJPT and OSCP are practical penetration-testing certifications.
+- Report real issues through bug bounty programmes, strictly within their rules.
+
+Complete the rest of the [hacking range](#/uni/range) and use it for this course's project.
+
+> Key idea: A finding needs a clear title, severity, exact steps, business impact and a specific fix. Disclose privately and give time to fix. Build a career on solid networking or development skills plus legal practice.
+#Q Who is the executive summary of a report written for?
+- The tester's friends
+* Managers and decision-makers who need the overall risk and priorities without jargon
+- The attacker
+! Technical detail goes in the findings.
+#Q You report a bug to a software project. What is responsible disclosure?
+- Posting the details publicly at once so users are warned
+* Reporting privately, allowing reasonable time for a fix, then publishing
+- Selling the details to the highest bidder
+! It protects users while the fix is made.
+
+#LAB js | A tester's toolkit
+Write small tools that a careful tester uses every day.
+
+**Staying in scope.**
+- `ipToInt(ip)` turns a dotted IPv4 address into a number: `"10.0.0.1"` is `167772161`.
+- `inCidr(ip, cidr)` returns whether `ip` is inside a CIDR range such as `"10.10.0.0/24"` (the number after the slash says how many leading bits must match; `/32` is a single address, `/0` is everything).
+- `inScope(target, scope)` decides whether a target may be tested. `scope` is `{ cidrs: [...], hosts: [...], exclude: [...] }`. An IP address is in scope if it is inside one of the CIDR ranges. A hostname is in scope if it equals one of `hosts`, or if a host entry starts with `*.` and the hostname ends with that domain (`"*.example.test"` matches `"shop.example.test"` but not `"example.test"` itself). Hostnames are compared case-insensitively. Anything listed in `exclude` (an exact IP address or hostname) is **never** in scope.
+
+**Rating and estimating.**
+- `severity(score)` returns the CVSS rating: `"None"` for 0, `"Low"` up to 3.9, `"Medium"` up to 6.9, `"High"` up to 8.9 and `"Critical"` up to 10. Throw an `Error` for anything that is not a number from 0 to 10.
+- `secondsToCrack(length, charsetSize, guessesPerSecond)` returns how many seconds it takes to try every password of that length: `charsetSize ** length / guessesPerSecond`.
+
+**Auditing.**
+- `findReused(accounts)` takes `[{ user, hash }, …]` and returns the groups of users who share a hash (and therefore a password). Each group is sorted alphabetically, and the groups are sorted by their first user. Users with a unique hash are left out.
+@starter
+function ipToInt(ip) {
+  return 0;
+}
+
+function inCidr(ip, cidr) {
+  return false;
+}
+
+function inScope(target, scope) {
+  return false;
+}
+
+function severity(score) {
+  return "None";
+}
+
+function secondsToCrack(length, charsetSize, guessesPerSecond) {
+  return 0;
+}
+
+function findReused(accounts) {
+  return [];
+}
+@solution
+function ipToInt(ip) {
+  return ip.split(".").reduce((n, part) => n * 256 + Number(part), 0);
+}
+
+function inCidr(ip, cidr) {
+  const [base, bitsText] = cidr.split("/");
+  const bits = Number(bitsText);
+  if (bits === 0) return true;
+  const size = 2 ** (32 - bits);
+  return Math.floor(ipToInt(ip) / size) === Math.floor(ipToInt(base) / size);
+}
+
+function inScope(target, scope) {
+  const t = target.toLowerCase();
+  if ((scope.exclude || []).some((x) => x.toLowerCase() === t)) return false;
+  if (/^\d{1,3}(\.\d{1,3}){3}$/.test(t)) return (scope.cidrs || []).some((c) => inCidr(t, c));
+  return (scope.hosts || []).some((h) => {
+    const host = h.toLowerCase();
+    if (host.startsWith("*.")) return t.endsWith(host.slice(1));
+    return host === t;
+  });
+}
+
+function severity(score) {
+  if (typeof score !== "number" || Number.isNaN(score) || score < 0 || score > 10) throw new Error("score must be a number from 0 to 10");
+  if (score === 0) return "None";
+  if (score < 4) return "Low";
+  if (score < 7) return "Medium";
+  if (score < 9) return "High";
+  return "Critical";
+}
+
+function secondsToCrack(length, charsetSize, guessesPerSecond) {
+  return charsetSize ** length / guessesPerSecond;
+}
+
+function findReused(accounts) {
+  const byHash = {};
+  for (const a of accounts) (byHash[a.hash] = byHash[a.hash] || []).push(a.user);
+  return Object.values(byHash).filter((g) => g.length > 1).map((g) => g.sort()).sort((a, b) => (a[0] < b[0] ? -1 : 1));
+}
+@tests
+ipToInt("10.0.0.1") => 167772161
+ipToInt("192.168.1.10") => 3232235786
+ipToInt("0.0.0.0") => 0
+ipToInt("255.255.255.255") => 4294967295
+[inCidr("10.10.0.7", "10.10.0.0/24"), inCidr("10.10.1.7", "10.10.0.0/24")] => [true, false]
+[inCidr("172.16.5.4", "172.16.0.0/16"), inCidr("172.17.0.1", "172.16.0.0/16")] => [true, false]
+[inCidr("8.8.8.8", "0.0.0.0/0"), inCidr("10.0.0.5", "10.0.0.5/32"), inCidr("10.0.0.6", "10.0.0.5/32")] => [true, true, false]
+inCidr("192.168.1.130", "192.168.1.128/25") => true
+inCidr("192.168.1.127", "192.168.1.128/25") => false
+inScope("10.10.0.20", { cidrs: ["10.10.0.0/24"], hosts: [], exclude: ["10.10.0.1"] }) => true
+inScope("10.10.0.1", { cidrs: ["10.10.0.0/24"], hosts: [], exclude: ["10.10.0.1"] }) => false
+inScope("8.8.8.8", { cidrs: ["10.10.0.0/24"], hosts: [], exclude: [] }) => false
+inScope("Shop.Example.Test", { cidrs: [], hosts: ["shop.example.test"], exclude: [] }) => true
+inScope("api.example.test", { cidrs: [], hosts: ["*.example.test"], exclude: ["pay.example.test"] }) => true
+inScope("pay.example.test", { cidrs: [], hosts: ["*.example.test"], exclude: ["pay.example.test"] }) => false
+inScope("example.test", { cidrs: [], hosts: ["*.example.test"], exclude: [] }) => false
+inScope("evilexample.test", { cidrs: [], hosts: ["*.example.test"], exclude: [] }) => false
+[severity(0), severity(0.1), severity(3.9), severity(4), severity(6.9), severity(7), severity(8.9), severity(9), severity(10)] => ["None", "Low", "Low", "Medium", "Medium", "High", "High", "Critical", "Critical"]
+(() => { try { severity(11); return "no error"; } catch (e) { return "error"; } })() => "error"
+(() => { try { severity("7"); return "no error"; } catch (e) { return "error"; } })() => "error"
+secondsToCrack(4, 10, 1000) => 10
+secondsToCrack(8, 26, 1000000000) => 208.827064576
+findReused([{ user: "sam", hash: "a1" }, { user: "priya", hash: "b2" }, { user: "alex", hash: "a1" }]) => [["alex", "sam"]]
+findReused([{ user: "d", hash: "x" }, { user: "c", hash: "y" }, { user: "b", hash: "x" }, { user: "a", hash: "y" }]) => [["a", "c"], ["b", "d"]]
+findReused([{ user: "solo", hash: "z" }]) => []
+@hints
+`ipToInt`: split on dots and build the number with `n * 256 + part` for each part (multiplying avoids JavaScript's signed 32-bit bit operations).
+For `inCidr`, two addresses share the first `bits` bits when dividing both by `2 ** (32 - bits)` and rounding down gives the same number.
+In `inScope`, check `exclude` first, then decide whether the target looks like an IP address.
+`"*.example.test".slice(1)` is `".example.test"`; a hostname ending with that is a subdomain. The dot matters: `evilexample.test` must not match.
+For `findReused`, group users by hash in an object, keep groups longer than one, sort each, then sort the groups.
+
+#EXAM 20
+#Q What turns hacking into ethical hacking?
+- Using only free tools
+* Written permission from the owner, an agreed scope, and reporting findings to them
+- Not keeping any of the data
+! Without permission the same actions are crimes.
+#Q Which Canadian law section covers unauthorised use of a computer?
+- The Copyright Act
+* Criminal Code section 342.1
+- The Privacy Act
+! Section 430 covers mischief in relation to computer data.
+#Q In which phase do you find open ports and service versions?
+- Reporting
+* Scanning and enumeration
+- Pre-engagement
+! Reconnaissance comes first, then scanning.
+#Q What is passive reconnaissance?
+* Gathering information from public sources without sending traffic to the target
+- Scanning slowly
+- Testing without a password
+! Certificate logs and DNS are examples.
+#Q A port is reported as "closed". What happened?
+- No reply came back
+* The computer replied, but no program is listening on that port
+- The service is out of date
+! Filtered ports do not reply.
+#Q What does a salt do in password storage?
+- It encrypts the password so it can be decrypted later
+* It makes each stored hash unique, so equal passwords differ and precomputed tables fail
+- It makes hashing faster
+! The salt is stored next to the hash.
+#Q Which is designed for storing passwords?
+- MD5
+- SHA-256
+* Argon2id
+! bcrypt and scrypt are also suitable.
+#Q What is password spraying?
+- Guessing every possible password for one account
+* Trying a few very common passwords against many accounts
+- Sending passwords by email
+! It avoids per-account lockouts.
+#Q During a test you find evidence that a real attacker is already inside the network. What should you do?
+- Continue testing quietly
+- Remove the attacker's tools yourself
+* Stop and contact the client's agreed emergency contact immediately
+! This is usually written in the rules of engagement.
+#Q What should a good finding include?
+- Only the CVSS score
+* A title, severity, affected systems, exact reproduction steps, business impact and a specific fix
+- The tester's opinion of the developers
+! A developer should be able to act on it without asking.
+#W You have permission to test the network 192.168.50.0/24 for a small clinic, except the receptionist's computer 192.168.50.20, on weekdays from 09:00 to 17:00. Describe how you would plan and carry out the reconnaissance and scanning phases safely, what you would do if you found an exposed file share containing patient records, and how you would write up that finding.
++ Confirms written authorisation and keeps every action inside 192.168.50.0/24, excluding .20, and inside the time window
++ Describes gentle, logged scanning: finding live hosts, then ports and versions, with care for fragile devices
++ Explains stopping at minimal proof on finding patient records: not copying or reading further, and contacting the client promptly
++ Writes the finding with title, severity, affected system, steps, impact in business and privacy terms, and a specific remediation
++ Mentions protecting any evidence and data collected, and cleaning up afterwards
+
+#PROJECT A penetration test report for the hacking range
+Complete the challenges in this University's ethical hacking range and write the professional report a client would receive. The range is your client: Northwind Bakery, a fictional company. Do not test any other system for this project.
+@requirements
+Complete at least the Rules of engagement challenge and six other range challenges
+A timed log of the actions you took, in the style shown in the lessons
+An executive summary of one page, without jargon, with the overall risk and the three most urgent actions
+A scope and method section that states what was in and out of scope and any limitations
+At least six findings, each with a title, CVSS-based severity, affected system, reproduction steps, business impact, evidence and specific remediation
+Findings ordered by severity, with at least one recommendation at a different layer of defence for each (for example both "fix the code" and "monitor for this attack")
+A short reflection on what you would test next with more time, and what you did to stay inside the scope
+@deliverables
+The report as a PDF or document
+The timed log
+Screenshots or copied output as evidence for each finding
+@rubric
+Executive summary that a non-technical manager can act on | 20
+Accuracy and reproducibility of the findings | 30
+Quality and specificity of the remediation advice | 25
+Scope, method, log and professional conduct | 15
+Clarity and structure of the report | 10
+
+#COURSE sec102
+#LESSON How the web works, for a tester | 13
+Web applications are the largest attack surface most organisations have. To test one, you need to see it the way the server does: as a stream of **HTTP requests** that anyone can modify.
+
+### Requests and responses
+A browser sends a request and the server sends back a response:
+
+```http
+POST /login HTTP/1.1
+Host: shop.example.test
+Cookie: session=7f3a9c
+Content-Type: application/x-www-form-urlencoded
+
+user=sam&pass=secret
+```
+
+```http
+HTTP/1.1 302 Found
+Location: /account
+Set-Cookie: session=91b2e4; HttpOnly; Secure; SameSite=Lax
+```
+
+The **method** (GET, POST, PUT, DELETE) says what to do, the **path** and **query string** say to what, **headers** carry extra information, and the **body** carries form or JSON data. **Status codes** summarise the result: 200 OK, 302 redirect, 401 not signed in, 403 forbidden, 404 not found, 500 server error.
+
+### The golden rule: the client is under the attacker's control
+Everything in a request can be changed: hidden form fields, cookies, headers, prices in a shopping basket, the user ID in a URL. JavaScript validation in the browser improves the experience but protects nothing, because an attacker can send the request without the page. **Every security decision must be made on the server.**
+
+### Sessions and cookies
+HTTP itself forgets each request. Applications remember who you are with a **session**: after login the server sets a cookie holding a long random session ID, and the browser sends it back with every request. Cookie flags matter:
+
+- `HttpOnly`: JavaScript cannot read the cookie, which limits the damage of cross-site scripting.
+- `Secure`: sent only over HTTPS.
+- `SameSite`: not sent on requests started by other websites, which blocks most cross-site request forgery.
+
+### The same-origin policy
+Browsers isolate websites from each other: a page from `evil.example` cannot read your data from `bank.example`. An **origin** is the scheme, host and port together. Many web attacks are ways of getting code to run inside the victim's origin (cross-site scripting) or tricking the browser into sending requests with the victim's cookies (request forgery).
+
+### The tester's tools
+- The browser's **developer tools** show every request, response, cookie and script.
+- An **intercepting proxy** such as OWASP ZAP or Burp Suite sits between browser and server, so you can pause, read and edit each request before it is sent, and replay it with changes.
+- The **OWASP Top Ten** lists the most common risk categories, and the **OWASP Web Security Testing Guide** gives a checklist for each.
+
+> Key idea: A web app is a series of HTTP requests that the user fully controls. Never trust anything the client sends; make every security decision on the server, and protect session cookies with HttpOnly, Secure and SameSite.
+#Q A shop checks in JavaScript that a quantity is between 1 and 10. Is that enough to stop a quantity of −5?
+- Yes, browsers enforce it
+* No: an attacker can send the request directly, so the server must check too
+- Only on mobile
+! Client-side checks are for convenience, not security.
+#Q What does the HttpOnly cookie flag do?
+* Stops JavaScript in the page from reading the cookie
+- Sends the cookie only over HTTP, not HTTPS
+- Deletes the cookie when the browser closes
+! It limits what cross-site scripting can steal.
+
+#LESSON SQL injection | 14
+**Injection** happens when data is mixed into code and the data is able to change the code's meaning. SQL injection is the classic case, and still one of the most damaging.
+
+### How it happens
+An application builds a query by pasting text together:
+
+```js
+const q = "SELECT * FROM users WHERE name = '" + name + "' AND pass = '" + pass + "'";
+```
+
+If `name` is `admin' --`, the query becomes:
+
+```sql
+SELECT * FROM users WHERE name = 'admin' --' AND pass = '...'
+```
+
+The quote closes the string early, and `--` turns the rest of the line, including the password check, into a comment. The attacker is now signed in as admin. Try it: [log in without a password](#/uni/range/sqli).
+
+### Finding injection
+Testers look for places where input reaches a database: logins, search boxes, filters, sort orders, IDs in URLs, even headers. Typical probes:
+
+- A single quote `'`: a database error, or a change in the page, means the input is inside the SQL.
+- Boolean pairs such as `' AND 1=1 --` and `' AND 1=2 --`: if the pages differ, you can ask the database yes-or-no questions (**blind** injection).
+- A delay such as `' AND sleep(5) --` (the exact function depends on the database): if the response takes five seconds longer, the injection works even when nothing is shown (**time-based** blind injection).
+
+### Extracting data with UNION
+When results are displayed, `UNION SELECT` appends rows from any table. First find the number of columns (the two sides must match), then read the database's own catalogue (`information_schema` in MySQL and PostgreSQL, `sqlite_master` in SQLite) to learn table and column names, then select the data you want. Practise it on [the shop's search](#/uni/range/union).
+
+### Impact
+Depending on the database account's rights, injection can read every table, change or delete data, bypass logins, and sometimes run commands on the server. Many of the largest data breaches began this way.
+
+### Prevention
+- **Parameterised queries** (prepared statements) send the query and the data separately, so data can never become code. This is the fix; everything else is extra protection.
+- Use an ORM or query builder correctly, and be careful with raw-SQL escape hatches in them.
+- Give the application's database account only the rights it needs.
+- Validate input types (an ID should be a number) and do not show database errors to users.
+
+```js
+db.query("SELECT * FROM users WHERE name = ?", [name]);   // safe
+```
+
+Escaping quotes by hand is fragile: there are many edge cases, and one missed field is enough.
+
+> Key idea: SQL injection happens when input is pasted into a query. Probe with a quote and true/false pairs; exploit with comments and UNION. The fix is parameterised queries, always.
+#Q Why does adding `--` after an injected quote help an attacker?
+- It speeds up the query
+* It turns the rest of the original query into a comment, so later conditions are ignored
+- It encrypts the input
+! It removes the password check in the classic login bypass.
+#Q What is the correct fix for SQL injection?
+- Removing quotes from all input
+- Hiding error messages
+* Parameterised queries, so data is never interpreted as SQL
+! The other measures help, but do not fix the cause.
+
+#LESSON Cross-site scripting | 13
+**Cross-site scripting (XSS)** is injection into a web page: an attacker gets their JavaScript to run in other users' browsers, inside the vulnerable site's origin. That script can do anything the user can: read the page, send requests as them and change what they see.
+
+### Three kinds
+- **Reflected:** the input comes back in the response, for example a search page that says "No results for `<your input>`". The attacker sends a victim a link containing a script.
+- **Stored:** the input is saved and shown to everyone, as in a comment, a profile name or a support ticket. Every visitor runs the script. Try it in the [guestbook](#/uni/range/xss).
+- **DOM-based:** the page's own JavaScript takes something from the URL or another source and writes it into the page unsafely, so the server never even sees the payload.
+
+### Context matters
+Where the input lands decides which characters are dangerous:
+
+```html
+<p>Hello USER</p>                          HTML body: < and > start tags
+<input value="USER">                        attribute: " ends the value
+<a href="USER">                             URL: javascript: runs code
+<script>var name = "USER";</script>        JavaScript: " and </script> escape
+```
+
+Testers try a payload suited to each context. In real tests they prove the bug with a harmless action such as showing an alert or calling a function, never by stealing real users' data.
+
+### Prevention
+- **Encode output for its context**: in HTML, `&` becomes `&amp;`, `<` becomes `&lt;`, `>` becomes `&gt;`, `"` becomes `&quot;` and `'` becomes `&#39;`. Do it when writing into the page, not when receiving input.
+- Use a templating framework that escapes automatically (React, Vue, Angular, Django and Jinja all do) and be very careful with its escape hatches: `innerHTML`, `dangerouslySetInnerHTML`, `v-html`, `|safe`.
+- In plain JavaScript, set `textContent`, not `innerHTML`, for user data.
+- If users must submit rich text, clean it with a well-tested **sanitiser** library on an allow-list of tags.
+- Add a **Content-Security-Policy** header that blocks inline scripts and only allows scripts from your own origin, so many injections fail even if one gets through.
+- Mark session cookies `HttpOnly`.
+
+```js
+el.textContent = comment;          // safe: always shown as text
+el.innerHTML = comment;            // dangerous if comment came from a user
+```
+
+> Key idea: XSS runs an attacker's script in your site's origin. Encode every piece of user data for the exact context it is written into, prefer auto-escaping templates and textContent, and add a Content-Security-Policy as a second layer.
+#Q A forum shows each user's signature, and a signature containing a script runs for everyone who reads the post. What kind of XSS is that?
+- Reflected
+* Stored
+- DOM-based
+! The payload is saved on the server and served to every reader.
+#Q Which line safely shows a user's comment inside an element?
+* el.textContent = comment
+- el.innerHTML = comment
+- document.write(comment)
+! textContent never interprets HTML.
+
+#LESSON Broken access control | 13
+**Broken access control** is at the top of the OWASP Top Ten. It covers every case where a user can do or see something they should not, and it is usually caused not by clever attacks but by a missing check.
+
+### Horizontal and vertical
+- **Horizontal:** accessing another user's data at the same level: someone else's invoice, messages or orders.
+- **Vertical:** gaining a higher level of privilege: a customer reaching admin functions.
+
+### Insecure direct object references
+The most common form: a URL or API call contains an identifier, and the server returns the object without checking who is asking.
+
+```http
+GET /api/invoices/5031     -> your invoice
+GET /api/invoices/5030     -> someone else's invoice, if there is no ownership check
+```
+
+Testers create two accounts and try to use account A's session to read, change and delete account B's objects. They also try IDs from other places: numbers in emails, file names in downloads, IDs inside JSON bodies. Practise in the [API explorer](#/uni/range/idor).
+
+### Other forms
+- **Forced browsing:** admin pages that are not linked from the menu but have no check, such as `/admin` or `/reports/export`.
+- **Changing roles in requests:** a hidden field `role=user` or a JSON property `"isAdmin": false` that the server accepts and stores (**mass assignment**).
+- **Tampered client-side state:** an unsigned cookie such as `{"role":"student"}` that the server trusts. See [the cookie challenge](#/uni/range/cookie).
+- **Method confusion:** a check on GET but not on POST or DELETE for the same resource.
+
+### Prevention
+- Check authorisation **on the server, for every request**, based on the logged-in user and your own records, never on what the client says about itself.
+- **Deny by default**: every new endpoint starts closed.
+- Centralise the checks (middleware, policies) instead of repeating them in each handler, where one will be forgotten.
+- Do not rely on hidden links or hard-to-guess IDs; random IDs reduce guessing but are not access control.
+- Write automated tests that sign in as one user and assert that another user's data returns 403 or 404.
+- For changes, allow-list which fields a user may set, so that `role` or `isAdmin` cannot be mass-assigned.
+
+```js
+function canViewInvoice(user, invoice) {
+  return !!user && (user.role === "admin" || invoice.ownerId === user.id);
+}
+```
+
+> Key idea: Access control fails when the server trusts an ID, a role or a page being hidden. Check the logged-in user's permission on the server for every object and every method, deny by default, and test with two accounts.
+#Q You change /api/orders/1001 to /api/orders/1000 and see another customer's order. What is this?
+* An insecure direct object reference (horizontal broken access control)
+- SQL injection
+- Cross-site scripting
+! The server did not check that the order belongs to you.
+#Q Why is an unlinked admin page not protected?
+- Search engines cannot find it
+* Anyone who guesses or learns the address can open it, because nothing checks their role
+- Browsers block unlinked pages
+! Hiding is not authorisation.
+
+#LESSON Authentication and sessions | 13
+Authentication answers "who are you?". Its weaknesses let attackers become someone else without breaking any encryption.
+
+### Login weaknesses
+- **No rate limiting**, so passwords can be guessed at machine speed.
+- **User enumeration:** different messages for "no such user" and "wrong password", or different response times, tell an attacker which accounts exist. Use one message: "Wrong user name or password".
+- **Weak password rules**, or no check against lists of breached passwords.
+- **Password reset flaws:** predictable or long-lived reset tokens, tokens sent in the URL to third parties, or reset links that do not expire after use.
+- **No multi-factor authentication** for important accounts.
+
+### Session weaknesses
+- **Predictable session IDs.** They must come from a cryptographically secure random generator and be long (at least 128 bits).
+- **Session fixation:** the ID is not changed at login, so an attacker who planted an ID before login shares the session afterwards. Always issue a new session ID when the user logs in or changes privilege.
+- **Sessions that never expire**, or that survive logout on the server.
+- **Unsigned client-side sessions:** state kept in a cookie that the user can edit.
+
+### Tokens and JWTs
+A **JSON Web Token** holds claims such as `{"sub":"sam","role":"staff"}` plus a signature. It is only as good as its verification:
+
+```text
+header.payload.signature
+eyJhbGciOiJIUzI1NiJ9 . eyJzdWIiOiJzYW0iLCJyb2xlIjoic3RhZmYifQ . 3q9m...
+```
+
+The payload is only Base64-encoded, so anyone can read it; never put secrets in it. The server must verify the signature with the right key, reject the algorithm `none`, check the expiry time, and not let the token itself choose how it is verified.
+
+### Cross-site request forgery
+If a site relies only on cookies, another site can make the victim's browser submit a form to it, with the victim's cookies attached: "transfer $500" or "change my email". Defences: `SameSite` cookies (Lax or Strict), anti-CSRF tokens in forms, and requiring re-authentication for sensitive actions.
+
+### Testing authentication
+Testers check every route to an account: sign-up, login, logout, "remember me", password change, password reset, email change and multi-factor setup. Account recovery is often the weakest door, because it is designed to work when the normal credentials are missing.
+
+> Key idea: Rate-limit logins and give one error message, make session IDs long and random and renew them at login, verify every signature and expiry, and protect state-changing requests from forgery with SameSite cookies and tokens.
+#Q Why should a login page show the same message for an unknown user and a wrong password?
+- It looks tidier
+* Different messages let attackers discover which accounts exist
+- Browsers require it
+! That weakness is called user enumeration.
+#Q What prevents session fixation?
+- Longer passwords
+* Issuing a new session ID when the user logs in
+- Using HTTP instead of HTTPS
+! The planted ID becomes useless after login.
+
+#LESSON Command injection, file attacks and SSRF | 14
+The last group of classic web vulnerabilities share one pattern: user input is passed to something powerful, such as a shell, the file system or a network request, without strict limits.
+
+### OS command injection
+A feature runs a system command with the user's input in it:
+
+```php
+echo shell_exec("ping -c 1 " . $_POST["host"]);
+```
+
+In a shell, `;`, `&&`, `||`, `|` and `$(...)` start new commands, so a host of `10.0.0.5; cat /etc/passwd` runs both. Try it on the [router's ping tool](#/uni/range/cmdi).
+
+**Prevention:** do not use a shell. Call the program directly with an argument list (`execFile("ping", ["-c", "1", host])` in Node, `subprocess.run([...])` without `shell=True` in Python), validate the input against a strict allow-list (here, a hostname or IP address), and run the service with minimal privileges.
+
+### Path traversal
+A download feature reads `/srv/files/` + the requested name. A name of `../../etc/passwd` climbs out of the folder. **Prevention:** resolve the full path and check that it is still inside the base folder, reject absolute paths, and better still, use IDs that map to files instead of file names from users.
+
+### Unsafe file uploads
+If users can upload a file that the server will later run (a `.php` file in a web folder) or that browsers will render (an HTML or SVG file containing script), an upload becomes code execution or XSS. **Prevention:** allow-list file types by content, rename files, store them outside the web root or on a separate domain, and serve them with a safe `Content-Type` and `Content-Disposition: attachment`.
+
+### Server-side request forgery (SSRF)
+A feature fetches a URL for the user: "import an image from a link", a webhook, a link preview. The attacker supplies an internal address instead, such as `http://localhost:8080/admin` or a cloud provider's metadata address, which can hand out credentials. The server makes the request from inside the network, where the firewall trusts it. **Prevention:** allow-list destinations, resolve the address and block private and internal ranges, disable redirects or re-check after them, and isolate the fetching service.
+
+### Open redirects
+`/login?next=https://evil.example` that redirects anywhere helps phishing, because the link starts with a trusted domain. Only redirect to relative paths on your own site, or to an allow-list.
+
+### Putting it together: a testing checklist
+For every input, ask: where does it go? Into SQL, HTML, a shell, a path, a URL, a template, a log? Each destination has its own dangerous characters and its own correct defence. Then ask: is every action checked against the logged-in user's permissions? Those two questions find most web vulnerabilities.
+
+> Key idea: Whenever input reaches a shell, a file path or an outgoing request, an attacker will try to steer it. Avoid the shell, resolve and confine paths, restrict uploads and fetch destinations, and validate against strict allow-lists.
+#Q Which call avoids command injection when running ping in Node?
+- exec("ping -c 1 " + host)
+* execFile("ping", ["-c", "1", host]) after checking host is a valid hostname or IP
+- exec("ping -c 1 '" + host + "'")
+! Quoting is fragile; avoid the shell entirely.
+#Q What makes server-side request forgery dangerous?
+* The server can be made to request internal addresses that outsiders cannot reach directly
+- It slows down the website
+- It only affects the attacker's own browser
+! Cloud metadata services are a common target.
+
+#LAB js | Fix the vulnerabilities
+Each function is the secure version of something you exploited in the hacking range. Write them carefully: security code must handle the awkward cases.
+
+- `escapeHtml(s)` returns `s` with `&`, `<`, `>`, `"` and `'` replaced by `&amp;`, `&lt;`, `&gt;`, `&quot;` and `&#39;`. Replace `&` correctly so that existing text such as `&lt;` becomes `&amp;lt;`.
+- `canViewInvoice(user, invoice)` returns `true` only if there is a user and they are an admin (`user.role === "admin"`) or the owner (`invoice.ownerId === user.id`). A missing user (`null`) is never allowed.
+- `isValidHost(host)` returns `true` for an IPv4 address (four numbers from 0 to 255) or a hostname made of labels separated by dots, where each label is 1 to 63 letters, digits or hyphens and does not start or end with a hyphen. The whole name is at most 253 characters. Anything else, including spaces, `;` and `|`, is `false`.
+- `safeJoin(base, requested)` joins a requested relative path onto a base folder such as `"/srv/files"`, resolving `.` and `..` segments. Return the resulting path, or `null` if the request is empty, is absolute (starts with `/`), contains a backslash, or would end up outside the base folder.
+- `isSafeRedirect(url)` returns `true` only for a path on this site: it starts with `/`, its second character is not `/` or `\` (browsers treat `//evil.example` as another site), and it contains no backslash anywhere.
+@starter
+function escapeHtml(s) {
+  return s;
+}
+
+function canViewInvoice(user, invoice) {
+  return true;
+}
+
+function isValidHost(host) {
+  return true;
+}
+
+function safeJoin(base, requested) {
+  return base + "/" + requested;
+}
+
+function isSafeRedirect(url) {
+  return true;
+}
+@solution
+function escapeHtml(s) {
+  return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+}
+
+function canViewInvoice(user, invoice) {
+  if (!user) return false;
+  return user.role === "admin" || invoice.ownerId === user.id;
+}
+
+function isValidHost(host) {
+  if (typeof host !== "string" || host.length === 0 || host.length > 253) return false;
+  if (/^\d+(\.\d+){3}$/.test(host)) return host.split(".").every((p) => Number(p) <= 255);
+  return host.split(".").every((label) => /^[A-Za-z0-9]([A-Za-z0-9-]{0,61}[A-Za-z0-9])?$/.test(label));
+}
+
+function safeJoin(base, requested) {
+  if (!requested || requested.startsWith("/") || requested.includes("\\")) return null;
+  const parts = base.split("/").filter(Boolean);
+  const depth = parts.length;
+  for (const seg of requested.split("/")) {
+    if (seg === "" || seg === ".") continue;
+    if (seg === "..") {
+      if (parts.length <= depth) return null;
+      parts.pop();
+    } else parts.push(seg);
+  }
+  return "/" + parts.join("/");
+}
+
+function isSafeRedirect(url) {
+  return typeof url === "string" && url.startsWith("/") && url[1] !== "/" && url[1] !== "\\" && !url.includes("\\");
+}
+@tests
+escapeHtml("<script>alert(1)</script>") => "&lt;script&gt;alert(1)&lt;/script&gt;"
+escapeHtml("Tom & \"Jerry\" said 'hi'") => "Tom &amp; &quot;Jerry&quot; said &#39;hi&#39;"
+escapeHtml("&lt;") => "&amp;lt;"
+escapeHtml("plain text") => "plain text"
+escapeHtml("<img src=x onerror=\"proof()\">") => "&lt;img src=x onerror=&quot;proof()&quot;&gt;"
+canViewInvoice({ id: 7, role: "customer" }, { ownerId: 7 }) => true
+canViewInvoice({ id: 7, role: "customer" }, { ownerId: 8 }) => false
+canViewInvoice({ id: 1, role: "admin" }, { ownerId: 8 }) => true
+canViewInvoice(null, { ownerId: 8 }) => false
+canViewInvoice({ id: 8, role: "Admin" }, { ownerId: 9 }) => false
+[isValidHost("10.10.0.5"), isValidHost("shop.example.test"), isValidHost("localhost"), isValidHost("my-router")] => [true, true, true, true]
+[isValidHost("10.10.0.5; cat /etc/passwd"), isValidHost("a b"), isValidHost("x|id"), isValidHost("")] => [false, false, false, false]
+[isValidHost("256.1.1.1"), isValidHost("-bad.example"), isValidHost("bad-.example"), isValidHost("a..b")] => [false, false, false, false]
+isValidHost("a".repeat(64) + ".test") => false
+isValidHost("$(whoami)") => false
+safeJoin("/srv/files", "report.pdf") => "/srv/files/report.pdf"
+safeJoin("/srv/files", "2026/march/report.pdf") => "/srv/files/2026/march/report.pdf"
+safeJoin("/srv/files", "a/../b.txt") => "/srv/files/b.txt"
+safeJoin("/srv/files", "./notes.txt") => "/srv/files/notes.txt"
+safeJoin("/srv/files", "../etc/passwd") => null
+safeJoin("/srv/files", "a/../../secret") => null
+safeJoin("/srv/files", "/etc/passwd") => null
+safeJoin("/srv/files", "..\\windows") => null
+safeJoin("/srv/files", "") => null
+[isSafeRedirect("/account"), isSafeRedirect("/search?q=bread")] => [true, true]
+[isSafeRedirect("https://evil.example"), isSafeRedirect("//evil.example"), isSafeRedirect("/\\evil.example"), isSafeRedirect("javascript:alert(1)"), isSafeRedirect("account")] => [false, false, false, false, false]
+@hints
+In `escapeHtml`, replace `&` first; otherwise you would double-escape the entities you just created.
+`canViewInvoice`: check for a missing user before reading `user.role`. Compare roles exactly: "Admin" is not "admin".
+For `isValidHost`, test the IPv4 shape first; otherwise split on dots and test each label with a regular expression such as `/^[A-Za-z0-9]([A-Za-z0-9-]{0,61}[A-Za-z0-9])?$/`.
+For `safeJoin`, keep a list of path segments starting with the base's segments. `..` removes one, but never one of the base's own.
+`isSafeRedirect`: `//evil.example` is a full address to another site in a browser, even though it starts with a slash.
+
+#EXAM 20
+#Q Where must authorisation checks happen in a web application?
+- In the browser's JavaScript
+* On the server, for every request
+- In the HTML
+! The client is under the user's control.
+#Q What does the SameSite cookie attribute mainly protect against?
+- SQL injection
+* Cross-site request forgery
+- Password guessing
+! The cookie is not sent on requests started by other sites.
+#Q An input of `' AND 1=1 --` shows normal results and `' AND 1=2 --` shows none. What have you found?
+* Boolean-based blind SQL injection
+- Cross-site scripting
+- A broken access control
+! The database is answering yes-or-no questions.
+#Q When combining results with UNION SELECT, what must match?
+- The table names
+* The number of columns on both sides
+- The order of rows
+! A mismatch produces an error, which helps you count the columns.
+#Q Which is NOT a good defence against XSS?
+- Encoding output for its context
+- Content-Security-Policy
+* Removing the word "script" from input
+! Filters like this are easy to bypass, for example with an image's onerror.
+#Q A JWT's payload contains the user's role. Why can an attacker read it?
+* The payload is only Base64-encoded, not encrypted
+- JWTs are always sent without HTTPS
+- Browsers display them
+! The signature protects integrity, not secrecy.
+#Q What is mass assignment?
+- Assigning many users to one role
+* The server copying every field from a request onto an object, including ones like isAdmin that users should not set
+- Sending the same request many times
+! Allow-list the fields users may change.
+#Q A link-preview feature fetches http://169.254.169.254/ on a cloud server. What attack is this?
+- Path traversal
+* Server-side request forgery against the cloud metadata service
+- Cross-site scripting
+! Metadata services can hand out credentials.
+#Q What is the safest way to accept a file name for download?
+- Remove every ".." from it
+* Map an ID to a stored file, or resolve the path and verify it stays inside the base folder
+- Allow only names under 20 characters
+! Removing ".." once can be bypassed with "....//".
+#Q Why should a password reset token expire and be single-use?
+- To save disk space
+* A leaked or old token would otherwise let anyone take over the account later
+- Email systems require it
+! Recovery flows are a common weak point.
+#W A small online shop lets customers view orders at /orders?id=123, search products with a search box whose text is shown on the results page as "Results for …", and log in with a form. Describe how you would test these three features for broken access control, cross-site scripting and SQL injection, with example inputs, what result would show a vulnerability, and the specific fix for each.
++ For orders: tests with two accounts, changing the id to another customer's order, and treats a successful read as an IDOR; fix is a server-side ownership check for every request
++ For search: tests whether HTML in the query is shown unescaped (for example a harmless tag or proof function), and identifies reflected XSS; fix is context-aware output encoding, plus CSP
++ For login and search: probes with a quote and true/false pairs and explains what errors or differences mean; fix is parameterised queries
++ Explains testing only with permission, on test accounts, with harmless proof payloads
++ Mentions at least one further layer, such as least-privilege database accounts, rate limiting or HttpOnly cookies
+
+#PROJECT Secure a deliberately vulnerable web application
+Build a small web application with the classic vulnerabilities deliberately included, prove each one with a test, then fix them and prove the fixes. Everything runs on your own computer. If you prefer, you may instead run OWASP Juice Shop locally and document and fix five of its challenges in a copy of its code.
+@requirements
+A small web application of your own (any language) with a login, a page showing a user's own records, a search, a comment feature and an admin page
+At least five deliberate vulnerabilities in a first version: SQL injection, stored XSS, an IDOR, an unsigned or tamperable session or role, and one of command injection, path traversal or an open redirect
+For each vulnerability, an automated test (or a scripted request) that demonstrates the attack succeeding against the vulnerable version
+A fixed version in which each vulnerability is corrected with the proper technique (parameterised queries, output encoding, server-side authorisation, signed or server-side sessions, no shell or confined paths)
+The same tests now showing each attack failing, plus normal-use tests still passing
+Security headers on the fixed version: Content-Security-Policy, and cookies with HttpOnly, Secure and SameSite
+A findings report in the format from SEC 101, for the vulnerable version
+@deliverables
+The source code of both versions (for example as two branches)
+The attack and regression tests with their results
+The findings report
+A short explanation of each fix and why it works
+@rubric
+The five vulnerabilities, realistically implemented and demonstrated | 20
+Correct fixes using the proper technique for each | 30
+Automated tests proving attacks fail and features still work | 25
+Findings report quality | 15
+Code clarity and security headers | 10

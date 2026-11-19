@@ -22,7 +22,8 @@ build step. It is loaded only when someone opens `#/uni`, so the rest of the sit
 | `uni-campus.js` | Loaded on demand: departments, career centre (skill gaps, CV builder, interview practice), My study (goal, bookmarks, history, achievements, weekly challenge) |
 | `data/departments.js` | The 8 departments, the elective courses, career roles and interview exercises |
 | `uni-studio.js` | Loaded on demand: algorithm visualiser, practice studio, language environment check |
-| `data/electives.txt`, `electives2.txt`, `electives3.txt`, `electives4.txt` | Content of the 13 elective courses (same format as the stage files) |
+| `data/electives.txt` … `electives5.txt` | Content of the 16 elective courses (same format as the stage files) |
+| `uni-sims.js` | Loaded on demand (5.9): the circuit simulator and the ethical hacking range. The range's targets are fake, inside this file; it makes no network requests |
 | `ai-endpoint-example/` | Server-side examples for connecting a real AI model |
 
 `index.html` contains only small hooks: the `#/uni` route, the home-page button and banner, and a loader.
@@ -31,7 +32,7 @@ build step. It is loaded only when someone opens `#/uni`, so the rest of the sit
 
 `#/uni` home · `#/uni/dashboard` · `#/uni/courses` · `#/uni/stage/3` · `#/uni/course/c301` ·
 `#/uni/course/c301/lesson/0` · `…/lab` · `…/exam` · `…/project` · `#/uni/final/3` · `#/uni/labs` ·
-`#/uni/exams` · `#/uni/projects` · `#/uni/videos` · `#/uni/transcript` · `#/uni/professor` · `#/uni/departments[/game]` · `#/uni/career[/role/backend|cv|interview|present|guide]` · `#/uni/study[/challenge]`
+`#/uni/exams` · `#/uni/projects` · `#/uni/videos` · `#/uni/transcript` · `#/uni/professor` · `#/uni/departments[/game]` · `#/uni/career[/role/backend|cv|interview|present|guide]` · `#/uni/study[/challenge]` · `#/uni/circuit[/half]` · `#/uni/range[/sqli]`
 
 All file paths are relative, so the site works at `/Learn/` on GitHub Pages and at the root on Netlify.
 
@@ -45,8 +46,10 @@ block in one of the `data/electives*.txt` files (set `file:` on the catalogue en
 `tests/validate-content.js`. Practice-studio exercises live in the data section of `uni-studio.js` and are
 checked by `tests/e2e-studio.js`.
 
-Game Development, Computer Engineering and Mobile Development each have one dedicated course so far. Their
-department pages say what is not covered. Do not add a department page without real course content behind it.
+Lessons can link to these pages with `[text](#/uni/...)`. The ethical hacking range must only ever contain fake targets: never add a challenge that reaches a real host.
+
+Dedicated elective courses: Computer Engineering 4 (CEN 101–104), Game Development 3, Mobile Development 3,
+Computer Science 4 and Cybersecurity 2 (SEC 101–102). Department pages say what is not covered. Do not add a department page without real course content behind it.
 
 There are no shared leaderboards, teams or tournaments in the University. Those need a server that verifies
 results; University progress lives on the student's device. The weekly challenge is a personal record.

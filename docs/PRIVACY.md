@@ -49,6 +49,9 @@ does not see code, answers, names or emails. The privacy note on the home page s
 downloaded from this site only when a language other than English is chosen. When a language other than English is
 in use, the AI tutor is told that language so it can answer in it; nothing else about the student is added.
 
+**Circuit simulator and hacking range (5.9):** everything runs on the device. Saved circuits and challenge results are kept
+with the rest of the University progress and included in backups; nothing is sent anywhere.
+
 **Automatic translation (5.8):** in a language other than English, page text that has no hand translation (lesson
 explanations, course descriptions and similar site text) is sent to the site's own AI service (the Cloudflare Worker)
 to be translated. Only the site's text is sent: code, editors, program output, the AI tutor conversation, names and

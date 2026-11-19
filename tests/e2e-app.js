@@ -20,7 +20,7 @@ let pass = 0, fail = 0; const ok = (m, c, x) => { if (c) pass++; else { fail++; 
     ok('5.1: the font stylesheet does not block the first paint', /fonts\.googleapis\.com\/css2[^>]*media="print" onload="this\.media='all'"/.test(page));
     // 5.3: pages for search engines and sharing
     { const pages = fs.readdirSync(ROOT).filter((f) => /^learn-[a-z]+\.html$/.test(f)); const sm = fs.readFileSync(path.join(ROOT, 'sitemap.xml'), 'utf8');
-      ok('5.3: a landing page for each of the 15 languages plus the pathway, all in the sitemap', pages.length === 15 && fs.existsSync(path.join(ROOT, 'software-engineering.html')) && (sm.match(/<loc>/g) || []).length === 107 && pages.every((f) => sm.includes(f)));
+      ok('5.3: a landing page for each of the 15 languages plus the pathway, all in the sitemap', pages.length === 15 && fs.existsSync(path.join(ROOT, 'software-engineering.html')) && (sm.match(/<loc>/g) || []).length === 110 /* 68 course pages (52 core + 16 electives) + 42 other pages */ && pages.every((f) => sm.includes(f)));
       // 5.4: a page per University course and per coding challenge, all in the sitemap, linking into the app
       global.window = {}; require(path.join(ROOT, 'uni/data/catalog.js')); require(path.join(ROOT, 'uni/data/departments.js')); require(path.join(ROOT, 'challenges.js'));
       const UC = window.UNI_CATALOG, ALLC = UC.courses.concat(UC.electives), CHL = window.LEARN_CHALLENGES;
@@ -68,7 +68,7 @@ let pass = 0, fail = 0; const ok = (m, c, x) => { if (c) pass++; else { fail++; 
     await p.keyboard.press('Tab'); ok('keyboard focus lands on a visible control with an accessible name', await p.evaluate(() => { const e = document.activeElement; return !!e && e !== document.body && ((e.textContent || '').trim().length > 0 || e.getAttribute('aria-label') || e.title); }));
     const noName = await p.evaluate(() => Array.from(document.querySelectorAll('#app button, #app a[href]')).filter((e) => e.offsetParent && !(e.textContent || '').trim() && !e.getAttribute('aria-label') && !e.title).length); ok('every visible button and link on the home page has a name', noName === 0, noName);
     const noLabel = await p.evaluate(() => Array.from(document.querySelectorAll('#app input, #app select, #app textarea')).filter((e) => e.offsetParent && e.type !== 'hidden' && !e.getAttribute('aria-label') && !e.placeholder && !e.title && !(e.id && document.querySelector('label[for="' + e.id + '"]')) && !e.closest('label')).length); ok('every visible form field on the home page is labelled', noLabel === 0, noLabel);
-    ok('version 5.8 is reported', await p.evaluate(() => /5\.8/.test(document.body.innerHTML)));
+    ok('version 5.9 is reported', await p.evaluate(() => /5\.9/.test(document.body.innerHTML)));
     // quiz loads the bank on demand
     const before = reqs.length; await p.evaluate(() => { location.hash = '#/quiz'; }); await p.waitForFunction(() => !/Loading the question bank/.test(document.querySelector('#app').innerText), null, { timeout: 30000 });
     ok('opening Quiz downloads the bank', reqs.slice(before).some((u) => u.includes('ranked_extra.json'))); ok('quiz page renders after loading', await p.locator('.quizcard .opt').count() >= 2 && !/could not be loaded/.test(await text()));
