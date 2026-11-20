@@ -977,6 +977,8 @@ Python follows the usual order: brackets, powers, multiply and divide, add and s
 - Confusing `=` (assign) with `==` (compare).
 - Forgetting precedence: `2 + 3 * 4` is `14`, not `20`. Add brackets when in doubt.
 
+> Key idea: Operators combine values into expressions: arithmetic gives numbers, comparisons give True or False, and logical operators combine conditions. Precedence decides what is worked out first, so use brackets whenever the order is not obvious.
+
 #TRY py | A rectangle is 7 wide and 4 high. Set `area` and `perimeter` using expressions with `width` and `height`.
 @starter
 width = 7

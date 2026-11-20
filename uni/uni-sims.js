@@ -6,7 +6,7 @@
    "server" is a JavaScript function below, and the guestbook runs in a sandboxed frame with no access to Learn.
    Progress is stored in the Learn save (uni.circ and uni.range).
    ============================================================ */
-(window.LEARN_MOD_BUILD = window.LEARN_MOD_BUILD || {})['uni-sims'] = '2.0.3'; // must equal BUILD in university.js
+(window.LEARN_MOD_BUILD = window.LEARN_MOD_BUILD || {})['uni-sims'] = '2.0.4'; // must equal BUILD in university.js
 (function () {
   'use strict';
   const U = window.LearnUniversity, A = U.api;

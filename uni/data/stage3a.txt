@@ -95,6 +95,9 @@ The cost is memory: one node per character.
 | Data on disk | B-tree |
 | Prefix queries on strings | trie |
 | Repeatedly take the smallest | heap |
+
+> Key idea: Self-balancing trees such as AVL and red-black trees keep searches O(log n) by rotating after changes. B-trees store many keys per node, which suits disks and databases. A trie stores strings by their characters, which makes prefix searches such as autocomplete fast.
+
 #Q Why do database indexes use B-trees rather than binary trees?
 - B-trees are easier to code
 * Wide nodes make the tree shallow, so few slow disk reads are needed
@@ -215,6 +218,9 @@ With coins 1, 3, 4 and amount 6 the answer is 2 (3 + 3). Always taking the large
 5. **Count:** number of subproblems times the work per subproblem gives the running time.
 
 Classic DP problems worth practising: longest common subsequence, edit distance, the knapsack problem, longest increasing subsequence.
+
+> Key idea: Dynamic programming applies when a problem breaks into overlapping subproblems with optimal substructure. Define the subproblem, write the recurrence, then avoid repeated work by caching results (memoization) or filling a table from the smallest cases up (tabulation).
+
 #Q What two properties make a problem suitable for dynamic programming?
 - Sorted input and small size
 * Optimal substructure and overlapping subproblems
@@ -545,6 +551,9 @@ The payoff is large: the logic can be tested with fakes, the database can be rep
 
 ### SOLID in one sentence
 Keep things small and focused, depend on stable abstractions, and make change arrive as new code.
+
+> Key idea: Subtypes must be usable wherever their base type is expected; interfaces should be small and focused on what each client needs; and high-level code should depend on abstractions, with the concrete parts supplied from outside. Together with single responsibility and open/closed, these make code easier to change and to test.
+
 #Q Which is a sign that the Liskov substitution principle has been violated?
 - A subclass adds a new method
 * A subclass overrides a method to throw "not supported"
@@ -603,6 +612,9 @@ Caching, retries, timing and access checks are commonly added this way.
 
 ### Seeing the family resemblance
 Adapter, decorator and proxy are all "an object that wraps another". They differ in **intent**: adapter changes the interface, decorator adds behaviour, proxy controls access.
+
+> Key idea: Creational patterns (factory, builder, singleton) control how objects are created. Structural patterns (adapter, decorator, facade, composite, proxy) control how objects are combined. Most of them wrap or stand in for another object behind a common interface.
+
 #Q What is the purpose of the adapter pattern?
 - To create exactly one instance of a class
 * To make an object with an incompatible interface usable through the interface your code expects
@@ -662,6 +674,9 @@ A request passes along a chain of handlers, each of which may handle it or pass 
 
 ### Patterns in modern languages
 Many patterns exist to work around missing language features. With first-class functions, a strategy is just a function, a command is a closure, and an iterator is built into the language. Know the idea; use the lightest form your language offers.
+
+> Key idea: Behavioural patterns organise how objects share work: strategy swaps algorithms, observer notifies subscribers, command turns actions into objects, and state, template method, iterator and chain of responsibility each give a name to a common shape. In modern languages many of them are just a function passed as a value.
+
 #Q Which pattern makes undo straightforward to implement?
 - Adapter
 * Command
@@ -1495,6 +1510,9 @@ Tokens suit APIs called by mobile apps and other services, and systems of many s
 
 ### OAuth 2.0 and OpenID Connect
 "Sign in with Google" is **OpenID Connect**, built on **OAuth 2.0**, a protocol letting a user grant an application limited access without sharing a password. Use a maintained library; the protocol has many subtle steps.
+
+> Key idea: A JWT is signed, not encrypted: anyone can read it, but nobody can change it without the key. Verify the signature with an algorithm fixed on the server, and check expiry and audience. Tokens are hard to revoke, so keep access tokens short-lived and use refresh tokens, or plain server sessions when they suffice.
+
 #Q What protects a JWT's payload from being changed?
 - Encryption
 * The signature, which will not match if the payload is altered
@@ -1553,6 +1571,9 @@ Returning 404 instead of 403 avoids confirming that the invoice exists.
 
 ### Test it
 For each role, write tests for what it must **not** be able to do. Authorization bugs are invisible in normal use; only negative tests find them.
+
+> Key idea: Authentication says who someone is; authorization decides what they may do. Use roles, attributes or ownership checks, enforce them on the server for every request, deny by default and grant the least privilege needed. Test it by trying to reach another user's data.
+
 #Q What does "deny by default" mean?
 - Every request is refused
 * Access is refused unless a rule explicitly allows it

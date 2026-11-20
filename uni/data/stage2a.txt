@@ -528,6 +528,9 @@ class Node {
 | Memory | compact | extra reference per item |
 
 In practice arrays win most of the time, partly because items that sit together in memory are much faster for the processor to read (you will see why in Stage 4). Linked structures matter most as the building block of trees and graphs.
+
+> Key idea: An array keeps items side by side, so reading by position is instant but inserting near the front shifts everything. A linked list chains nodes together, so inserting is cheap once you are in the right place but finding a position means walking the chain. Choose by how the data will be used.
+
 #Q Why is reading item 500 of an array fast?
 - The array is sorted
 * Its position can be computed directly because items are side by side and equal in size
@@ -707,6 +710,9 @@ Visiting every node is a **traversal**.
 - **Level-order** visits top to bottom, row by row, using a queue.
 
 The **height** of a tree is the number of steps from the root to the deepest leaf. A balanced tree of a million nodes has a height of only about 20.
+
+> Key idea: A tree is a hierarchy of nodes with one root. In a binary search tree, smaller values go left and larger go right, so a search halves the work at each step, but only while the tree stays balanced. Traversal orders decide the order in which nodes are visited.
+
 #Q In a binary search tree, where are values smaller than a node stored?
 * In its left subtree
 - In its right subtree
@@ -1024,6 +1030,9 @@ log₂ n is the number of times you can halve n before reaching 1. It grows extr
 
 ### The trade-off
 Binary search needs sorted data, and sorting costs O(n log n). If you search once, linear search is fine. If you search many times, sort once and binary-search each time, or use a hash table.
+
+> Key idea: Linear search checks every item and works on any list in O(n). Binary search needs sorted data and halves the range each step, taking O(log n). Keep a clear invariant about where the target can be, and the boundaries come out right.
+
 #TRY js | Complete the binary search so it returns the index of target, or -1.
 @starter
 function binarySearch(items, target) {
@@ -1103,6 +1112,9 @@ Repeatedly sweep through, swapping neighbours that are out of order. Simple to e
 
 ### Why O(n²) is not good enough
 Sorting a million items with an O(n²) algorithm takes on the order of a trillion steps: hours. The next lesson's algorithms do it in a fraction of a second.
+
+> Key idea: Selection, insertion and bubble sort are easy to write but take O(n²) time, which becomes far too slow for large inputs. Insertion sort is the useful one: fast on nearly sorted data, stable and in place.
+
 #Q Which simple sort is fast when the data is already nearly sorted?
 - Selection sort
 * Insertion sort
@@ -1240,6 +1252,9 @@ Any sort that works only by comparing items needs at least on the order of n log
 
 ### What your language uses
 `sort()` in Python and in modern JavaScript engines uses **Timsort**, a hybrid of merge sort and insertion sort tuned for real data. In practice you call the built-in sort. You study these algorithms to learn to analyse and design your own.
+
+> Key idea: Divide and conquer splits a problem, solves the halves and combines the answers. Merge sort is always O(n log n) and stable; quicksort is usually faster in practice but can degrade to O(n²) with bad pivots. No comparison sort can beat O(n log n), and your language's built-in sort is already a tuned version of these ideas.
+
 #Q What is the time complexity of merge sort?
 - O(n)
 * O(n log n)

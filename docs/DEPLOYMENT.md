@@ -3,11 +3,12 @@
 The site is static files. There is no build step and nothing to install.
 
 ## Upload
-Upload **everything in this folder**, keeping the folder structure: `index.html`, `sw.js`, `manifest.json`,
-the icons, `ranked_extra.json` (required: the quiz and multiplayer question bank), `workspace.js`,
-`.nojekyll`, and the folders `uni/`, `firebase/`, `docs/` and `tests/` (the last three are optional on the
-live site; they contain no secrets). The old `ranked_questions.json` is no longer used and can be deleted
-from your repository.
+Upload **everything in this folder**, keeping the folder structure: `index.html`, `app.js`, `challenges.js`,
+`sw.js`, `manifest.json`, the icons, the `learn-*.html`, `course-*.html` and `challenge-*.html` pages,
+`sitemap.xml`, `ranked_extra.json` (required: the quiz and multiplayer question bank), `.nojekyll`, and the
+folders `i18n/`, `uni/`, `firebase/`, `docs/` and `tests/` (the last three are optional on the live site;
+they contain no secrets). `workspace.js` and `ranked_questions.json` were removed in 5.9.1: if your
+repository still has them, delete them (nothing uses them).
 
 - **GitHub Pages (project site, served under `/Learn/`):** Add file > Upload files, drag everything in,
   commit to `main`. Settings > Pages > Deploy from a branch > `main` / root. All paths are relative.
@@ -53,7 +54,7 @@ cache replacement, offline use of cached pages, and loading the question bank on
 |---|---|---|
 | **Switch on secure mode for Firebase** | Until you do, the multiplayer database is world-readable and world-writable | `docs/FIREBASE_SETUP.md` (verify in a test project first) |
 | Decide how players can ask for their online data to be deleted | There is no self-service deletion | `docs/PRIVACY.md` |
-| Delete `ranked_questions.json` from your repository | No longer used (10 MB) | – |
+| Delete `ranked_questions.json` and `workspace.js` from your repository if they are still there | Not used (`workspace.js` was an old copy of code that lives in `app.js`) | – |
 | (Optional) connect an AI model | Needs your own server endpoint and key | `uni/ai-endpoint-example/README.md` |
 | (Optional) server-side validation of scores and rewards | Needed before leaderboards can be trusted | `docs/COMMUNITY.md` |
 

@@ -293,6 +293,9 @@ ws.send(JSON.stringify({ text: "hello" }));
 ```
 
 Persistent connections change server design: each one uses memory, and with several servers a message must reach users connected to a different one.
+
+> Key idea: TLS gives a connection confidentiality, integrity and server authentication: asymmetric cryptography and certificates establish trust, then fast symmetric keys protect the data. HTTPS hides content but not which site you visit. Use it everywhere, including for WebSockets and other real-time connections.
+
 #Q Why does TLS use both asymmetric and symmetric cryptography?
 - Symmetric cryptography is insecure
 * Asymmetric cryptography establishes a shared secret; fast symmetric cryptography then protects the data
@@ -711,6 +714,9 @@ await setBalance(id, balance - 100);           // balance may already be out of 
 | Much waiting on network or disk | async, on an event loop |
 | Heavy computation | threads or processes across cores |
 | Both | an event loop plus a pool of workers |
+
+> Key idea: Asynchronous code starts slow operations and carries on while they complete, with an event loop running callbacks when results arrive. async and await make that code read top to bottom. Never block the loop with long work, run independent tasks together, and handle rejected promises.
+
 #Q What does `await` do to the event loop's single thread?
 - Blocks it until the result arrives
 * Suspends only the current function, letting the loop run other tasks
@@ -1175,6 +1181,9 @@ Deployment is not the end. Automated **health checks**, monitoring and alerts te
 
 ### Measuring delivery
 The widely used DORA metrics: **deployment frequency**, **lead time** from commit to production, **change failure rate**, and **time to restore** service. Research across many organisations finds that teams that deploy more often also fail less.
+
+> Key idea: Release small changes often, because small releases are easier to test and to undo. Move each change through environments, deploy without downtime using rolling, blue-green or canary releases, separate deploying code from releasing features with flags, and always have a rollback plan.
+
 #Q What is the difference between continuous delivery and continuous deployment?
 - There is none
 * Delivery keeps software always releasable with a manual release step; deployment releases every passing change automatically

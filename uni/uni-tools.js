@@ -6,7 +6,7 @@
      portfolio  one printable page of the student's real record
    Everything runs on the student's device and is stored in the Learn save.
    ============================================================ */
-(window.LEARN_MOD_BUILD = window.LEARN_MOD_BUILD || {})['uni-tools'] = '2.0.3'; // must equal BUILD in university.js
+(window.LEARN_MOD_BUILD = window.LEARN_MOD_BUILD || {})['uni-tools'] = '2.0.4'; // must equal BUILD in university.js
 (function () {
   'use strict';
   const U = window.LearnUniversity, A = U.api, D = window.UNI_DEPTS || { coding: [], concepts: [], behavioural: [] };

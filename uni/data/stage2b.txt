@@ -257,6 +257,9 @@ SELECT c.name, SUM(o.amount) AS total
 FROM customers c JOIN orders o ON o.customer_id = c.id
 GROUP BY c.name;
 ```
+
+> Key idea: Aggregate functions summarise many rows into one value. GROUP BY computes them per group, and HAVING filters the groups afterwards, while WHERE filters rows before grouping. Remember the logical order: FROM, WHERE, GROUP BY, HAVING, SELECT, ORDER BY.
+
 #TRY sql | Show each city and how many customers live there, most customers first.
 @setup
 CREATE TABLE customers (id INTEGER, name TEXT, city TEXT);
@@ -543,6 +546,9 @@ Merge `main` into your branch often, keep changes small, and tell teammates when
 
 ### Undoing safely
 `git revert <commit>` creates a new commit that undoes an earlier one. It is safe on shared branches because it adds history instead of rewriting it.
+
+> Key idea: A merge joins two histories with a merge commit; a rebase replays your commits on top of another branch, giving a straight line but new commit IDs. Resolve conflicts by editing the marked sections and testing. Never rebase commits that others already have.
+
 #Q What does a merge commit have that an ordinary commit does not?
 - A longer message
 * Two parent commits
@@ -1340,6 +1346,9 @@ Forgetting that ownership check, so that changing the number in `/orders/1001` s
 
 ### Prefer not to build it
 For real products, use a proven authentication library or service. You build it here to understand what those tools do.
+
+> Key idea: Never store passwords: store a salted hash from a slow algorithm such as Argon2, bcrypt or scrypt. Keep users signed in with a secure session, rate-limit sign-in, and check authorization separately on every request. Where possible, use a proven library or service instead of building it yourself.
+
 #Q What should a server store instead of a user's password?
 - The password, encrypted with a key kept in the code
 * A salted hash from a password-hashing function such as bcrypt or Argon2

@@ -1,6 +1,6 @@
 /* Learn: real Python (Pyodide) for the open Python lab. Optional and never used for grading.
    window.LearnRealPython = { state, load(onStatus), run(code, stdin, timeoutMs) }   state: 'idle' | 'loading' | 'ready' | 'failed' */
-(window.LEARN_MOD_BUILD = window.LEARN_MOD_BUILD || {})['realpy'] = '2.0.3'; // must equal BUILD in university.js
+(window.LEARN_MOD_BUILD = window.LEARN_MOD_BUILD || {})['realpy'] = '2.0.4'; // must equal BUILD in university.js
 (function () {
   'use strict';
   const R = { state: 'idle', version: '', error: '' };

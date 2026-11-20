@@ -720,6 +720,9 @@ Add `* { box-sizing: border-box; }` at the top of your stylesheet so that a widt
 
 ### Units
 `px` is a fixed size. `rem` is relative to the user's chosen text size, so it respects their settings; prefer it for text. `%` is relative to the parent.
+
+> Key idea: A CSS rule is a selector plus declarations. When several rules apply, the more specific one wins, and among equals the later one wins. Every element is a box of content, padding, border and margin, and relative units keep layouts flexible.
+
 #Q Which selector picks every element with class="note"?
 - note
 * .note
@@ -1191,6 +1194,9 @@ Future you, searching for when a bug appeared, will be grateful.
 A file named `.gitignore` lists things Git should leave out: generated files, downloaded packages, and above all **secrets** such as passwords and keys.
 
 > Warning: A secret committed to a repository stays in its history even after you delete the file. Treat any secret that was ever committed as leaked and replace it.
+
+> Key idea: Git saves snapshots of your work called commits. Changes move from the working folder to the staging area to a commit. Make small, focused commits with clear messages, and never commit secrets.
+
 #Q What is a commit?
 - A copy of one file
 * A saved snapshot of the project with a message

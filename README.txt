@@ -1,3 +1,5 @@
+08Raph Learn 5.9.1: review and fixes (fuller explanations for 155 lessons, async JavaScript output, two SQL lessons rebuilt, quiz bank corrections). DELETE workspace.js and ranked_questions.json from your repository if they are there.
+
 08Raph Learn 5.9: ethical hacking (SEC 101, SEC 102 and a hacking range with fake targets) and digital logic (CEN 104 and a circuit simulator)
 - NEW FILES: uni/uni-sims.js, uni/data/electives5.txt, course-ce104.html, course-sec101.html, course-sec102.html, tests/e2e-sims.js. Upload the whole folder. No database rule changes.
 

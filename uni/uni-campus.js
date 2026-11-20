@@ -6,7 +6,7 @@
    Everything here is derived from, or stored inside, the student's own Learn save (S.uni) on their device.
    Nothing is sent anywhere. There are no shared leaderboards: see docs/SECURITY.md for why.
    ============================================================ */
-(window.LEARN_MOD_BUILD = window.LEARN_MOD_BUILD || {})['uni-campus'] = '2.0.3'; // must equal BUILD in university.js
+(window.LEARN_MOD_BUILD = window.LEARN_MOD_BUILD || {})['uni-campus'] = '2.0.4'; // must equal BUILD in university.js
 (function () {
   'use strict';
   const U = window.LearnUniversity, A = U.api, D = window.UNI_DEPTS || { depts: [], roles: [], concepts: [], behavioural: [], coding: [] };

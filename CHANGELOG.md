@@ -1,5 +1,36 @@
 # Changelog
 
+## 5.9.1 — 19 November 2026 (review and fixes)
+A full review: every lesson run through the real grader, every quiz bank question checked (and every runnable one
+executed), every page audited at iPad and phone size in light and dark, and the code linted.
+### Fixed
+- **Asynchronous JavaScript and TypeScript lost output.** The lesson grader, the playground, the example runner and
+  challenges ran JS synchronously, so anything printed from `.then()`, `await` or `setTimeout` vanished. Code that uses
+  them now runs in the existing async runner (`runCodeAsync`, new `gradeLessonAsync`, new `TsEngine.runAsync`).
+- **Two SQL lessons did not teach their topic:** `sql_order_limit` ("ORDER BY and LIMIT") taught `SELECT 3 + 4`, and
+  `sql_group_count` ("Counting groups") had an unrelated task. Both rebuilt against the practice database.
+- **Weak checks that accepted wrong answers:** `js_promises` and `ts-async-return` now check the resolved value;
+  `cs-nullable` checks its printed result; `bug-modify` tests that 0 is kept; `bash-bug-02` (a bug that is only a
+  space) no longer passes the offline grader unchanged (new optional `reject` patterns for online-language lessons).
+- **Hints showed raw `<code>` tags** in 46 lessons. Hints now allow bare code/bold tags only (`hintHtml`), escaping
+  everything else. One hint (`cs_foreach`) did not match its task.
+- **Lost characters:** Ruby's `<<`, Swift's `0..<3` and C#'s `List<T>` disappeared from lesson text.
+- **Quiz bank:** 16 questions were about another language (C# questions in the C and C++ banks, C/C++ in C#,
+  TypeScript in JavaScript); rewritten for the right language. 4 Go duplicates padded with filler removed; 3 short
+  explanations expanded.
+- `e2e-app.js`: the quiz-heading check sampled 12 random questions and failed now and then because it did not know
+  PHP's `var_dump` and Ruby's `p` print; it now checks the whole bank deterministically.
+### Improved
+- **155 lessons** (all 15 languages) whose explanation was one sentence now have a full explanation
+  (`LESSON_EXPLAIN` in app.js). Lesson text can use code blocks and lists (styles added).
+- **23 University lessons** without a closing summary now end with a "Key idea".
+### Removed
+- `workspace.js` (an unused copy of code that lives in app.js) and `ranked_questions.json` (10 MB, unused since 4.x).
+  `docs/DEPLOYMENT.md` corrected.
+### Tests
+- New `tests/e2e-lessons.js` (suite 16, 18 checks over all 361 lessons and 5,667 bank questions). Run against 5.9 it
+  reports 10 of the bugs above. Screen audit now includes the circuit simulator and hacking range pages.
+
 ## 5.9 — 19 November 2026
 ### Added
 - **Three elective courses** in `uni/data/electives5.txt` (6 lessons each, tested JavaScript assignment, examination,

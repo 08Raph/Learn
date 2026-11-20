@@ -665,6 +665,9 @@ A slow service makes its callers slow, which exhausts their threads, which makes
 - **RPO** (recovery point objective): how much recent data may be lost?
 
 These decide how much replication and backup you must pay for.
+
+> Key idea: Availability is the share of time a system works, and components in series multiply their failure chances. Add independent redundancy to remove single points of failure, detect failures with health checks, contain them with timeouts and circuit breakers, and test recovery before you need it.
+
 #Q A request depends on three services in series, each 99.9% available. What is the approximate availability of the request?
 - 99.9%
 * 99.7%
@@ -1476,6 +1479,9 @@ The fastest code is code that does not run. Is this feature used? Can the result
 
 ### Constant factors matter eventually
 Once the algorithm is right, constants count: an O(n) pass with a tight loop over an array can be many times faster than one chasing pointers through objects. That is the subject of the next lesson.
+
+> Key idea: Look for the big wins first: remove nested loops over the same data, batch work, cache repeated results, pick a data structure that matches how the data is accessed, accept approximate answers when they are good enough, and avoid work that is not needed at all. Constant factors matter only after that.
+
 #Q What is the most effective general way to speed up a program?
 - Rewriting it in assembly
 * Reducing the amount of work, usually with a better algorithm or data structure
