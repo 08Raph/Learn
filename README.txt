@@ -1,3 +1,5 @@
+08Raph Learn 5.10: 48 new lessons (8 each for Java, Go, Rust, PHP, Ruby and Bash, all run before release), 31 examples that could not run fixed, the PHP classes lesson fixed for PHP 7.4, and patch notes that did not appear after updating.
+
 08Raph Learn 5.9.1: review and fixes (fuller explanations for 155 lessons, async JavaScript output, two SQL lessons rebuilt, quiz bank corrections). DELETE workspace.js and ranked_questions.json from your repository if they are there.
 
 08Raph Learn 5.9: ethical hacking (SEC 101, SEC 102 and a hacking range with fake targets) and digital logic (CEN 104 and a circuit simulator)

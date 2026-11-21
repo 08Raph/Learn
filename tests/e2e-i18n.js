@@ -34,7 +34,7 @@ const LANGS = { es: 'es-ES', fr: 'fr-FR', zh: 'zh-CN', hi: 'hi-IN', ar: 'ar-SA' 
       ok(c + ': the browser language is used on a first visit, with the right text direction', await p.evaluate(() => document.documentElement.dir) === (c === 'ar' ? 'rtl' : 'ltr') && /🌐 /.test(await p.innerText('#langBtn')));
       const homeLeft = (await p.evaluate(() => window.__learnI18n.harvest(document.querySelector('#app')))).filter(still);
       ok(c + ': every home-page string that has a translation is shown translated', homeLeft.length === 0, homeLeft.slice(0, 6).join(' | '));
-      ok(c + ': the big headline and the hero sentence are translated with their numbers', (await p.innerHTML('.hero h1')) === L.html.hero && (await p.innerText('.hero p')).includes('387'));
+      ok(c + ': the big headline and the hero sentence are translated with their numbers', (await p.innerHTML('.hero h1')) === L.html.hero && (await p.innerText('.hero p')).includes('435'));
       await p.goto(BASE + '#/py/hello'); await p.waitForSelector('#runBtn'); await p.waitForTimeout(500);
       const lesLeft = (await p.evaluate(() => window.__learnI18n.harvest(document.querySelector('#app')))).filter(still);
       ok(c + ': the lesson screen is translated (title, explanation, task, buttons)', lesLeft.length === 0 && (await p.innerText('.learn h2')).includes(L.lessons['py:hello'].title), lesLeft.slice(0, 6).join(' | '));

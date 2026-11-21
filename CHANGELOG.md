@@ -1,5 +1,38 @@
 # Changelog
 
+## 5.10 — 20 November 2026 (48 new lessons)
+### Added
+- **8 new lessons each for Java, Go, Rust, PHP, Ruby and Bash** (`LESSONS_ONLINE_MORE` in app.js, placed before each
+  course's bug-hunt and project lessons). Each of these courses grows from 16 to 24 lessons; the app now has 409
+  language lessons plus 26 terminal lessons.
+  - Java: while and break, Math and casting, StringBuilder, inheritance and @Override, enums, classic switch, generic
+    methods, sorting with Comparator.
+  - Go: switch, range, pointers, pointer receivers, errors with %w and errors.Is, sort.Slice, strings.Builder and
+    Fields, WaitGroup with a buffered channel.
+  - Rust: while and loop with a break value, tuples, enums with data, String and &str, HashMap entry, traits, the ?
+    operator, generics with trait bounds.
+  - PHP: while, explode and implode, usort with <=>, static and const, interfaces, inheritance and parent::, JSON,
+    array_reduce.
+  - Ruby: while and until, symbols, split/map/join, inheritance and super, attr_accessor, case/when, modules and
+    Comparable, group_by and tally.
+  - Bash: while loops, arithmetic, arrays, case, string operations, reading lines, functions that return results,
+    default values and argument checks.
+  - Every answer, example and runnable quiz was executed with local compilers set to the online runner's old versions
+    (Java 13, Go 1.13, Rust 2018 edition, PHP 7.4, Ruby 2.7, Bash 5.0) before release.
+- New test `tests/online-lessons.js` (suite 17) runs all Java, Go, Rust, PHP, Ruby and Bash lessons that way.
+### Fixed
+- **31 examples could not run as written** (functions or types declared inside `main`, unused Go imports, fragments
+  with no `main`): 6 Java, 11 Go, 4 Rust, 6 Kotlin, 3 Swift, 1 PHP. They are now complete programs
+  (`LESSON_EXAMPLES`). The Java, Go, Rust and PHP ones are verified by suite 17; **the Kotlin and Swift ones are not
+  verified** (no compiler here; they are small wrappers in `fun main()` and added prints).
+- **php-core-08 (Classes) needed PHP 8** (constructor property promotion) and failed on the online runner, which uses
+  PHP 7.4. Rewritten with a classic property and constructor; the explanation now mentions the PHP 8 form.
+  php-core-02's explanation listed `str_contains` (PHP 8) without saying so; it now shows `strpos(...) !== false`.
+- **Patch notes for 5.9.1 never appeared:** the "new version" check compared versions with `Number()`, and
+  `Number('5.9.1')` is NaN. Versions are now compared part by part (`verNewer`), which also makes 5.10 newer than 5.9.
+### Not done
+- Swift and Kotlin got no new lessons, because their code cannot be run here to check it.
+
 ## 5.9.1 — 19 November 2026 (review and fixes)
 A full review: every lesson run through the real grader, every quiz bank question checked (and every runnable one
 executed), every page audited at iPad and phone size in light and dark, and the code linted.

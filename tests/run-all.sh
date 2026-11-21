@@ -24,6 +24,7 @@ echo "== 12. 5.0 community: AI in lessons, weekly goal and leaderboard, reminder
 echo "== 13. AI Professor fallback chain: Workers AI, then Groq, Cerebras, Gemini, OpenRouter (SIMULATED services)"; node tests/ai-worker.test.mjs | tail -1
 echo "== 14. 5.7 languages (es, fr, zh, hi, ar), start guide, progress card (MOCKED AI service; translation quality is not tested)"; node tests/build-i18n.js >/dev/null && APP_DIR="$ROOT" node tests/e2e-i18n.js | tail -2
 echo "== 15. 5.9 circuit simulator and ethical hacking range (all targets are fake and inside the page)"; python3 -m http.server 8765 --directory "$ROOT" >/dev/null 2>&1 & SRV=$!; sleep 1; node tests/e2e-sims.js | tail -2
-echo "== 16. 5.9.1 every language lesson through the real grader, plus the quiz bank"; node tests/e2e-lessons.js | tail -2; kill $SRV 2>/dev/null
+echo "== 16. 5.9.1 every language lesson through the real grader, plus the quiz bank"; node tests/e2e-lessons.js | tail -2
+echo "== 17. 5.10 Java, Go, Rust, PHP, Ruby and Bash lessons run for real (LOCAL compilers set to the online runner's old versions; not Judge0 itself)"; node tests/online-lessons.js | tail -8; kill $SRV 2>/dev/null
 rm -rf "$TMP"
 echo "Done. Each suite prints '0 problems' or '0 failed of N' when everything in it passed."

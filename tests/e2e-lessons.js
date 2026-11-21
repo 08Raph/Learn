@@ -39,7 +39,7 @@ let pass = 0, fail = 0; const ok = (c, m) => { if (c) pass++; else { fail++; con
     r.asyncTs = (await runCodeAsync('ts', 'async function f(): Promise<number> { return 5; }\nf().then((n) => console.log(n));')).out;
     return r; });
   console.log('  ' + R.lessons + ' lessons, ' + R.bankN + ' quiz bank questions');
-  ok(R.lessons >= 360, 'all language lessons are loaded (' + R.lessons + ')');
+  ok(R.lessons >= 409, 'all language lessons are loaded (' + R.lessons + ')');
   ok(R.dupId.length === 0, 'no duplicate lesson ids: ' + R.dupId.join(', '));
   ok(R.solFail.length === 0, 'every sample solution passes its own check through the real grader: ' + R.solFail.slice(0, 3).join(' | '));
   ok(R.starterPass.length === 0, 'no starter code passes without changes (offline grader included): ' + R.starterPass.join(', '));
